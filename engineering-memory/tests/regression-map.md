@@ -1,0 +1,144 @@
+# Regression Test Map
+
+Map bugs and critical flows to tests so Codex knows what to run after related changes.
+
+## Critical Flow Entry Format
+
+```md
+### Flow: Short flow name
+
+Related modules:
+- `src/...`
+
+Tests to run:
+- `tests/...`
+
+Known historical bugs:
+- Bug references
+```
+
+## Bug Regression Entry Format
+
+```md
+### Bug reference or short bug title
+
+Test file:
+- `tests/...`
+
+What it protects:
+- Describe the regression risk.
+```
+
+## Critical Flow Tests
+
+### Flow: Research toolkit crawl and source normalization
+
+Related modules:
+- `argus_server/tools/research_toolkit.py`
+- `argus_server/server.py`
+
+Tests to run:
+- `uv run python -m unittest tests.test_research_toolkit`
+- `uv run python -m unittest discover -s tests`
+
+Known historical bugs:
+- Invalid non-HTTP URLs must be rejected.
+- `render_js=True` must either use the optional Crawl4AI adapter or return a clear missing-install error.
+- Gallery downloads must not write outside the project output area.
+- Dry-run behavior must require explicit confirmation before executing gallery-dl.
+- Cross-source topic research must normalize source names and merged result shape.
+- Topic-driven image research must dedupe image URLs and preserve source page context.
+- Optional `web:<provider>` research sources must preserve provider errors and normalize answer/result/citation shapes when configured.
+
+### Flow: MCP server import and tool registration
+
+Related modules:
+- `argus_server/server.py`
+- `argus_server/tools/`
+
+Tests to run:
+- No dedicated automated test is mapped yet.
+- Use a targeted import/registration smoke check before changing tool registration.
+
+Known historical bugs:
+- Public MCP surface is large and client-facing; tool names, signatures, and response shapes are regression-sensitive.
+
+### Flow: Storage-backed data retrieval
+
+Related modules:
+- `argus/storage/`
+- `argus_server/services/parser_service.py`
+- `argus_server/tools/data_query.py`
+- `argus_server/tools/search_tools.py`
+
+Tests to run:
+- No dedicated automated test is mapped yet.
+- Add temporary SQLite fixture tests when changing schemas, storage backends, parser service, or query/search tools.
+
+Known historical bugs:
+- URL/platform dedupe, RSS feed/item uniqueness, crawl history, and AI filter versioning are schema-sensitive.
+
+### Flow: Scheduler and notification automation
+
+Related modules:
+- `argus_server/tools/scheduler.py`
+- `argus_server/scheduler_runner.py`
+- `argus_server/tools/notification.py`
+- `argus/notification/`
+
+Tests to run:
+- No dedicated automated test is mapped yet.
+- Add dry-run plist/workflow and notification mock tests before changing launchd or webhook behavior.
+
+Known historical bugs:
+- launchd requires capitalized `Hour`, `Minute`, `Day`, `Weekday`, and `Month` keys; lowercase keys can trigger at the wrong cadence.
+
+## Bug Regression Tests
+
+### Research toolkit safe gallery output
+
+Test file:
+- `tests/test_research_toolkit.py`
+
+What it protects:
+- Prevents `download_gallery` from accepting output directories outside the project root and preserves safe dry-run behavior.
+
+### Research toolkit invalid URL handling
+
+Test file:
+- `tests/test_research_toolkit.py`
+
+What it protects:
+- Prevents `crawl_url` from fetching unsupported schemes such as `file://`.
+
+### Research toolkit optional Crawl4AI rendering
+
+Test file:
+- `tests/test_research_toolkit.py`
+
+What it protects:
+- Keeps `crawl_url(render_js=True)` dependency-optional: missing Crawl4AI returns `NOT_INSTALLED`, while Crawl4AI results normalize back into the standard title/text/links/images response shape.
+
+### Research toolkit source merge shape
+
+Test file:
+- `tests/test_research_toolkit.py`
+
+What it protects:
+- Keeps `research_topic` merged results normalized across Hacker News and Wikipedia adapters.
+
+### Research toolkit optional web search source
+
+Test file:
+- `tests/test_research_toolkit.py`
+
+What it protects:
+- Keeps optional `web:<provider>` sources normalized through the existing AI web search adapter and preserves adapter-unavailable errors without failing the whole research topic response.
+
+### Research toolkit topic image discovery
+
+Test file:
+- `tests/test_research_toolkit.py`
+
+What it protects:
+- Keeps `research_images` tied to topic search results, preserves source page context, dedupes repeated image URLs across pages, and reports source errors without failing the whole response.

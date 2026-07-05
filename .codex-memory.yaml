@@ -1,0 +1,115 @@
+memory_version: 1
+system_name: Engineering Memory Engine
+project_name: "Argus"
+
+context_budget:
+  default_mode: lightweight
+  never_read_full_memory_by_default: true
+  # Counts files under engineering-memory/ only. AGENTS.md, context.md, relevant source files,
+  # and relevant tests are required task context and do not count against this limit.
+  max_memory_files_per_task: 4
+  always_context_files:
+    - AGENTS.md
+    - context.md
+  prefer_search_over_full_read: true
+  stop_when_fix_scope_is_clear: true
+
+read_policy:
+  normal_development:
+    read:
+      - AGENTS.md
+      - context.md
+      - relevant_source_files
+      - relevant_tests
+    avoid:
+      - full_engineering_memory
+
+  bug_fix:
+    read:
+      - engineering-memory/rules/active-rules.md
+      - engineering-memory/bugs/recurring-patterns.md
+      - engineering-memory/bugs/root-causes.md
+      - engineering-memory/tests/regression-map.md
+    search_if_needed:
+      - engineering-memory/bugs/bug-ledger.md
+      - engineering-memory/architecture/module-map.md
+      - engineering-memory/architecture/decisions.md
+      - engineering-memory/tech-debt/debt-register.md
+
+  architecture_change:
+    read:
+      - engineering-memory/architecture/decisions.md
+      - engineering-memory/architecture/module-map.md
+      - engineering-memory/rules/active-rules.md
+      - engineering-memory/tech-debt/debt-register.md
+
+  shared_module_change:
+    read:
+      - engineering-memory/architecture/module-map.md
+      - engineering-memory/rules/module-rules.md
+      - engineering-memory/tests/regression-map.md
+
+update_policy:
+  after_bug_fix:
+    append_or_update:
+      - engineering-memory/bugs/bug-ledger.md
+      - engineering-memory/bugs/root-causes.md
+      - engineering-memory/bugs/recurring-patterns.md
+      - engineering-memory/tests/regression-map.md
+      - engineering-memory/tech-debt/debt-register.md
+      - context.md
+
+  after_architecture_decision:
+    append_or_update:
+      - engineering-memory/architecture/decisions.md
+      - engineering-memory/architecture/module-map.md
+      - engineering-memory/rules/active-rules.md
+      - context.md
+
+  after_refactor:
+    append_or_update:
+      - engineering-memory/architecture/module-map.md
+      - engineering-memory/tests/regression-map.md
+      - engineering-memory/tech-debt/debt-register.md
+      - context.md
+
+compaction_policy:
+  trigger_when:
+    - bug-ledger exceeds 50 entries
+    - active-rules exceeds 20 rules
+    - recurring-patterns exceeds 25 patterns
+    - same root cause appears more than 3 times
+  action:
+    - summarize old bug entries
+    - promote repeated bugs into root causes or patterns
+    - promote stable prevention into active rules
+    - deprecate outdated rules
+    - update metrics
+
+severity_levels:
+  P0: production_blocker_or_data_loss
+  P1: core_flow_broken
+  P2: important_non_blocking_issue
+  P3: minor_issue_or_cleanup
+
+pattern_levels:
+  local: one_file_or_one_function
+  chain: one_call_chain_or_workflow
+  module: repeated_inside_one_module
+  cross_module: repeated_across_modules
+  architecture: caused_by_design_boundary_or_contract
+
+memory_lifecycle:
+  active: currently_valid
+  superseded: replaced_by_new_rule_or_design
+  deprecated: no_longer_recommended
+  archived: historical_reference_only
+
+privacy_policy:
+  do_not_store:
+    - secrets
+    - api_keys
+    - credentials
+    - personal_data
+    - customer_data
+    - absolute_private_machine_paths

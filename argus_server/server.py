@@ -97,6 +97,7 @@ def _get_tools(project_root: Optional[str] = None):
             external_api=_tools_instances['external'],
             search_tools=_tools_instances['search'],
             article_reader=_tools_instances['article'],
+            ai_search=_tools_instances['ai'],
         )
         # 确保 telemetry store 启动 (单例)
         TelemetryStore.instance(project_root)
@@ -3122,7 +3123,7 @@ async def research_toolkit_health() -> str:
     检查研究工具包能力与可选开源 CLI 安装状态。
 
     覆盖:
-      - 内置无依赖能力: crawl_url / discover_page_images / research_topic / download_gallery
+      - 内置无依赖能力: crawl_url / discover_page_images / research_images / research_topic / download_gallery
       - 可选高质量 CLI: gallery-dl / yt-dlp / scrapy / crawl4ai
 
     Returns:
@@ -3143,8 +3144,8 @@ async def crawl_url(
     """
     抓取单个网页并提取 title / description / 正文文本 / 链接 / 图片候选。
 
-    这是依赖最少、最稳的基础网页读取入口。当前内置适配器不执行 JavaScript;
-    render_js=True 会返回明确错误, 后续接入 Crawl4AI 后再启用动态页面渲染。
+    这是依赖最少、最稳的基础网页读取入口。默认使用内置 HTTP 抓取;
+    render_js=True 时会在运行时尝试使用可选 Crawl4AI 适配器, 未安装则返回明确安装提示。
 
     Args:
         url: http/https URL。
@@ -3245,6 +3246,7 @@ async def research_topic(
       - wikipedia
       - reddit:<subreddit>, 例如 reddit:LocalLLaMA
       - github_code (需要 GitHub token 时会返回 AUTH_REQUIRED)
+      - web 或 web:<provider>, provider 支持 tavily / exa / perplexity / brave
 
     Args:
         query: 查询主题。
@@ -3260,6 +3262,42 @@ async def research_topic(
         query=query,
         sources=sources,
         limit=limit,
+    )
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+
+@mcp.tool
+async def research_images(
+    query: str,
+    sources: Optional[List[str]] = None,
+    limit: int = 5,
+    images_per_page: int = 5,
+    timeout: int = 20,
+) -> str:
+    """
+    先按主题查找相关页面, 再从页面中发现图片候选, 保留来源页上下文。
+
+    这是轻量图片研究入口, 不是下载器, 也不是专用图片搜索引擎。
+    默认 sources 为 ["web:tavily"], 也可传 local_news / hackernews / wikipedia / reddit:<subreddit> 等。
+
+    Args:
+        query: 查询主题。
+        sources: 用于找页面的信息源列表。
+        limit: 最多抓取多少个页面。
+        images_per_page: 每个页面最多提取多少张图片。
+        timeout: 单页面抓取超时秒数。
+
+    Returns:
+        JSON: 图片候选、来源页面、source 错误和轻量 confidence 分数。
+    """
+    tools = _get_tools()
+    result = await asyncio.to_thread(
+        tools['research'].research_images,
+        query=query,
+        sources=sources,
+        limit=limit,
+        images_per_page=images_per_page,
+        timeout=timeout,
     )
     return json.dumps(result, ensure_ascii=False, indent=2, default=str)
 

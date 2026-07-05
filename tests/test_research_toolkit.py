@@ -38,6 +38,83 @@ class FakeExternalAPI:
         }
 
 
+class FakeAIWebSearch:
+    def ai_web_search(self, query, provider, max_results, include_answer, search_depth):
+        return {
+            "success": True,
+            "summary": {"provider": provider, "count": 1},
+            "data": {
+                "answer": f"{query} web answer",
+                "results": [
+                    {
+                        "title": f"{query} field report",
+                        "url": "https://example.com/web",
+                        "content": "Web result snippet",
+                        "score": 0.87,
+                    }
+                ],
+                "query": query,
+            },
+        }
+
+
+class FakeMultiPageAIWebSearch:
+    def ai_web_search(self, query, provider, max_results, include_answer, search_depth):
+        return {
+            "success": True,
+            "summary": {"provider": provider, "count": 2},
+            "data": {
+                "results": [
+                    {
+                        "title": f"{query} first page",
+                        "url": "https://example.com/first",
+                        "content": "First image source page",
+                        "score": 0.6,
+                    },
+                    {
+                        "title": f"{query} second page",
+                        "url": "https://example.com/second",
+                        "content": "Second image source page",
+                        "score": 0.5,
+                    },
+                ],
+                "query": query,
+            },
+        }
+
+
+class FakeMarkdown:
+    raw_markdown = "# Rendered Title\nRendered body from browser"
+    fit_markdown = None
+    markdown_with_citations = None
+
+
+class FakeCrawl4AIResult:
+    success = True
+    url = "https://example.com/rendered"
+    status_code = 200
+    redirected_status_code = None
+    response_headers = {"content-type": "text/html; charset=utf-8"}
+    metadata = {"title": "Rendered Title", "description": "Rendered desc"}
+    cleaned_html = """
+    <html>
+      <body>
+        <h1>Rendered Title</h1>
+        <a href="https://example.com/page">Rendered link</a>
+        <img src="/rendered.png" alt="Rendered image">
+      </body>
+    </html>
+    """
+    markdown = FakeMarkdown()
+    links = {
+        "internal": [{"href": "https://example.com/page", "text": "Rendered link"}],
+        "external": [],
+    }
+    media = {
+        "images": [{"src": "/rendered.png", "alt": "Rendered image"}],
+    }
+
+
 class ResearchToolkitToolsTest(unittest.TestCase):
     def test_crawl_url_extracts_text_links_and_images(self):
         tool = ResearchToolkitTools(project_root=os.getcwd())
@@ -77,6 +154,33 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertFalse(result["success"])
         self.assertEqual(result["error"]["code"], "INVALID_URL")
 
+    def test_crawl_url_render_js_reports_missing_crawl4ai(self):
+        tool = ResearchToolkitTools(project_root=os.getcwd())
+
+        with patch("argus_server.tools.research_toolkit.importlib.util.find_spec", return_value=None):
+            result = tool.crawl_url("https://example.com/base", render_js=True)
+
+        self.assertFalse(result["success"])
+        self.assertEqual(result["error"]["code"], "NOT_INSTALLED")
+        self.assertEqual(result["error"]["install_hint"], "uv pip install crawl4ai && crawl4ai-setup")
+
+    def test_crawl_url_formats_crawl4ai_result(self):
+        tool = ResearchToolkitTools(project_root=os.getcwd())
+
+        result = tool._format_crawl4ai_result(
+            url="https://example.com/base",
+            result=FakeCrawl4AIResult(),
+            max_chars=500,
+        )
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["summary"]["source"], "crawl4ai")
+        self.assertEqual(result["data"]["final_url"], "https://example.com/rendered")
+        self.assertEqual(result["data"]["title"], "Rendered Title")
+        self.assertIn("Rendered body from browser", result["data"]["text"])
+        self.assertEqual(result["data"]["links"][0]["url"], "https://example.com/page")
+        self.assertEqual(result["data"]["images"][0]["url"], "https://example.com/rendered.png")
+
     def test_download_gallery_rejects_output_outside_project(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             tool = ResearchToolkitTools(project_root=tmpdir)
@@ -114,6 +218,92 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertEqual(result["summary"]["source_count"], 2)
         self.assertEqual(len(result["data"]["merged"]), 2)
         self.assertEqual(result["data"]["merged"][0]["source"], "wikipedia")
+
+    def test_research_topic_normalizes_web_source(self):
+        tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())
+
+        result = tool.research_topic("AI browser", sources=["web:tavily"], limit=2)
+
+        self.assertTrue(result["success"])
+        self.assertTrue(result["data"]["sources"]["web:tavily"]["success"])
+        self.assertEqual(result["data"]["sources"]["web:tavily"]["summary"]["provider"], "tavily")
+        self.assertEqual(len(result["data"]["merged"]), 2)
+        self.assertEqual(result["data"]["merged"][0]["title"], "tavily answer: AI browser")
+        self.assertEqual(result["data"]["merged"][1]["url"], "https://example.com/web")
+
+    def test_research_topic_reports_missing_web_adapter(self):
+        tool = ResearchToolkitTools(project_root=os.getcwd())
+
+        result = tool.research_topic("AI browser", sources=["web:brave"], limit=2)
+
+        self.assertTrue(result["success"])
+        self.assertFalse(result["data"]["sources"]["web:brave"]["success"])
+        self.assertEqual(result["data"]["sources"]["web:brave"]["error"]["code"], "ADAPTER_UNAVAILABLE")
+
+    def test_research_images_discovers_page_images(self):
+        tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())
+        tool.discover_page_images = lambda url, timeout, limit: {
+            "success": True,
+            "summary": {"count": 1},
+            "data": {
+                "page_url": url,
+                "title": "AI browser gallery",
+                "images": [
+                    {
+                        "url": "https://example.com/ai-browser.png",
+                        "alt": "AI browser screenshot",
+                        "width": "1200",
+                        "height": "800",
+                    }
+                ],
+            },
+        }
+
+        result = tool.research_images("AI browser", sources=["web:tavily"], limit=2, images_per_page=2)
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["summary"]["page_count"], 1)
+        self.assertEqual(result["summary"]["image_count"], 1)
+        image = result["data"]["images"][0]
+        self.assertEqual(image["image_url"], "https://example.com/ai-browser.png")
+        self.assertEqual(image["source_page_url"], "https://example.com/web")
+        self.assertEqual(image["source"], "web:tavily")
+        self.assertGreater(image["confidence"], 0.8)
+
+    def test_research_images_dedupes_across_pages(self):
+        tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeMultiPageAIWebSearch())
+        tool.discover_page_images = lambda url, timeout, limit: {
+            "success": True,
+            "summary": {"count": 1},
+            "data": {
+                "page_url": url,
+                "title": f"Images for {url}",
+                "images": [
+                    {
+                        "url": "https://cdn.example.com/shared.png",
+                        "alt": "Shared AI browser image",
+                    }
+                ],
+            },
+        }
+
+        result = tool.research_images("AI browser", sources=["web:tavily"], limit=2, images_per_page=1)
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["summary"]["page_count"], 2)
+        self.assertEqual(result["summary"]["image_count"], 1)
+        self.assertEqual(result["data"]["images"][0]["source_page_url"], "https://example.com/first")
+
+    def test_research_images_preserves_source_errors(self):
+        tool = ResearchToolkitTools(project_root=os.getcwd())
+
+        result = tool.research_images("AI browser", sources=["web:brave"], limit=2)
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["summary"]["page_count"], 0)
+        self.assertEqual(result["summary"]["image_count"], 0)
+        self.assertEqual(result["summary"]["source_error_count"], 1)
+        self.assertEqual(result["data"]["source_errors"][0]["code"], "ADAPTER_UNAVAILABLE")
 
 
 if __name__ == "__main__":

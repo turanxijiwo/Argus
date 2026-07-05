@@ -6,6 +6,8 @@ stable MCP-facing surface for simple HTTP crawling, page image discovery,
 cross-source research aggregation, and optional external CLI adapters.
 """
 
+import asyncio
+import importlib.util
 import os
 import re
 import shutil
@@ -163,11 +165,13 @@ class ResearchToolkitTools:
         external_api: Optional[Any] = None,
         search_tools: Optional[Any] = None,
         article_reader: Optional[Any] = None,
+        ai_search: Optional[Any] = None,
     ):
         self.project_root = os.path.abspath(project_root or os.getcwd())
         self.external_api = external_api
         self.search_tools = search_tools
         self.article_reader = article_reader
+        self.ai_search = ai_search
         self.session = requests.Session()
         self.session.headers.update(
             {
@@ -197,28 +201,33 @@ class ResearchToolkitTools:
             },
             "crawl4ai": {
                 "role": "LLM-friendly dynamic page crawling",
-                "install_hint": "uv tool install crawl4ai",
+                "install_hint": "uv pip install crawl4ai && crawl4ai-setup",
                 "license_note": "Apache-2.0",
+                "python_module": "crawl4ai",
             },
         }
 
         status = {}
         for binary, info in optional_tools.items():
             path = shutil.which(binary)
+            package_installed = bool(info.get("python_module") and importlib.util.find_spec(info["python_module"]))
             status[binary] = {
                 **info,
-                "installed": bool(path),
+                "installed": bool(path or package_installed),
                 "path": path,
+                "package_installed": package_installed,
             }
 
         return _ok(
             {
                 "built_in": {
-                    "crawl_url": "HTTP HTML fetch + text/link/image extraction",
+                    "crawl_url": "HTTP HTML fetch + text/link/image extraction, optional Crawl4AI rendering when render_js=True",
                     "discover_page_images": "image candidate extraction from HTML",
-                    "research_topic": "cross-source normalized research aggregation",
+                    "research_topic": "cross-source normalized research aggregation, including optional web:<provider> search",
+                    "research_images": "query-driven page discovery plus normalized image candidate extraction",
                     "download_gallery": "safe gallery-dl wrapper when installed",
                 },
+                "web_search_sources": ["web", "web:tavily", "web:exa", "web:perplexity", "web:brave"],
                 "optional_cli": status,
             },
             optional_count=len(status),
@@ -239,15 +248,11 @@ class ResearchToolkitTools:
                 code="INVALID_URL",
                 suggestion="URL must start with http:// or https://",
             )
-        if render_js:
-            return _err(
-                "JavaScript rendering is not available in the dependency-free adapter",
-                code="RENDER_JS_UNSUPPORTED",
-                suggestion="Install and enable a Crawl4AI adapter in the next integration phase",
-            )
-
         timeout = _safe_int(timeout, 20, 3, 90)
         max_chars = _safe_int(max_chars, 12000, 500, _MAX_TEXT_CHARS)
+        if render_js:
+            return self._crawl_url_with_crawl4ai(url=url, timeout=timeout, max_chars=max_chars)
+
         fetched = self._fetch_html(url, timeout=timeout)
         if not fetched.get("success"):
             return fetched
@@ -270,6 +275,77 @@ class ResearchToolkitTools:
             source="http",
             link_count=len(parsed["links"]),
             image_count=len(parsed["images"]),
+            text_chars=len(text),
+        )
+
+    def _crawl_url_with_crawl4ai(self, url: str, timeout: int, max_chars: int) -> Dict:
+        if importlib.util.find_spec("crawl4ai") is None:
+            return _err(
+                "Crawl4AI is not installed",
+                code="NOT_INSTALLED",
+                install_hint="uv pip install crawl4ai && crawl4ai-setup",
+            )
+
+        try:
+            from crawl4ai import AsyncWebCrawler
+            from crawl4ai.async_configs import BrowserConfig, CrawlerRunConfig
+        except ImportError as ex:
+            return _err(f"Crawl4AI import failed: {ex}", code="IMPORT_ERROR")
+
+        async def run_crawl():
+            browser_config = BrowserConfig()
+            run_config = CrawlerRunConfig()
+            async with AsyncWebCrawler(config=browser_config) as crawler:
+                return await asyncio.wait_for(
+                    crawler.arun(url=url, config=run_config),
+                    timeout=timeout,
+                )
+
+        try:
+            result = asyncio.run(run_crawl())
+        except asyncio.TimeoutError:
+            return _err("Crawl4AI crawl timed out", code="TIMEOUT", timeout=timeout)
+        except Exception as ex:
+            return _err(f"Crawl4AI crawl failed: {ex}", code="CRAWL4AI_ERROR")
+
+        return self._format_crawl4ai_result(url=url, result=result, max_chars=max_chars)
+
+    def _format_crawl4ai_result(self, url: str, result: Any, max_chars: int) -> Dict:
+        if not getattr(result, "success", False):
+            return _err(
+                getattr(result, "error_message", None) or "Crawl4AI crawl failed",
+                code="CRAWL4AI_ERROR",
+                status_code=getattr(result, "status_code", None),
+            )
+
+        final_url = getattr(result, "url", None) or url
+        html = getattr(result, "cleaned_html", None) or getattr(result, "html", "") or ""
+        parsed = self._parse_html(html, final_url)
+        markdown_text = _markdown_to_text(getattr(result, "markdown", None))
+        text_source = markdown_text or parsed["text"]
+        text = text_source[:max_chars]
+
+        links = _normalize_crawl4ai_links(getattr(result, "links", {}) or {})
+        images = _normalize_crawl4ai_images(getattr(result, "media", {}) or {}, final_url)
+        metadata = getattr(result, "metadata", None) or {}
+        response_headers = getattr(result, "response_headers", None) or {}
+
+        return _ok(
+            {
+                "url": url,
+                "final_url": final_url,
+                "status_code": getattr(result, "redirected_status_code", None) or getattr(result, "status_code", None),
+                "content_type": response_headers.get("content-type", ""),
+                "title": metadata.get("title") or parsed["title"],
+                "description": metadata.get("description") or parsed["description"],
+                "text": text,
+                "text_truncated": len(text_source) > len(text),
+                "links": (links or parsed["links"])[:100],
+                "images": (images or parsed["images"])[:100],
+            },
+            source="crawl4ai",
+            link_count=len(links or parsed["links"]),
+            image_count=len(images or parsed["images"]),
             text_chars=len(text),
         )
 
@@ -380,6 +456,7 @@ class ResearchToolkitTools:
         - wikipedia
         - reddit:<subreddit>, for example reddit:LocalLLaMA
         - github_code
+        - web or web:<provider>, where provider is tavily, exa, perplexity, or brave
         """
         query = _clean_text(query)
         if not query:
@@ -406,6 +483,98 @@ class ResearchToolkitTools:
             },
             source_count=len(sources),
             merged_count=len(normalized),
+        )
+
+    def research_images(
+        self,
+        query: str,
+        sources: Optional[List[str]] = None,
+        limit: int = 5,
+        images_per_page: int = 5,
+        timeout: int = 20,
+    ) -> Dict:
+        """
+        Discover image candidates by first finding relevant pages, then extracting page media.
+
+        This is not a dedicated image-search backend. It is a dependency-free
+        research workflow that preserves source page context for each image.
+        """
+        query = _clean_text(query)
+        if not query:
+            return _err("query cannot be empty", code="INVALID_QUERY")
+
+        limit = _safe_int(limit, 5, 1, 20)
+        images_per_page = _safe_int(images_per_page, 5, 1, 30)
+        timeout = _safe_int(timeout, 20, 3, 90)
+        sources = sources or ["web:tavily"]
+
+        topic_result = self.research_topic(query=query, sources=sources, limit=limit)
+        if not topic_result.get("success"):
+            return topic_result
+
+        topic_data = topic_result.get("data") or {}
+        page_candidates = _page_candidates(topic_data.get("merged") or [], limit)
+        source_errors = _source_errors(topic_data.get("sources") or {})
+        page_results = []
+        images = []
+        seen_images = set()
+
+        for page in page_candidates:
+            page_url = page["url"]
+            page_result = self.discover_page_images(
+                url=page_url,
+                timeout=timeout,
+                limit=images_per_page,
+            )
+            page_results.append(
+                {
+                    "url": page_url,
+                    "title": page.get("title"),
+                    "source": page.get("source"),
+                    "success": bool(page_result.get("success")),
+                    "error": page_result.get("error"),
+                    "image_count": len((page_result.get("data") or {}).get("images") or []),
+                }
+            )
+            if not page_result.get("success"):
+                continue
+
+            page_data = page_result.get("data") or {}
+            page_title = page_data.get("title") or page.get("title")
+            for image in page_data.get("images") or []:
+                image_url = image.get("url")
+                if not image_url or image_url in seen_images:
+                    continue
+                seen_images.add(image_url)
+                images.append(
+                    {
+                        "query": query,
+                        "image_url": image_url,
+                        "alt": image.get("alt", ""),
+                        "width": image.get("width", ""),
+                        "height": image.get("height", ""),
+                        "source": page.get("source"),
+                        "source_page_url": page_url,
+                        "source_page_title": page_title,
+                        "source_page_snippet": page.get("snippet"),
+                        "confidence": _image_confidence(query, page, image),
+                    }
+                )
+
+        images.sort(key=lambda item: item.get("confidence", 0), reverse=True)
+        return _ok(
+            {
+                "query": query,
+                "sources": topic_data.get("sources") or {},
+                "pages": page_results,
+                "source_errors": source_errors,
+                "images": images,
+            },
+            source_count=len(sources),
+            page_count=len(page_candidates),
+            crawled_page_count=len(page_results),
+            image_count=len(images),
+            source_error_count=len(source_errors),
         )
 
     # ───────────────────────── Internal helpers ─────────────────────────
@@ -547,6 +716,30 @@ class ResearchToolkitTools:
                 count=len(articles),
             ) if result.get("success") else result
 
+        if source == "web" or source.startswith("web:"):
+            provider = "tavily"
+            if ":" in source:
+                provider = source.split(":", 1)[1].strip().lower()
+            if provider not in ("tavily", "exa", "perplexity", "brave"):
+                return _err(
+                    f"Unsupported web search provider: {provider}",
+                    code="UNSUPPORTED_SOURCE",
+                    supported=["web", "web:tavily", "web:exa", "web:perplexity", "web:brave"],
+                )
+            if not self.ai_search:
+                return _err("AI web search adapter is unavailable", code="ADAPTER_UNAVAILABLE")
+            result = self.ai_search.ai_web_search(
+                query=query,
+                provider=provider,
+                max_results=limit,
+                include_answer=True,
+                search_depth="basic",
+            )
+            if not result.get("success"):
+                return result
+            items = self._normalize_web_search(source, provider, query, result)
+            return _ok({"items": items}, count=len(items), provider=provider)
+
         if source.startswith("reddit:"):
             if not self.external_api:
                 return _err("external API adapter is unavailable", code="ADAPTER_UNAVAILABLE")
@@ -604,8 +797,70 @@ class ResearchToolkitTools:
         return _err(
             f"Unsupported source: {source}",
             code="UNSUPPORTED_SOURCE",
-            supported=["local_news", "hackernews", "wikipedia", "reddit:<subreddit>", "github_code"],
+            supported=[
+                "local_news",
+                "hackernews",
+                "wikipedia",
+                "reddit:<subreddit>",
+                "github_code",
+                "web",
+                "web:<tavily|exa|perplexity|brave>",
+            ],
         )
+
+    def _normalize_web_search(self, source: str, provider: str, query: str, result: Dict) -> List[Dict]:
+        data = result.get("data") or {}
+        items = []
+
+        answer = data.get("answer")
+        if answer:
+            items.append(
+                {
+                    "source": source,
+                    "title": f"{provider} answer: {query}",
+                    "url": None,
+                    "snippet": answer,
+                    "score": 1.0,
+                    "raw": {"provider": provider, "answer": answer},
+                }
+            )
+
+        for index, item in enumerate(data.get("results") or []):
+            url = item.get("url")
+            title = item.get("title") or url or f"{provider} result {index + 1}"
+            items.append(
+                {
+                    "source": source,
+                    "title": title,
+                    "url": url,
+                    "snippet": item.get("content") or item.get("description") or item.get("text"),
+                    "score": _score_or_default(item.get("score"), 0.5),
+                    "raw": item,
+                }
+            )
+
+        for index, citation in enumerate(data.get("citations") or []):
+            if isinstance(citation, str):
+                url = citation
+                title = citation
+            elif isinstance(citation, dict):
+                url = citation.get("url")
+                title = citation.get("title") or url
+            else:
+                url = None
+                title = None
+            items.append(
+                {
+                    "source": source,
+                    "title": title or f"{provider} citation {index + 1}",
+                    "url": url,
+                    "snippet": answer,
+                    "score": max(0.1, 0.5 - index * 0.01),
+                    "raw": citation,
+                }
+            )
+
+        return items
 
 
 def _dedupe_by_url(items: List[Dict[str, str]]) -> List[Dict[str, str]]:
@@ -618,3 +873,110 @@ def _dedupe_by_url(items: List[Dict[str, str]]) -> List[Dict[str, str]]:
         seen.add(url)
         deduped.append(item)
     return deduped
+
+
+def _score_or_default(value: Any, default: float) -> float:
+    try:
+        if value is None:
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _page_candidates(items: List[Dict], limit: int) -> List[Dict]:
+    candidates = []
+    seen = set()
+    for item in items:
+        url = item.get("url")
+        if not _is_http_url(url) or url in seen:
+            continue
+        seen.add(url)
+        candidates.append(item)
+        if len(candidates) >= limit:
+            break
+    return candidates
+
+
+def _source_errors(sources: Dict[str, Dict]) -> List[Dict[str, Any]]:
+    errors = []
+    for source_name, result in sources.items():
+        if result.get("success"):
+            continue
+        error = result.get("error") or {}
+        errors.append(
+            {
+                "source": source_name,
+                "code": error.get("code"),
+                "message": error.get("message"),
+            }
+        )
+    return errors
+
+
+def _image_confidence(query: str, page: Dict, image: Dict) -> float:
+    terms = [term.lower() for term in re.findall(r"\w+", query) if len(term) > 1]
+    alt = str(image.get("alt") or "").lower()
+    page_title = str(page.get("title") or "").lower()
+    snippet = str(page.get("snippet") or "").lower()
+
+    score = 0.35
+    if terms and any(term in alt for term in terms):
+        score += 0.3
+    if terms and any(term in page_title for term in terms):
+        score += 0.2
+    if terms and any(term in snippet for term in terms):
+        score += 0.1
+    if image.get("width") or image.get("height"):
+        score += 0.05
+    if page.get("score"):
+        score += min(0.1, _score_or_default(page.get("score"), 0) / 1000)
+    return round(min(score, 1.0), 3)
+
+
+def _markdown_to_text(markdown: Any) -> str:
+    if not markdown:
+        return ""
+    if isinstance(markdown, str):
+        return _clean_text(markdown)
+    for attr in ("fit_markdown", "raw_markdown", "markdown_with_citations"):
+        value = getattr(markdown, attr, None)
+        if value:
+            return _clean_text(str(value))
+    return _clean_text(str(markdown))
+
+
+def _normalize_crawl4ai_links(links: Dict[str, List[Dict]]) -> List[Dict[str, str]]:
+    normalized = []
+    for group in ("internal", "external"):
+        for item in links.get(group, []) or []:
+            url = item.get("href") or item.get("url")
+            if not url:
+                continue
+            normalized.append(
+                {
+                    "url": url,
+                    "text": _clean_text(item.get("text") or item.get("title") or "")[:300],
+                }
+            )
+    return _dedupe_by_url(normalized)
+
+
+def _normalize_crawl4ai_images(media: Dict[str, List[Dict]], base_url: str) -> List[Dict[str, str]]:
+    images = []
+    for item in media.get("images", []) or []:
+        image_url = item.get("src") or item.get("url")
+        if not image_url:
+            continue
+        image_url = urljoin(base_url, str(image_url))
+        if not _is_http_url(image_url):
+            continue
+        images.append(
+            {
+                "url": image_url,
+                "alt": str(item.get("alt") or item.get("title") or "").strip(),
+                "width": str(item.get("width") or "").strip(),
+                "height": str(item.get("height") or "").strip(),
+            }
+        )
+    return _dedupe_by_url(images)
