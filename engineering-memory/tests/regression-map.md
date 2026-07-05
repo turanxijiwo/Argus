@@ -70,14 +70,17 @@ Known historical bugs:
 
 Related modules:
 - `argus_server/tools/cli_tools.py`
+- `argus_server/tools/social_ops.py`
 - `argus_server/server.py`
 
 Tests to run:
 - `uv run python -m unittest tests.test_cli_tools`
+- `uv run python -m unittest tests.test_social_ops`
 - `uv run python -m unittest discover -s tests`
 
 Known historical bugs:
 - xhs CLI cookie or login failures can emit raw tracebacks; MCP responses must return actionable auth/storage error codes instead.
+- `xhs_*` SocialOps tools must not run business commands when auth is not ready, while confirm gates must still short-circuit first.
 
 ### Flow: Storage-backed data retrieval
 
@@ -187,6 +190,7 @@ What it protects:
 
 Test file:
 - `tests/test_cli_tools.py`
+- `tests/test_social_ops.py`
 
 What it protects:
-- Keeps `xhs_auth_status` dependency-safe and ensures xhs cookie/auth failures return `AUTH_STORAGE_UNAVAILABLE` or `AUTH_REQUIRED` instead of leaking raw tracebacks to MCP clients.
+- Keeps `xhs_auth_status` dependency-safe, ensures xhs cookie/auth failures return `AUTH_STORAGE_UNAVAILABLE` or `AUTH_REQUIRED`, and prevents `xhs_*` SocialOps tools from running business commands before auth is ready.

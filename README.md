@@ -122,6 +122,8 @@ Claude Code / Cherry Studio / 任何 MCP client 配置:
 
 研究工具包第一版不新增依赖,默认提供网页抓取、图片候选发现、主题驱动图片研究、跨源情报搜索、证据包生成和 `gallery-dl` 安全 dry-run 封装; `research_toolkit_health` 会返回能力矩阵,明确哪些能力可立即使用、缺哪些 API key/CLI/包以及安装提示; `crawl_url(render_js=True)` 可在本地安装 Crawl4AI 后启用动态渲染,`research_topic` 可复用已配置的 Tavily / Exa / Perplexity / Brave 作为 `web:<provider>` 搜索源,也可在本地安装 `openai-codex` 后使用 `codex` 源控制本地 Codex SDK 做个人研究检索,`ARGUS_CODEX_MODEL` 可覆盖默认模型; `research_pack` 会先找页面再抓取正文,保留 source/page 错误和可继续交给 AI 总结的结构化证据; `research_images` 会先找相关页面再抽取图片候选并保留来源页上下文。后续按活跃度、License、CLI/API 稳定性、结构化输出、速率限制能力逐个接入 Crawl4AI / gallery-dl / yt-dlp / Scrapy / SearXNG 等开源工具。
 
+小红书 `xhs_*` 细化工具会先检查 `xhs_auth_status`, 未安装、未登录或 cookie 存储不可用时直接返回明确的人工处理提示; 评论、发帖、删除仍需 `confirm=True`。
+
 ---
 
 ## 🛠️ 技术栈

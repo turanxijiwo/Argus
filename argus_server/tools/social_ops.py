@@ -51,6 +51,42 @@ class SocialOpsTools:
             return _err("cli 适配器未接入", code="INTERNAL_ERROR")
         return None
 
+    def _require_xhs_ready(self) -> Optional[Dict]:
+        err = self._require_cli()
+        if err:
+            return err
+
+        auth_status = getattr(self._cli, "xhs_auth_status", None)
+        if auth_status is None:
+            return None
+
+        status_result = auth_status()
+        if not status_result.get("success"):
+            return status_result
+
+        status_data = status_result.get("data") or {}
+        if status_data.get("authenticated"):
+            return None
+
+        error = status_data.get("error") or {}
+        code = error.get("code")
+        if not code:
+            code = "NOT_INSTALLED" if not status_data.get("installed") else "AUTH_REQUIRED"
+        message = error.get("message") or "xhs CLI 登录态不可用。请先手动刷新小红书登录后重试。"
+        return _err(
+            message,
+            code=code,
+            status=status_data.get("status"),
+            action_required=status_data.get("action_required"),
+            auth_status=status_data,
+        )
+
+    def _run_xhs_checked(self, subcommand: str, args: List[str]) -> Dict:
+        err = self._require_xhs_ready()
+        if err:
+            return err
+        return self._cli.run_xhs(subcommand, args)
+
     # ────────────── B 站 只读 ──────────────
 
     def bili_my_dynamics(self, limit: int = 20) -> Dict:
@@ -119,65 +155,47 @@ class SocialOpsTools:
     # ────────────── 小红书 只读 ──────────────
 
     def xhs_my_notes(self, limit: int = 20) -> Dict:
-        err = self._require_cli()
-        if err: return err
-        return self._cli.run_xhs("my-notes", ["--limit", str(limit)])
+        return self._run_xhs_checked("my-notes", ["--limit", str(limit)])
 
     def xhs_notifications(self, limit: int = 30) -> Dict:
-        err = self._require_cli()
-        if err: return err
-        return self._cli.run_xhs("notifications", ["--limit", str(limit)])
+        return self._run_xhs_checked("notifications", ["--limit", str(limit)])
 
     def xhs_favorites(self, limit: int = 20) -> Dict:
-        err = self._require_cli()
-        if err: return err
-        return self._cli.run_xhs("favorites", ["--limit", str(limit)])
+        return self._run_xhs_checked("favorites", ["--limit", str(limit)])
 
     def xhs_feed(self, limit: int = 20) -> Dict:
-        err = self._require_cli()
-        if err: return err
-        return self._cli.run_xhs("feed", ["--limit", str(limit)])
+        return self._run_xhs_checked("feed", ["--limit", str(limit)])
 
     def xhs_hot(self, category: Optional[str] = None, limit: int = 30) -> Dict:
-        err = self._require_cli()
-        if err: return err
         args = ["--limit", str(limit)]
         if category:
             args.extend(["--category", category])
-        return self._cli.run_xhs("hot", args)
+        return self._run_xhs_checked("hot", args)
 
     def xhs_comments(self, note_id: str, limit: int = 20) -> Dict:
-        err = self._require_cli()
-        if err: return err
         if not note_id:
             return _err("note_id 不能为空", code="INVALID_PARAM")
-        return self._cli.run_xhs("comments", [note_id, "--limit", str(limit)])
+        return self._run_xhs_checked("comments", [note_id, "--limit", str(limit)])
 
     # ────────────── 小红书 轻互动 ──────────────
 
     def xhs_like(self, note_id: str) -> Dict:
-        err = self._require_cli()
-        if err: return err
         if not note_id:
             return _err("note_id 不能为空", code="INVALID_PARAM")
-        return self._cli.run_xhs("like", [note_id])
+        return self._run_xhs_checked("like", [note_id])
 
     def xhs_favorite(self, note_id: str) -> Dict:
-        err = self._require_cli()
-        if err: return err
         if not note_id:
             return _err("note_id 不能为空", code="INVALID_PARAM")
-        return self._cli.run_xhs("favorite", [note_id])
+        return self._run_xhs_checked("favorite", [note_id])
 
     def xhs_comment(self, note_id: str, text: str, confirm: bool = False) -> Dict:
         """评论别人的笔记 — 公开可见, 需确认"""
-        err = self._require_cli()
-        if err: return err
         if not note_id or not text:
             return _err("note_id 和 text 都必需", code="INVALID_PARAM")
         if not confirm:
             return _require_confirm("xhs_comment")
-        return self._cli.run_xhs("comment", [note_id, "--text", text])
+        return self._run_xhs_checked("comment", [note_id, "--text", text])
 
     # ────────────── 小红书 发帖 / 删除 (需 confirm) ──────────────
 
@@ -188,8 +206,6 @@ class SocialOpsTools:
         content: str,
         confirm: bool = False,
     ) -> Dict:
-        err = self._require_cli()
-        if err: return err
         if not images or not isinstance(images, list):
             return _err("images 必须是图片路径列表", code="INVALID_PARAM")
         if not title or not content:
@@ -199,13 +215,11 @@ class SocialOpsTools:
         args = ["--title", title, "--content", content]
         for img in images:
             args.extend(["--image", img])
-        return self._cli.run_xhs("post", args)
+        return self._run_xhs_checked("post", args)
 
     def xhs_delete_note(self, note_id: str, confirm: bool = False) -> Dict:
-        err = self._require_cli()
-        if err: return err
         if not note_id:
             return _err("note_id 不能为空", code="INVALID_PARAM")
         if not confirm:
             return _require_confirm("xhs_delete_note")
-        return self._cli.run_xhs("delete", [note_id])
+        return self._run_xhs_checked("delete", [note_id])
