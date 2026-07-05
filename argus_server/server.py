@@ -35,6 +35,7 @@ from .tools.safety import SafetyTools
 from .tools.social_ops import SocialOpsTools
 from .tools.router import RouterTools
 from .tools.daily_brief import DailyBriefTools
+from .tools.research_toolkit import ResearchToolkitTools
 from .utils.date_parser import DateParser
 from .utils.errors import MCPError
 
@@ -90,6 +91,12 @@ def _get_tools(project_root: Optional[str] = None):
         _tools_instances['daily_brief'] = DailyBriefTools(
             project_root,
             notification_adapter=_tools_instances['notification'],
+        )
+        _tools_instances['research'] = ResearchToolkitTools(
+            project_root,
+            external_api=_tools_instances['external'],
+            search_tools=_tools_instances['search'],
+            article_reader=_tools_instances['article'],
         )
         # 确保 telemetry store 启动 (单例)
         TelemetryStore.instance(project_root)
@@ -3103,6 +3110,156 @@ async def universal_search(
     result = await asyncio.to_thread(
         tools['cross'].universal_search,
         query=query, sources=sources, limit=limit,
+    )
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+
+# ==================== 研究工具包 (信息获取 / 爬虫 / 媒体入口) ====================
+
+@mcp.tool
+async def research_toolkit_health() -> str:
+    """
+    检查研究工具包能力与可选开源 CLI 安装状态。
+
+    覆盖:
+      - 内置无依赖能力: crawl_url / discover_page_images / research_topic / download_gallery
+      - 可选高质量 CLI: gallery-dl / yt-dlp / scrapy / crawl4ai
+
+    Returns:
+        JSON: built_in 能力说明和 optional_cli 安装状态。
+    """
+    tools = _get_tools()
+    result = await asyncio.to_thread(tools['research'].toolkit_health)
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+
+@mcp.tool
+async def crawl_url(
+    url: str,
+    render_js: bool = False,
+    timeout: int = 20,
+    max_chars: int = 12000,
+) -> str:
+    """
+    抓取单个网页并提取 title / description / 正文文本 / 链接 / 图片候选。
+
+    这是依赖最少、最稳的基础网页读取入口。当前内置适配器不执行 JavaScript;
+    render_js=True 会返回明确错误, 后续接入 Crawl4AI 后再启用动态页面渲染。
+
+    Args:
+        url: http/https URL。
+        render_js: 是否要求 JS 渲染, 默认 False。
+        timeout: 请求超时秒数, 默认 20。
+        max_chars: 返回正文最大字符数, 默认 12000。
+
+    Returns:
+        JSON: 页面元数据、正文、链接和图片候选。
+    """
+    tools = _get_tools()
+    result = await asyncio.to_thread(
+        tools['research'].crawl_url,
+        url=url,
+        render_js=render_js,
+        timeout=timeout,
+        max_chars=max_chars,
+    )
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+
+@mcp.tool
+async def discover_page_images(
+    url: str,
+    timeout: int = 20,
+    limit: int = 100,
+) -> str:
+    """
+    从网页 HTML 中发现图片候选 URL, 不下载文件。
+
+    适合先确认图片来源、作者页、授权信息, 再决定是否下载。
+
+    Args:
+        url: 页面 URL。
+        timeout: 请求超时秒数。
+        limit: 返回图片数量上限。
+
+    Returns:
+        JSON: page_url / title / images 列表。
+    """
+    tools = _get_tools()
+    result = await asyncio.to_thread(
+        tools['research'].discover_page_images,
+        url=url,
+        timeout=timeout,
+        limit=limit,
+    )
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+
+@mcp.tool
+async def download_gallery(
+    target: str,
+    output_dir: str = "output/media",
+    confirm: bool = False,
+    timeout: int = 300,
+) -> str:
+    """
+    调用 gallery-dl 下载图片合集或支持站点 URL。
+
+    安全策略:
+      - 默认 confirm=False 只返回计划, 不下载。
+      - confirm=True 才会执行。
+      - output_dir 必须位于 Argus 项目目录内。
+
+    Args:
+        target: gallery-dl 支持的 URL 或 extractor 前缀 URL。
+        output_dir: 项目内输出目录, 默认 output/media。
+        confirm: 是否确认执行下载。
+        timeout: 下载命令超时秒数。
+
+    Returns:
+        JSON: dry_run 计划或执行结果。
+    """
+    tools = _get_tools()
+    result = await asyncio.to_thread(
+        tools['research'].download_gallery,
+        target=target,
+        output_dir=output_dir,
+        confirm=confirm,
+        timeout=timeout,
+    )
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+
+@mcp.tool
+async def research_topic(
+    query: str,
+    sources: Optional[List[str]] = None,
+    limit: int = 10,
+) -> str:
+    """
+    跨信息源搜索并归一化结果, 用于 Codex 的一次性情报搜集。
+
+    支持 sources:
+      - local_news
+      - hackernews
+      - wikipedia
+      - reddit:<subreddit>, 例如 reddit:LocalLLaMA
+      - github_code (需要 GitHub token 时会返回 AUTH_REQUIRED)
+
+    Args:
+        query: 查询主题。
+        sources: 信息源列表, 默认 ["local_news", "hackernews", "wikipedia"]。
+        limit: 每源返回数量上限。
+
+    Returns:
+        JSON: 按源分组结果和 merged 归一化列表。
+    """
+    tools = _get_tools()
+    result = await asyncio.to_thread(
+        tools['research'].research_topic,
+        query=query,
+        sources=sources,
+        limit=limit,
     )
     return json.dumps(result, ensure_ascii=False, indent=2, default=str)
 

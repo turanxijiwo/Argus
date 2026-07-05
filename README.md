@@ -2,7 +2,7 @@
 
 > 个人情报中枢 · 基于 [sansan0/TrendRadar](https://github.com/sansan0/TrendRadar) 的二次开发扩展
 >
-> 在原项目热榜聚合能力之上,新增 **154 个 MCP 工具** · 跨平台叙事追踪 · 本地 BM25 语义搜索 · 定时任务编排 · 飞书机器人反向通道 · Obsidian 导出。
+> 在原项目热榜聚合能力之上,新增 **159 个 MCP 工具** · 跨平台叙事追踪 · 本地 BM25 语义搜索 · 研究工具包 · 定时任务编排 · 飞书机器人反向通道 · Obsidian 导出。
 >
 > 协议:**GPL-3.0**(继承上游)· 完整归属见 [NOTICE.md](NOTICE.md)
 
@@ -10,7 +10,7 @@
 
 ## 🧭 这是什么
 
-你每天要扫 10+ 个热榜,刷 5 个社媒,查几个 RSS 源,还想在一堆信息里做去重、找突发话题、看跨平台情感差异 —— Argus 把这些操作沉淀成 **154 个 MCP 工具 + 5 个 launchd 定时任务 + 1 个飞书机器人**,让 AI agent(Claude Code / Cherry Studio / 任何 MCP client)替你跑。
+你每天要扫 10+ 个热榜,刷 5 个社媒,查几个 RSS 源,还想在一堆信息里做去重、找突发话题、看跨平台情感差异 —— Argus 把这些操作沉淀成 **159 个 MCP 工具 + 5 个 launchd 定时任务 + 1 个飞书机器人**,让 AI agent(Claude Code / Cherry Studio / 任何 MCP client)替你跑。
 
 ---
 
@@ -24,6 +24,7 @@
 | **Alert 规则引擎** | `tools/alerts.py` | keyword_count / anomaly / semantic_hit 三类规则 |
 | **定时任务编排** | `tools/scheduler.py` + `scheduler_runner.py` | macOS launchd workflow DSL |
 | **MCP client 反向挂载** | `tools/mcp_proxy.py` | 把外部 MCP server 的工具挂到本服务下 |
+| **研究工具包** | `tools/research_toolkit.py` | 统一网页抓取、图片发现、gallery-dl 安全封装、跨源研究聚合 |
 | **多账号通知路由** | `tools/router.py` | 按关键词分流到多个飞书/钉钉/Bark 群 |
 | **飞书机器人反向通道** | `feishu_bot.py` | 群里 @ 机器人触发命令 → 调用 MCP → 回复 |
 | **Obsidian 导出** | `tools/exporter.py` | 每日简报 / 查询报告 / 异常报告自动落 vault |
@@ -97,7 +98,7 @@ Claude Code / Cherry Studio / 任何 MCP client 配置:
 
 ---
 
-## 🧩 154 个 MCP 工具速览
+## 🧩 159 个 MCP 工具速览
 
 工具分类(详见 `argus_server/tools/` 各模块):
 
@@ -117,6 +118,9 @@ Claude Code / Cherry Studio / 任何 MCP client 配置:
 - **路由 (5)**:`route_add/list/remove/test/dispatch`
 - **微信公众号 RSS (4)**:`wechat_*`
 - **每日早报 (2)**:`push_daily_brief` / `render_daily_brief`
+- **研究工具包 (5)**:`research_toolkit_health` / `crawl_url` / `discover_page_images` / `download_gallery` / `research_topic`
+
+研究工具包第一版不新增依赖,默认提供网页抓取、图片候选发现、跨源情报搜索和 `gallery-dl` 安全 dry-run 封装。后续按活跃度、License、CLI/API 稳定性、结构化输出、速率限制能力逐个接入 Crawl4AI / gallery-dl / yt-dlp / Scrapy / SearXNG 等开源工具。
 
 ---
 
