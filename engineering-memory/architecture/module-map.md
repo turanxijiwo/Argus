@@ -76,7 +76,7 @@ Path:
 - `argus_server/utils/`
 
 Responsibility:
-- Register 161 MCP tools and 8 MCP resources, create shared tool adapters, normalize tool responses, and provide the `argus-mcp` console script.
+- Register 162 MCP tools and 8 MCP resources, create shared tool adapters, normalize tool responses, and provide the `argus-mcp` console script.
 
 Depends on:
 - `fastmcp`, Argus core/storage modules, all `argus_server.tools` adapters
@@ -92,6 +92,7 @@ Common failure modes:
 - Response contract mismatch
 - Singleton tool initialization drift
 - Optional dependency or environment failure surfacing as opaque MCP errors
+- CLI auth/cookie failures leaking raw tracebacks instead of actionable error codes
 
 Required tests:
 - Unit: individual tool adapter behavior

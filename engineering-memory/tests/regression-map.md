@@ -66,6 +66,19 @@ Tests to run:
 Known historical bugs:
 - Public MCP surface is large and client-facing; tool names, signatures, and response shapes are regression-sensitive.
 
+### Flow: CLI adapter auth and envelope normalization
+
+Related modules:
+- `argus_server/tools/cli_tools.py`
+- `argus_server/server.py`
+
+Tests to run:
+- `uv run python -m unittest tests.test_cli_tools`
+- `uv run python -m unittest discover -s tests`
+
+Known historical bugs:
+- xhs CLI cookie or login failures can emit raw tracebacks; MCP responses must return actionable auth/storage error codes instead.
+
 ### Flow: Storage-backed data retrieval
 
 Related modules:
@@ -169,3 +182,11 @@ Test file:
 
 What it protects:
 - Keeps `research_toolkit_health` useful for MCP clients by reporting immediate readiness, missing optional setup, configured web providers, and attached adapters.
+
+### xhs CLI auth status and friendly errors
+
+Test file:
+- `tests/test_cli_tools.py`
+
+What it protects:
+- Keeps `xhs_auth_status` dependency-safe and ensures xhs cookie/auth failures return `AUTH_STORAGE_UNAVAILABLE` or `AUTH_REQUIRED` instead of leaking raw tracebacks to MCP clients.

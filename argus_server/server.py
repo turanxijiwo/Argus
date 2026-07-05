@@ -4196,6 +4196,24 @@ async def check_cli_auth() -> str:
 
 
 @mcp.tool
+async def xhs_auth_status(timeout: int = 20) -> str:
+    """
+    检查小红书 xhs CLI 是否已安装、登录态是否可用, 并返回下一步人工处理提示。
+
+    不尝试绕过登录或自动续 cookie; 登录过期时只返回明确的 action_required。
+
+    Args:
+        timeout: status 命令超时秒数。
+
+    Returns:
+        JSON: installed / authenticated / status / action_required / error。
+    """
+    tools = _get_tools()
+    result = await asyncio.to_thread(tools['cli'].xhs_auth_status, timeout=timeout)
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+
+@mcp.tool
 async def run_bilibili(
     subcommand: str,
     args: Optional[List[str]] = None,
@@ -4575,11 +4593,12 @@ def run_server(
     print()
     print("    === CLI 工具套件 (jackwener's AI-agent CLIs) ===")
     print("    64. check_cli_auth            - 一键查 5 个 CLI 认证状态")
-    print("    65. run_bilibili              - B 站: search/video/hot/feed/...")
-    print("    66. run_xhs                   - 小红书: search/read/hot/user-posts/...")
-    print("    67. run_twitter               - Twitter/X: feed/search/user/article/...")
-    print("    68. run_telegram              - Telegram: search/today/sync/export/...")
-    print("    69. run_discord               - Discord: search/today/recent/export/...")
+    print("    65. xhs_auth_status           - 检查小红书 CLI 登录态")
+    print("    66. run_bilibili              - B 站: search/video/hot/feed/...")
+    print("    67. run_xhs                   - 小红书: search/read/hot/user-posts/...")
+    print("    68. run_twitter               - Twitter/X: feed/search/user/article/...")
+    print("    69. run_telegram              - Telegram: search/today/sync/export/...")
+    print("    70. run_discord               - Discord: search/today/recent/export/...")
     print()
     print("    === 外部数据源 - 包生态/书籍/安全 ===")
     print("    64. search_ghsa               - GitHub Advisory 开源漏洞")

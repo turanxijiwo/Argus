@@ -17,7 +17,7 @@ Primary commands:
 Keep these inventories current when the matching surface changes. Do not duplicate full tool lists here; link or summarize the owning file.
 
 API and MCP surface:
-- `argus_server/server.py` registers 161 FastMCP tools and 8 MCP resources.
+- `argus_server/server.py` registers 162 FastMCP tools and 8 MCP resources.
 - `argus/web/app.py` exposes dashboard routes: `/`, `/api/health`, `/api/latest`, `/api/trending`, `/api/anomalies`, `/api/dates`, `/api/stream`.
 - `argus_server/feishu_bot.py` exposes `/`, `/health`, and `POST /feishu/event`.
 

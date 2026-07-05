@@ -2,7 +2,7 @@
 
 > 个人情报中枢 · 基于 [sansan0/TrendRadar](https://github.com/sansan0/TrendRadar) 的二次开发扩展
 >
-> 在原项目热榜聚合能力之上,新增 **161 个 MCP 工具** · 跨平台叙事追踪 · 本地 BM25 语义搜索 · 研究工具包 · 定时任务编排 · 飞书机器人反向通道 · Obsidian 导出。
+> 在原项目热榜聚合能力之上,新增 **162 个 MCP 工具** · 跨平台叙事追踪 · 本地 BM25 语义搜索 · 研究工具包 · 定时任务编排 · 飞书机器人反向通道 · Obsidian 导出。
 >
 > 协议:**GPL-3.0**(继承上游)· 完整归属见 [NOTICE.md](NOTICE.md)
 
@@ -10,7 +10,7 @@
 
 ## 🧭 这是什么
 
-你每天要扫 10+ 个热榜,刷 5 个社媒,查几个 RSS 源,还想在一堆信息里做去重、找突发话题、看跨平台情感差异 —— Argus 把这些操作沉淀成 **161 个 MCP 工具 + 5 个 launchd 定时任务 + 1 个飞书机器人**,让 AI agent(Claude Code / Cherry Studio / 任何 MCP client)替你跑。
+你每天要扫 10+ 个热榜,刷 5 个社媒,查几个 RSS 源,还想在一堆信息里做去重、找突发话题、看跨平台情感差异 —— Argus 把这些操作沉淀成 **162 个 MCP 工具 + 5 个 launchd 定时任务 + 1 个飞书机器人**,让 AI agent(Claude Code / Cherry Studio / 任何 MCP client)替你跑。
 
 ---
 
@@ -18,7 +18,7 @@
 
 | 模块 | 路径 | 作用 |
 |---|---|---|
-| **MCP Server** | `argus_server/` | 161 个工具,覆盖数据查询 / 分析 / 搜索 / 通知 / 自动化 |
+| **MCP Server** | `argus_server/` | 162 个工具,覆盖数据查询 / 分析 / 搜索 / 通知 / 自动化 |
 | **跨平台叙事追踪** | `tools/cross_platform.py` | 对比同话题在 news/hn/reddit/xhs/bili/twitter 上的情感走向 |
 | **本地语义搜索** | `tools/semantic_search.py` | BM25 + jieba 中文分词,跨天全文检索,<50ms 查询 |
 | **Alert 规则引擎** | `tools/alerts.py` | keyword_count / anomaly / semantic_hit 三类规则 |
@@ -98,13 +98,13 @@ Claude Code / Cherry Studio / 任何 MCP client 配置:
 
 ---
 
-## 🧩 161 个 MCP 工具速览
+## 🧩 162 个 MCP 工具速览
 
 工具分类(详见 `argus_server/tools/` 各模块):
 
 - **原生数据 (27)**:`get_latest_news` / `search_news` / `analyze_sentiment` / `trigger_crawl` ...
 - **外部 API (54, 无 key)**:`search_arxiv` / `get_hackernews_top` / `search_reddit` / `search_gdelt` / `search_cve` ...
-- **CLI 适配 (6)**:`run_bilibili` / `run_xhs` / `run_twitter` / `run_telegram` / `run_discord`
+- **CLI 适配 (7)**:`check_cli_auth` / `xhs_auth_status` / `run_bilibili` / `run_xhs` / `run_twitter` / `run_telegram` / `run_discord`
 - **AI 增强 (8)**:`ai_summarize` / `ai_brief_news` / `semantic_deduplicate` / `detect_anomaly` ...
 - **跨平台 (2)**:`narrative_tracking` / `universal_search`
 - **定时任务 (4)**:`schedule_task` / `list_scheduled_tasks` / `run_scheduled_task` / `remove_scheduled_task`

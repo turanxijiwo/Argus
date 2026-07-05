@@ -101,6 +101,14 @@ class CLIToolsAdapter:
         stderr = (result.stderr or "").strip()
 
         if not stdout:
+            friendly_error = self._friendly_cli_error(
+                binary=binary,
+                subcommand=subcommand,
+                returncode=result.returncode,
+                stderr=stderr,
+            )
+            if friendly_error:
+                return friendly_error
             return _err(
                 f"{binary} 无输出" + (f"; stderr: {stderr[:300]}" if stderr else ""),
                 code="NO_OUTPUT",
@@ -117,6 +125,14 @@ class CLIToolsAdapter:
         try:
             parsed = yaml.safe_load(stdout)
         except Exception as ex:
+            friendly_error = self._friendly_cli_error(
+                binary=binary,
+                subcommand=subcommand,
+                returncode=result.returncode,
+                stderr=stdout,
+            )
+            if friendly_error:
+                return friendly_error
             return _err(
                 f"{binary} 输出不是有效 YAML: {ex}",
                 code="PARSE_ERROR",
@@ -138,11 +154,67 @@ class CLIToolsAdapter:
                 }
             return {
                 "success": False,
-                "error": parsed.get("error") or {"code": "cli_error", "message": "unknown"},
+                "error": self._normalize_cli_envelope_error(binary, parsed.get("error") or {}),
                 "summary": {"binary": binary, "subcommand": subcommand},
             }
         # 非 envelope 输出, 原样返回
         return _ok({"raw": parsed}, binary=binary, subcommand=subcommand)
+
+    def _friendly_cli_error(
+        self,
+        binary: str,
+        subcommand: Optional[str],
+        returncode: int,
+        stderr: str,
+    ) -> Optional[Dict]:
+        if binary != "xhs":
+            return None
+        text = stderr or ""
+        lowered = text.lower()
+        if ".xiaohongshu-cli" in text and "permissionerror" in lowered:
+            return _err(
+                "xhs CLI 无法访问本地小红书登录 cookie 存储。请在本机终端/浏览器完成小红书登录, 并允许访问 ~/.xiaohongshu-cli/cookies.json。",
+                code="AUTH_STORAGE_UNAVAILABLE",
+                binary=binary,
+                subcommand=subcommand,
+                returncode=returncode,
+                action_required="manual_login_or_local_cookie_permission",
+            )
+        if "login" in lowered or "auth" in lowered or "cookie" in lowered:
+            return _err(
+                "xhs CLI 登录态不可用或已过期。请在本机浏览器/CLI 手动刷新小红书登录后重试。",
+                code="AUTH_REQUIRED",
+                binary=binary,
+                subcommand=subcommand,
+                returncode=returncode,
+                action_required="manual_login_refresh",
+            )
+        if "traceback" in lowered:
+            return _err(
+                "xhs CLI 执行失败。请先运行 xhs_auth_status 查看安装和登录状态。",
+                code="CLI_TRACEBACK",
+                binary=binary,
+                subcommand=subcommand,
+                returncode=returncode,
+            )
+        return None
+
+    def _normalize_cli_envelope_error(self, binary: str, error: Dict) -> Dict:
+        if not isinstance(error, dict):
+            return {"code": "cli_error", "message": str(error or "unknown")}
+        if binary != "xhs":
+            return error or {"code": "cli_error", "message": "unknown"}
+        message = str(error.get("message") or error.get("detail") or "")
+        code = str(error.get("code") or "cli_error")
+        friendly = self._friendly_cli_error(
+            binary=binary,
+            subcommand=None,
+            returncode=0,
+            stderr=f"{code} {message}",
+        )
+        if friendly:
+            return friendly["error"]
+        return error or {"code": "cli_error", "message": "unknown"}
 
     @staticmethod
     def _pkg_for(binary: str) -> str:
@@ -186,6 +258,49 @@ class CLIToolsAdapter:
                     "hint": err.get("message", "")[:200],
                 }
         return _ok(statuses, cli_count=len(statuses))
+
+    def xhs_auth_status(self, timeout: int = 20) -> Dict:
+        """Check xhs installation and login readiness without bypassing authentication."""
+        if not shutil.which("xhs", path=self._env["PATH"]):
+            return _ok(
+                {
+                    "installed": False,
+                    "authenticated": False,
+                    "status": "not_installed",
+                    "action_required": "install_xhs_cli",
+                    "hint": "uv tool install xiaohongshu-cli",
+                },
+                binary="xhs",
+            )
+
+        r = self._exec("xhs", "status", [], timeout=timeout)
+        if r.get("success"):
+            data = r.get("data") or {}
+            authenticated = bool(data.get("authenticated"))
+            return _ok(
+                {
+                    "installed": True,
+                    "authenticated": authenticated,
+                    "status": "ready" if authenticated else "needs_login",
+                    "user": data.get("user"),
+                    "raw": data,
+                    "action_required": None if authenticated else "manual_login_refresh",
+                },
+                binary="xhs",
+            )
+
+        error = r.get("error") or {}
+        status = "needs_login" if error.get("code") in ("AUTH_REQUIRED", "AUTH_STORAGE_UNAVAILABLE") else "error"
+        return _ok(
+            {
+                "installed": True,
+                "authenticated": False,
+                "status": status,
+                "error": error,
+                "action_required": error.get("action_required") or "manual_check",
+            },
+            binary="xhs",
+        )
 
     # ────────────────── 5 个 CLI 通用包装 ──────────────────
 
