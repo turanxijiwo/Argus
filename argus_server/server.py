@@ -3127,7 +3127,7 @@ async def research_toolkit_health() -> str:
       - 可选高质量 CLI: gallery-dl / yt-dlp / scrapy / crawl4ai
 
     Returns:
-        JSON: built_in 能力说明和 optional_cli 安装状态。
+        JSON: built_in 能力说明、capabilities 能力矩阵、api_providers 配置状态和 optional_cli 安装状态。
     """
     tools = _get_tools()
     result = await asyncio.to_thread(tools['research'].toolkit_health)

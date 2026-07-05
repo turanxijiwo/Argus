@@ -49,6 +49,7 @@ Known historical bugs:
 - Cross-source topic research must normalize source names and merged result shape.
 - Topic-driven image research must dedupe image URLs and preserve source page context.
 - Optional `web:<provider>` research sources must preserve provider errors and normalize answer/result/citation shapes when configured.
+- Research toolkit health must clearly report ready capabilities, missing setup, API key status, and attached adapters.
 
 ### Flow: MCP server import and tool registration
 
@@ -142,3 +143,11 @@ Test file:
 
 What it protects:
 - Keeps `research_images` tied to topic search results, preserves source page context, dedupes repeated image URLs across pages, and reports source errors without failing the whole response.
+
+### Research toolkit capability health matrix
+
+Test file:
+- `tests/test_research_toolkit.py`
+
+What it protects:
+- Keeps `research_toolkit_health` useful for MCP clients by reporting immediate readiness, missing optional setup, configured web providers, and attached adapters.

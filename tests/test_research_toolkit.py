@@ -116,6 +116,39 @@ class FakeCrawl4AIResult:
 
 
 class ResearchToolkitToolsTest(unittest.TestCase):
+    def test_toolkit_health_reports_missing_optional_capabilities(self):
+        tool = ResearchToolkitTools(project_root=os.getcwd())
+
+        with patch("argus_server.tools.research_toolkit.shutil.which", return_value=None), \
+                patch("argus_server.tools.research_toolkit.importlib.util.find_spec", return_value=None), \
+                patch.dict(os.environ, {
+                    "TAVILY_API_KEY": "",
+                    "EXA_API_KEY": "",
+                    "PERPLEXITY_API_KEY": "",
+                    "BRAVE_API_KEY": "",
+                }, clear=False):
+            result = tool.toolkit_health()
+
+        self.assertTrue(result["success"])
+        capabilities = result["data"]["capabilities"]
+        self.assertTrue(capabilities["crawl_url"]["can_use_now"])
+        self.assertFalse(capabilities["crawl_url_render_js"]["can_use_now"])
+        self.assertEqual(capabilities["crawl_url_render_js"]["missing"], ["crawl4ai"])
+        self.assertFalse(capabilities["research_topic_web"]["can_use_now"])
+        self.assertEqual(capabilities["research_topic_web"]["status"], "needs_api_key")
+        self.assertFalse(result["data"]["optional_cli"]["gallery-dl"]["installed"])
+
+    def test_toolkit_health_marks_configured_web_provider_ready(self):
+        tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())
+
+        with patch.dict(os.environ, {"TAVILY_API_KEY": "test-key"}, clear=False):
+            result = tool.toolkit_health()
+
+        self.assertTrue(result["success"])
+        self.assertTrue(result["data"]["api_providers"]["tavily"]["configured"])
+        self.assertTrue(result["data"]["capabilities"]["research_topic_web"]["can_use_now"])
+        self.assertEqual(result["data"]["capabilities"]["research_topic_web"]["available_sources"], ["web:tavily"])
+
     def test_crawl_url_extracts_text_links_and_images(self):
         tool = ResearchToolkitTools(project_root=os.getcwd())
         html = """

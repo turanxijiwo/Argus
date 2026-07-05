@@ -14,6 +14,7 @@
 
 ## 最近变更记录
 
+- Enhanced `research_toolkit_health` with a capability matrix that reports ready status, missing API keys/packages/CLIs, setup hints, and attached adapters.
 - Added `research_images` to find topic-relevant pages, extract page image candidates, dedupe by image URL, and preserve source page context.
 - Added optional Crawl4AI support for `crawl_url(render_js=True)` without adding project dependencies; missing Crawl4AI now returns a clear install hint.
 - Extended `research_topic` with optional `web` / `web:<provider>` sources backed by existing AI web search providers, without adding dependencies.
