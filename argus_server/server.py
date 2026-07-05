@@ -3123,7 +3123,7 @@ async def research_toolkit_health() -> str:
     检查研究工具包能力与可选开源 CLI 安装状态。
 
     覆盖:
-      - 内置无依赖能力: crawl_url / discover_page_images / research_images / research_topic / download_gallery
+      - 内置无依赖能力: crawl_url / discover_page_images / research_images / research_topic / research_pack / download_gallery
       - 可选高质量 CLI/SDK: gallery-dl / yt-dlp / scrapy / crawl4ai / openai-codex
 
     Returns:
@@ -3299,6 +3299,42 @@ async def research_images(
         limit=limit,
         images_per_page=images_per_page,
         timeout=timeout,
+    )
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+
+@mcp.tool
+async def research_pack(
+    query: str,
+    sources: Optional[List[str]] = None,
+    limit: int = 5,
+    timeout: int = 20,
+    max_chars_per_page: int = 4000,
+) -> str:
+    """
+    先跨源搜索主题页面, 再抓取页面正文, 输出可交给 AI 继续总结的证据包。
+
+    默认 sources 为 ["web:tavily"], 也可传 codex / web:<provider> / hackernews / wikipedia 等。
+    单个 source 或页面失败不会让整体失败, 错误会保留在 source_errors 或 documents[].error。
+
+    Args:
+        query: 查询主题。
+        sources: 用于找页面的信息源列表。
+        limit: 最多抓取多少个页面。
+        timeout: 单页面抓取超时秒数。
+        max_chars_per_page: 每页正文最大字符数。
+
+    Returns:
+        JSON: sources、source_errors 和 documents 证据包。
+    """
+    tools = _get_tools()
+    result = await asyncio.to_thread(
+        tools['research'].research_pack,
+        query=query,
+        sources=sources,
+        limit=limit,
+        timeout=timeout,
+        max_chars_per_page=max_chars_per_page,
     )
     return json.dumps(result, ensure_ascii=False, indent=2, default=str)
 

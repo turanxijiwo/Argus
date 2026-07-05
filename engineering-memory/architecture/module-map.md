@@ -76,7 +76,7 @@ Path:
 - `argus_server/utils/`
 
 Responsibility:
-- Register 160 MCP tools and 8 MCP resources, create shared tool adapters, normalize tool responses, and provide the `argus-mcp` console script.
+- Register 161 MCP tools and 8 MCP resources, create shared tool adapters, normalize tool responses, and provide the `argus-mcp` console script.
 
 Depends on:
 - `fastmcp`, Argus core/storage modules, all `argus_server.tools` adapters
@@ -206,7 +206,7 @@ Path:
 - `argus_server/tools/social_ops.py`
 
 Responsibility:
-- Provide dependency-free HTTP crawling/image discovery, safe gallery-dl wrapping, cross-source research aggregation, public external API lookup, and optional social CLI wrappers.
+- Provide dependency-free HTTP crawling/image discovery, evidence pack generation, safe gallery-dl wrapping, cross-source research aggregation, public external API lookup, and optional social CLI wrappers.
 
 Depends on:
 - `requests`, optional local CLIs (`gallery-dl`, bili/xhs/twitter/tg/discord), optional local Codex SDK (`openai-codex`), external API availability.
@@ -224,6 +224,7 @@ Common failure modes:
 - Optional Codex SDK missing, unavailable, or returning non-JSON output
 - External API format drift
 - Network timeouts
+- Partial packet failures must remain visible without failing successful documents
 
 Required tests:
 - Unit: `tests/test_research_toolkit.py`

@@ -244,6 +244,7 @@ class ResearchToolkitTools:
                     "crawl_url": "HTTP HTML fetch + text/link/image extraction, optional Crawl4AI rendering when render_js=True",
                     "discover_page_images": "image candidate extraction from HTML",
                     "research_topic": "cross-source normalized research aggregation, including optional web:<provider> and codex sources",
+                    "research_pack": "topic search plus page crawling into an evidence packet",
                     "research_images": "query-driven page discovery plus normalized image candidate extraction",
                     "download_gallery": "safe gallery-dl wrapper when installed",
                 },
@@ -301,6 +302,12 @@ class ResearchToolkitTools:
                         missing=[] if topic_source_ready else ["a topic source that returns page URLs"],
                         setup_hint=None if topic_source_ready else "Use non-web sources with URLs, configure a web-search provider, or install the local Codex SDK",
                     ),
+                    "research_pack": _capability(
+                        can_use_now=topic_source_ready,
+                        status="ready" if topic_source_ready else "needs_source",
+                        missing=[] if topic_source_ready else ["a topic source that returns page URLs"],
+                        setup_hint=None if topic_source_ready else "Use non-web sources with URLs, configure a web-search provider, or install the local Codex SDK",
+                    ),
                     "download_gallery": _capability(
                         can_use_now=gallery_ready,
                         status="ready" if gallery_ready else "needs_setup",
@@ -326,6 +333,7 @@ class ResearchToolkitTools:
                     topic_source_ready,
                     web_search_ready,
                     codex_ready,
+                    topic_source_ready,
                     topic_source_ready,
                     gallery_ready,
                 ) if item
@@ -675,6 +683,92 @@ class ResearchToolkitTools:
             crawled_page_count=len(page_results),
             image_count=len(images),
             source_error_count=len(source_errors),
+        )
+
+    def research_pack(
+        self,
+        query: str,
+        sources: Optional[List[str]] = None,
+        limit: int = 5,
+        timeout: int = 20,
+        max_chars_per_page: int = 4000,
+    ) -> Dict:
+        """
+        Build a compact evidence packet by searching a topic and crawling page text.
+
+        The whole packet remains successful when individual sources or pages fail;
+        those failures are preserved in source_errors and each document entry.
+        """
+        query = _clean_text(query)
+        if not query:
+            return _err("query cannot be empty", code="INVALID_QUERY")
+
+        limit = _safe_int(limit, 5, 1, 20)
+        timeout = _safe_int(timeout, 20, 3, 90)
+        max_chars_per_page = _safe_int(max_chars_per_page, 4000, 500, _MAX_TEXT_CHARS)
+        sources = sources or ["web:tavily"]
+
+        topic_result = self.research_topic(query=query, sources=sources, limit=limit)
+        if not topic_result.get("success"):
+            return topic_result
+
+        topic_data = topic_result.get("data") or {}
+        merged_items = topic_data.get("merged") or []
+        page_candidates = _page_candidates(merged_items, limit)
+        source_errors = _source_errors(topic_data.get("sources") or {})
+        documents = []
+
+        for page in page_candidates:
+            page_url = page["url"]
+            crawl_result = self.crawl_url(
+                url=page_url,
+                render_js=False,
+                timeout=timeout,
+                max_chars=max_chars_per_page,
+            )
+            document = {
+                "query": query,
+                "source": page.get("source"),
+                "url": page_url,
+                "title": page.get("title"),
+                "snippet": page.get("snippet"),
+                "score": page.get("score"),
+                "success": bool(crawl_result.get("success")),
+                "error": crawl_result.get("error"),
+            }
+            if crawl_result.get("success"):
+                crawl_data = crawl_result.get("data") or {}
+                document.update(
+                    {
+                        "final_url": crawl_data.get("final_url"),
+                        "status_code": crawl_data.get("status_code"),
+                        "content_type": crawl_data.get("content_type"),
+                        "page_title": crawl_data.get("title") or page.get("title"),
+                        "description": crawl_data.get("description"),
+                        "text": crawl_data.get("text") or "",
+                        "text_truncated": bool(crawl_data.get("text_truncated")),
+                        "links": (crawl_data.get("links") or [])[:20],
+                        "images": (crawl_data.get("images") or [])[:20],
+                    }
+                )
+            documents.append(document)
+
+        crawl_error_count = sum(1 for item in documents if not item.get("success"))
+        skipped_item_count = max(0, len(merged_items) - len(page_candidates))
+        return _ok(
+            {
+                "query": query,
+                "sources": topic_data.get("sources") or {},
+                "source_errors": source_errors,
+                "documents": documents,
+            },
+            source_count=len(sources),
+            candidate_count=len(page_candidates),
+            document_count=len(documents),
+            crawl_error_count=crawl_error_count,
+            source_error_count=len(source_errors),
+            skipped_item_count=skipped_item_count,
+            max_chars_per_page=max_chars_per_page,
         )
 
     # ───────────────────────── Internal helpers ─────────────────────────

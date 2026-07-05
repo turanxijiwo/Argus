@@ -139,6 +139,7 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertEqual(capabilities["research_topic_web"]["status"], "needs_api_key")
         self.assertFalse(capabilities["research_topic_codex"]["can_use_now"])
         self.assertEqual(capabilities["research_topic_codex"]["missing"], ["openai-codex"])
+        self.assertFalse(capabilities["research_pack"]["can_use_now"])
         self.assertFalse(result["data"]["optional_cli"]["gallery-dl"]["installed"])
         self.assertFalse(result["data"]["optional_cli"]["openai-codex"]["installed"])
 
@@ -152,6 +153,7 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertTrue(result["data"]["api_providers"]["tavily"]["configured"])
         self.assertTrue(result["data"]["capabilities"]["research_topic_web"]["can_use_now"])
         self.assertEqual(result["data"]["capabilities"]["research_topic_web"]["available_sources"], ["web:tavily"])
+        self.assertTrue(result["data"]["capabilities"]["research_pack"]["can_use_now"])
 
     def test_toolkit_health_marks_codex_runner_ready(self):
         tool = ResearchToolkitTools(
@@ -323,6 +325,63 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertFalse(result["data"]["sources"]["codex"]["success"])
         self.assertEqual(result["data"]["sources"]["codex"]["error"]["code"], "NOT_INSTALLED")
         self.assertEqual(result["data"]["sources"]["codex"]["error"]["install_hint"], "uv pip install openai-codex")
+
+    def test_research_pack_crawls_topic_pages(self):
+        tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())
+        tool.crawl_url = lambda url, render_js, timeout, max_chars: {
+            "success": True,
+            "summary": {"source": "http"},
+            "data": {
+                "url": url,
+                "final_url": url,
+                "status_code": 200,
+                "content_type": "text/html",
+                "title": "AI browser field report",
+                "description": "Demo page description",
+                "text": "Evidence text about AI browser workflows.",
+                "text_truncated": False,
+                "links": [{"url": "https://example.com/next", "text": "Next"}],
+                "images": [{"url": "https://example.com/image.png", "alt": "Preview"}],
+            },
+        }
+
+        result = tool.research_pack(
+            "AI browser",
+            sources=["web:tavily"],
+            limit=2,
+            max_chars_per_page=1200,
+        )
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["summary"]["document_count"], 1)
+        self.assertEqual(result["summary"]["crawl_error_count"], 0)
+        document = result["data"]["documents"][0]
+        self.assertTrue(document["success"])
+        self.assertEqual(document["source"], "web:tavily")
+        self.assertEqual(document["url"], "https://example.com/web")
+        self.assertIn("Evidence text", document["text"])
+        self.assertEqual(document["page_title"], "AI browser field report")
+
+    def test_research_pack_preserves_crawl_errors(self):
+        tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())
+        tool.crawl_url = lambda url, render_js, timeout, max_chars: {
+            "success": False,
+            "error": {
+                "code": "NETWORK_ERROR",
+                "message": "Request failed",
+                "url": url,
+            },
+        }
+
+        result = tool.research_pack("AI browser", sources=["web:tavily"], limit=2)
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["summary"]["document_count"], 1)
+        self.assertEqual(result["summary"]["crawl_error_count"], 1)
+        document = result["data"]["documents"][0]
+        self.assertFalse(document["success"])
+        self.assertEqual(document["error"]["code"], "NETWORK_ERROR")
+        self.assertEqual(document["url"], "https://example.com/web")
 
     def test_research_images_discovers_page_images(self):
         tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())
