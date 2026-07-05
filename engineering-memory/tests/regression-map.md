@@ -49,6 +49,7 @@ Known historical bugs:
 - Cross-source topic research must normalize source names and merged result shape.
 - Topic-driven image research must dedupe image URLs and preserve source page context.
 - Optional `web:<provider>` research sources must preserve provider errors and normalize answer/result/citation shapes when configured.
+- Optional `codex` research source must preserve missing-SDK errors and normalize JSON SDK/runner output into the same merged result shape.
 - Research toolkit health must clearly report ready capabilities, missing setup, API key status, and attached adapters.
 
 ### Flow: MCP server import and tool registration
@@ -135,6 +136,14 @@ Test file:
 
 What it protects:
 - Keeps optional `web:<provider>` sources normalized through the existing AI web search adapter and preserves adapter-unavailable errors without failing the whole research topic response.
+
+### Research toolkit optional Codex SDK source
+
+Test file:
+- `tests/test_research_toolkit.py`
+
+What it protects:
+- Keeps optional `codex` source dependency-optional: injected runner output normalizes into merged research results, while missing `openai-codex` returns `NOT_INSTALLED` without failing the whole `research_topic` response.
 
 ### Research toolkit topic image discovery
 

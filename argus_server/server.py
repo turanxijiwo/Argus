@@ -3124,7 +3124,7 @@ async def research_toolkit_health() -> str:
 
     覆盖:
       - 内置无依赖能力: crawl_url / discover_page_images / research_images / research_topic / download_gallery
-      - 可选高质量 CLI: gallery-dl / yt-dlp / scrapy / crawl4ai
+      - 可选高质量 CLI/SDK: gallery-dl / yt-dlp / scrapy / crawl4ai / openai-codex
 
     Returns:
         JSON: built_in 能力说明、capabilities 能力矩阵、api_providers 配置状态和 optional_cli 安装状态。
@@ -3247,6 +3247,7 @@ async def research_topic(
       - reddit:<subreddit>, 例如 reddit:LocalLLaMA
       - github_code (需要 GitHub token 时会返回 AUTH_REQUIRED)
       - web 或 web:<provider>, provider 支持 tavily / exa / perplexity / brave
+      - codex (可选本地 OpenAI Codex SDK, 缺包时返回安装提示)
 
     Args:
         query: 查询主题。
@@ -3278,7 +3279,7 @@ async def research_images(
     先按主题查找相关页面, 再从页面中发现图片候选, 保留来源页上下文。
 
     这是轻量图片研究入口, 不是下载器, 也不是专用图片搜索引擎。
-    默认 sources 为 ["web:tavily"], 也可传 local_news / hackernews / wikipedia / reddit:<subreddit> 等。
+    默认 sources 为 ["web:tavily"], 也可传 local_news / hackernews / wikipedia / reddit:<subreddit> / codex 等。
 
     Args:
         query: 查询主题。

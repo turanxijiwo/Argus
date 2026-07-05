@@ -1,3 +1,4 @@
+import json
 import os
 import tempfile
 import unittest
@@ -136,7 +137,10 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertEqual(capabilities["crawl_url_render_js"]["missing"], ["crawl4ai"])
         self.assertFalse(capabilities["research_topic_web"]["can_use_now"])
         self.assertEqual(capabilities["research_topic_web"]["status"], "needs_api_key")
+        self.assertFalse(capabilities["research_topic_codex"]["can_use_now"])
+        self.assertEqual(capabilities["research_topic_codex"]["missing"], ["openai-codex"])
         self.assertFalse(result["data"]["optional_cli"]["gallery-dl"]["installed"])
+        self.assertFalse(result["data"]["optional_cli"]["openai-codex"]["installed"])
 
     def test_toolkit_health_marks_configured_web_provider_ready(self):
         tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())
@@ -148,6 +152,19 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertTrue(result["data"]["api_providers"]["tavily"]["configured"])
         self.assertTrue(result["data"]["capabilities"]["research_topic_web"]["can_use_now"])
         self.assertEqual(result["data"]["capabilities"]["research_topic_web"]["available_sources"], ["web:tavily"])
+
+    def test_toolkit_health_marks_codex_runner_ready(self):
+        tool = ResearchToolkitTools(
+            project_root=os.getcwd(),
+            codex_runner=lambda query, limit: {"items": []},
+        )
+
+        result = tool.toolkit_health()
+
+        self.assertTrue(result["success"])
+        self.assertTrue(result["data"]["capabilities"]["research_topic_codex"]["can_use_now"])
+        self.assertEqual(result["data"]["capabilities"]["research_topic_codex"]["status"], "ready")
+        self.assertTrue(result["data"]["adapters"]["codex_runner_attached"])
 
     def test_crawl_url_extracts_text_links_and_images(self):
         tool = ResearchToolkitTools(project_root=os.getcwd())
@@ -272,6 +289,40 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertFalse(result["data"]["sources"]["web:brave"]["success"])
         self.assertEqual(result["data"]["sources"]["web:brave"]["error"]["code"], "ADAPTER_UNAVAILABLE")
+
+    def test_research_topic_normalizes_codex_runner_source(self):
+        def fake_codex_runner(query, limit):
+            return json.dumps({
+                "items": [
+                    {
+                        "title": f"{query} field notes",
+                        "url": "https://example.com/codex",
+                        "snippet": "Codex supplied a public source.",
+                        "score": 0.91,
+                    }
+                ]
+            })
+
+        tool = ResearchToolkitTools(project_root=os.getcwd(), codex_runner=fake_codex_runner)
+
+        result = tool.research_topic("AI browser", sources=["codex"], limit=2)
+
+        self.assertTrue(result["success"])
+        self.assertTrue(result["data"]["sources"]["codex"]["success"])
+        self.assertEqual(result["data"]["sources"]["codex"]["summary"]["runner"], "injected")
+        self.assertEqual(result["data"]["merged"][0]["source"], "codex")
+        self.assertEqual(result["data"]["merged"][0]["url"], "https://example.com/codex")
+
+    def test_research_topic_reports_missing_codex_sdk(self):
+        tool = ResearchToolkitTools(project_root=os.getcwd())
+
+        with patch("argus_server.tools.research_toolkit.importlib.util.find_spec", return_value=None):
+            result = tool.research_topic("AI browser", sources=["codex"], limit=2)
+
+        self.assertTrue(result["success"])
+        self.assertFalse(result["data"]["sources"]["codex"]["success"])
+        self.assertEqual(result["data"]["sources"]["codex"]["error"]["code"], "NOT_INSTALLED")
+        self.assertEqual(result["data"]["sources"]["codex"]["error"]["install_hint"], "uv pip install openai-codex")
 
     def test_research_images_discovers_page_images(self):
         tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())

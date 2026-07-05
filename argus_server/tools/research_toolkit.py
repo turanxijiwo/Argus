@@ -8,6 +8,7 @@ cross-source research aggregation, and optional external CLI adapters.
 
 import asyncio
 import importlib.util
+import json
 import os
 import re
 import shutil
@@ -166,12 +167,14 @@ class ResearchToolkitTools:
         search_tools: Optional[Any] = None,
         article_reader: Optional[Any] = None,
         ai_search: Optional[Any] = None,
+        codex_runner: Optional[Any] = None,
     ):
         self.project_root = os.path.abspath(project_root or os.getcwd())
         self.external_api = external_api
         self.search_tools = search_tools
         self.article_reader = article_reader
         self.ai_search = ai_search
+        self.codex_runner = codex_runner
         self.session = requests.Session()
         self.session.headers.update(
             {
@@ -205,6 +208,12 @@ class ResearchToolkitTools:
                 "license_note": "Apache-2.0",
                 "python_module": "crawl4ai",
             },
+            "openai-codex": {
+                "role": "local Codex SDK research source",
+                "install_hint": "uv pip install openai-codex",
+                "license_note": "OpenAI SDK; used only when the runtime package is installed",
+                "python_module": "openai_codex",
+            },
         }
 
         status = {}
@@ -226,18 +235,29 @@ class ResearchToolkitTools:
         crawl4ai_ready = status["crawl4ai"]["installed"]
         gallery_ready = status["gallery-dl"]["installed"]
         web_search_ready = bool(self.ai_search and configured_web_sources)
-        topic_source_ready = bool(self.search_tools or self.external_api or web_search_ready)
+        codex_ready = bool(self.codex_runner or status["openai-codex"]["installed"])
+        topic_source_ready = bool(self.search_tools or self.external_api or web_search_ready or codex_ready)
 
         return _ok(
             {
                 "built_in": {
                     "crawl_url": "HTTP HTML fetch + text/link/image extraction, optional Crawl4AI rendering when render_js=True",
                     "discover_page_images": "image candidate extraction from HTML",
-                    "research_topic": "cross-source normalized research aggregation, including optional web:<provider> search",
+                    "research_topic": "cross-source normalized research aggregation, including optional web:<provider> and codex sources",
                     "research_images": "query-driven page discovery plus normalized image candidate extraction",
                     "download_gallery": "safe gallery-dl wrapper when installed",
                 },
                 "web_search_sources": ["web", "web:tavily", "web:exa", "web:perplexity", "web:brave"],
+                "research_sources": [
+                    "local_news",
+                    "hackernews",
+                    "wikipedia",
+                    "reddit:<subreddit>",
+                    "github_code",
+                    "web",
+                    "web:<tavily|exa|perplexity|brave>",
+                    "codex",
+                ],
                 "capabilities": {
                     "crawl_url": _capability(
                         can_use_now=True,
@@ -265,14 +285,21 @@ class ResearchToolkitTools:
                         can_use_now=web_search_ready,
                         status="ready" if web_search_ready else "needs_api_key",
                         missing=[] if web_search_ready else ["TAVILY_API_KEY, EXA_API_KEY, PERPLEXITY_API_KEY, or BRAVE_API_KEY"],
-                        setup_hint=None if web_search_ready else "Set one web-search API key; Codex can help during development but Argus runtime needs provider credentials",
+                        setup_hint=None if web_search_ready else "Set one web-search API key, or use the codex source when the local Codex SDK is available",
                         available_sources=configured_web_sources,
+                    ),
+                    "research_topic_codex": _capability(
+                        can_use_now=codex_ready,
+                        status="ready" if codex_ready else "needs_setup",
+                        missing=[] if codex_ready else ["openai-codex"],
+                        setup_hint=None if codex_ready else "Install openai-codex; ARGUS_CODEX_MODEL can override the default model",
+                        model=os.environ.get("ARGUS_CODEX_MODEL") or "gpt-5.4",
                     ),
                     "research_images": _capability(
                         can_use_now=topic_source_ready,
                         status="ready" if topic_source_ready else "needs_source",
                         missing=[] if topic_source_ready else ["a topic source that returns page URLs"],
-                        setup_hint=None if topic_source_ready else "Use non-web sources with URLs or configure a web-search provider",
+                        setup_hint=None if topic_source_ready else "Use non-web sources with URLs, configure a web-search provider, or install the local Codex SDK",
                     ),
                     "download_gallery": _capability(
                         can_use_now=gallery_ready,
@@ -287,6 +314,7 @@ class ResearchToolkitTools:
                     "external_api_attached": bool(self.external_api),
                     "local_search_attached": bool(self.search_tools),
                     "ai_search_attached": bool(self.ai_search),
+                    "codex_runner_attached": bool(self.codex_runner),
                 },
             },
             optional_count=len(status),
@@ -297,6 +325,7 @@ class ResearchToolkitTools:
                     True,
                     topic_source_ready,
                     web_search_ready,
+                    codex_ready,
                     topic_source_ready,
                     gallery_ready,
                 ) if item
@@ -527,6 +556,7 @@ class ResearchToolkitTools:
         - reddit:<subreddit>, for example reddit:LocalLLaMA
         - github_code
         - web or web:<provider>, where provider is tavily, exa, perplexity, or brave
+        - codex, using the optional local OpenAI Codex SDK
         """
         query = _clean_text(query)
         if not query:
@@ -810,6 +840,9 @@ class ResearchToolkitTools:
             items = self._normalize_web_search(source, provider, query, result)
             return _ok({"items": items}, count=len(items), provider=provider)
 
+        if source == "codex":
+            return self._run_codex_search(query=query, limit=limit)
+
         if source.startswith("reddit:"):
             if not self.external_api:
                 return _err("external API adapter is unavailable", code="ADAPTER_UNAVAILABLE")
@@ -875,8 +908,103 @@ class ResearchToolkitTools:
                 "github_code",
                 "web",
                 "web:<tavily|exa|perplexity|brave>",
+                "codex",
             ],
         )
+
+    def _run_codex_search(self, query: str, limit: int) -> Dict:
+        if self.codex_runner:
+            try:
+                payload = self.codex_runner(query=query, limit=limit)
+            except Exception as ex:
+                return _err(f"Codex runner failed: {ex}", code="CODEX_RUNNER_ERROR")
+            result = self._normalize_codex_search_payload(payload, query=query, limit=limit)
+            if result.get("success"):
+                result["summary"]["runner"] = "injected"
+            return result
+
+        if importlib.util.find_spec("openai_codex") is None:
+            return _err(
+                "OpenAI Codex SDK is not installed",
+                code="NOT_INSTALLED",
+                install_hint="uv pip install openai-codex",
+                source="codex",
+            )
+
+        try:
+            from openai_codex import Codex, Sandbox
+        except ImportError as ex:
+            return _err(f"OpenAI Codex SDK import failed: {ex}", code="IMPORT_ERROR")
+
+        model = os.environ.get("ARGUS_CODEX_MODEL") or "gpt-5.4"
+        prompt = _codex_research_prompt(query=query, limit=limit)
+        try:
+            with Codex() as codex:
+                thread = codex.thread_start(model=model, sandbox=Sandbox.read_only)
+                run_result = thread.run(prompt)
+        except Exception as ex:
+            return _err(f"OpenAI Codex SDK research failed: {ex}", code="CODEX_SDK_ERROR", model=model)
+
+        payload = getattr(run_result, "final_response", run_result)
+        result = self._normalize_codex_search_payload(payload, query=query, limit=limit)
+        if result.get("success"):
+            result["summary"]["runner"] = "openai_codex"
+            result["summary"]["model"] = model
+        return result
+
+    def _normalize_codex_search_payload(self, payload: Any, query: str, limit: int) -> Dict:
+        parsed = payload
+        if isinstance(payload, str):
+            parsed = _extract_json_payload(payload)
+            if parsed is None:
+                return _err(
+                    "Codex SDK response did not contain valid JSON",
+                    code="PARSE_ERROR",
+                    raw_excerpt=payload[:1000],
+                )
+        elif isinstance(payload, dict) and "success" in payload and "data" in payload:
+            if not payload.get("success"):
+                return payload
+            parsed = payload.get("data") or {}
+
+        if isinstance(parsed, dict):
+            candidates = parsed.get("items") or []
+        elif isinstance(parsed, list):
+            candidates = parsed
+        else:
+            return _err("Codex SDK response must be a JSON object or list", code="PARSE_ERROR")
+
+        items = []
+        for index, item in enumerate(candidates[:limit]):
+            if not isinstance(item, dict):
+                continue
+            url = item.get("url") or item.get("link")
+            if url is not None:
+                url = str(url).strip()
+                if url and not _is_http_url(url):
+                    continue
+            title = _clean_text(str(item.get("title") or url or f"Codex result {index + 1}"))
+            snippet = _clean_text(
+                str(
+                    item.get("snippet")
+                    or item.get("summary")
+                    or item.get("content")
+                    or item.get("description")
+                    or ""
+                )
+            )
+            items.append(
+                {
+                    "source": "codex",
+                    "title": title,
+                    "url": url or None,
+                    "snippet": snippet,
+                    "score": _score_or_default(item.get("score"), max(0.1, 0.9 - index * 0.05)),
+                    "raw": item,
+                }
+            )
+
+        return _ok({"items": items}, count=len(items), query=query)
 
     def _normalize_web_search(self, source: str, provider: str, query: str, result: Dict) -> List[Dict]:
         data = result.get("data") or {}
@@ -1005,6 +1133,40 @@ def _score_or_default(value: Any, default: float) -> float:
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+def _codex_research_prompt(query: str, limit: int) -> str:
+    return (
+        "You are helping Argus perform personal, non-commercial research.\n"
+        "Find public web pages relevant to the query and return only JSON.\n"
+        f"Query: {json.dumps(query, ensure_ascii=False)}\n"
+        f"Limit: {limit}\n"
+        'Schema: {"items":[{"title":"...","url":"https://...","snippet":"short summary","score":0.0}]}\n'
+        "Rules: include direct URLs, keep snippets short, do not include copyrighted full text, "
+        "and do not add prose outside the JSON object."
+    )
+
+
+def _extract_json_payload(text: str) -> Optional[Any]:
+    candidate = (text or "").strip()
+    if candidate.startswith("```"):
+        candidate = re.sub(r"^```(?:json)?\s*", "", candidate)
+        candidate = re.sub(r"\s*```$", "", candidate).strip()
+    try:
+        return json.loads(candidate)
+    except json.JSONDecodeError:
+        pass
+
+    for opener, closer in (("{", "}"), ("[", "]")):
+        start = candidate.find(opener)
+        end = candidate.rfind(closer)
+        if start == -1 or end == -1 or end <= start:
+            continue
+        try:
+            return json.loads(candidate[start:end + 1])
+        except json.JSONDecodeError:
+            continue
+    return None
 
 
 def _page_candidates(items: List[Dict], limit: int) -> List[Dict]:

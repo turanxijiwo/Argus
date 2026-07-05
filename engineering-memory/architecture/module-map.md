@@ -209,7 +209,7 @@ Responsibility:
 - Provide dependency-free HTTP crawling/image discovery, safe gallery-dl wrapping, cross-source research aggregation, public external API lookup, and optional social CLI wrappers.
 
 Depends on:
-- `requests`, optional local CLIs (`gallery-dl`, bili/xhs/twitter/tg/discord), external API availability.
+- `requests`, optional local CLIs (`gallery-dl`, bili/xhs/twitter/tg/discord), optional local Codex SDK (`openai-codex`), external API availability.
 
 Used by:
 - MCP clients and research workflows.
@@ -221,6 +221,7 @@ Common failure modes:
 - Unsafe output paths
 - URL validation gaps
 - Optional CLI missing/auth failures
+- Optional Codex SDK missing, unavailable, or returning non-JSON output
 - External API format drift
 - Network timeouts
 
@@ -228,6 +229,7 @@ Required tests:
 - Unit: `tests/test_research_toolkit.py`
 - Integration: optional CLI dry-run smoke tests when installed
 - Regression: invalid URL rejection, output path safety, normalized merged-source shape
+- Regression: optional source readiness, missing-SDK errors, and normalized merged-source shape
 
 ### Module: Scheduling, notifications, routing, and Feishu bot
 

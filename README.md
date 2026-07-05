@@ -118,9 +118,9 @@ Claude Code / Cherry Studio / 任何 MCP client 配置:
 - **路由 (5)**:`route_add/list/remove/test/dispatch`
 - **微信公众号 RSS (4)**:`wechat_*`
 - **每日早报 (2)**:`push_daily_brief` / `render_daily_brief`
-- **研究工具包 (6)**:`research_toolkit_health` / `crawl_url` / `discover_page_images` / `research_images` / `download_gallery` / `research_topic`(含可选 `web:tavily/exa/perplexity/brave` 源)
+- **研究工具包 (6)**:`research_toolkit_health` / `crawl_url` / `discover_page_images` / `research_images` / `download_gallery` / `research_topic`(含可选 `codex` 和 `web:tavily/exa/perplexity/brave` 源)
 
-研究工具包第一版不新增依赖,默认提供网页抓取、图片候选发现、主题驱动图片研究、跨源情报搜索和 `gallery-dl` 安全 dry-run 封装; `research_toolkit_health` 会返回能力矩阵,明确哪些能力可立即使用、缺哪些 API key/CLI/包以及安装提示; `crawl_url(render_js=True)` 可在本地安装 Crawl4AI 后启用动态渲染,`research_topic` 可复用已配置的 Tavily / Exa / Perplexity / Brave 作为 `web:<provider>` 搜索源,`research_images` 会先找相关页面再抽取图片候选并保留来源页上下文。后续按活跃度、License、CLI/API 稳定性、结构化输出、速率限制能力逐个接入 Crawl4AI / gallery-dl / yt-dlp / Scrapy / SearXNG 等开源工具。
+研究工具包第一版不新增依赖,默认提供网页抓取、图片候选发现、主题驱动图片研究、跨源情报搜索和 `gallery-dl` 安全 dry-run 封装; `research_toolkit_health` 会返回能力矩阵,明确哪些能力可立即使用、缺哪些 API key/CLI/包以及安装提示; `crawl_url(render_js=True)` 可在本地安装 Crawl4AI 后启用动态渲染,`research_topic` 可复用已配置的 Tavily / Exa / Perplexity / Brave 作为 `web:<provider>` 搜索源,也可在本地安装 `openai-codex` 后使用 `codex` 源控制本地 Codex SDK 做个人研究检索,`ARGUS_CODEX_MODEL` 可覆盖默认模型; `research_images` 会先找相关页面再抽取图片候选并保留来源页上下文。后续按活跃度、License、CLI/API 稳定性、结构化输出、速率限制能力逐个接入 Crawl4AI / gallery-dl / yt-dlp / Scrapy / SearXNG 等开源工具。
 
 ---
 
