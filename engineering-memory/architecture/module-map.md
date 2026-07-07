@@ -76,7 +76,7 @@ Path:
 - `argus_server/utils/`
 
 Responsibility:
-- Register 162 MCP tools and 8 MCP resources, create shared tool adapters, normalize tool responses, and provide the `argus-mcp` console script.
+- Register 163 MCP tools and 8 MCP resources, create shared tool adapters, normalize tool responses, and provide the `argus-mcp` console script.
 
 Depends on:
 - `fastmcp`, Argus core/storage modules, all `argus_server.tools` adapters
@@ -202,12 +202,25 @@ Required tests:
 
 Path:
 - `argus_server/tools/research_toolkit.py`
+- `argus_server/tools/research_page.py`
+- `argus_server/tools/research_health.py`
+- `argus_server/tools/research_crawl.py`
+- `argus_server/tools/research_sources.py`
+- `argus_server/tools/research_topic.py`
+- `argus_server/tools/research_images.py`
+- `argus_server/tools/research_pack.py`
+- `argus_server/tools/research_workflow.py`
+- `argus_server/tools/research_gallery.py`
+- `argus_server/tools/research_render.py`
+- `argus_server/tools/research_web.py`
+- `argus_server/tools/research_brief.py`
+- `argus_server/tools/research_io.py`
 - `argus_server/tools/external_apis.py`
 - `argus_server/tools/cli_tools.py`
 - `argus_server/tools/social_ops.py`
 
 Responsibility:
-- Provide dependency-free HTTP crawling/image discovery, evidence pack generation, safe gallery-dl wrapping, cross-source research aggregation, public external API lookup, and optional social CLI wrappers.
+- Provide dependency-free page crawling/image discovery entrypoints, HTTP crawl orchestration, cross-source topic aggregation, topic-driven image research, full research workflow orchestration, capability health matrix reporting, optional Crawl4AI render runtime, source adapter normalization, evidence packet construction, workflow document/image scoring helpers, safe gallery-dl wrapping, HTML/URL parsing, research brief rendering, safe project-local research artifact writing, public external API lookup, and optional social CLI wrappers.
 
 Depends on:
 - `requests`, optional local CLIs (`gallery-dl`, bili/xhs/twitter/tg/discord), optional local Codex SDK (`openai-codex`), external API availability.

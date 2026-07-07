@@ -33,4 +33,28 @@ What should Codex check before editing this kind of code?
 
 ## Root Causes
 
-No root causes have been recorded yet.
+## RC-0001: Display-Oriented Merged Results Used As Crawl Candidate Source
+
+Status: active
+Category: API contract
+First observed: BUG-0001
+Recurring count: 1
+Severity trend: medium
+
+### Description
+Merged research results are optimized for ranked presentation and may include useful non-page items such as answer summaries. Workflows that require crawlable pages must not treat the merged list as the only source of URL-bearing candidates.
+
+### Typical Symptoms
+- A research workflow succeeds but produces zero crawled documents.
+- `skipped_item_count` increases even though the provider returned URL results.
+- Low `limit` values expose the issue because non-page items can occupy the visible merged slot.
+
+### Common Triggers
+- Web providers return an answer summary plus search results.
+- Downstream workflows filter URLs after using a truncated display list.
+
+### Prevention Rule
+For page-crawling flows, build the candidate pool from both merged results and successful source raw items before URL filtering and dedupe.
+
+### Related Bugs
+- BUG-0001

@@ -35,6 +35,19 @@ What it protects:
 
 Related modules:
 - `argus_server/tools/research_toolkit.py`
+- `argus_server/tools/research_page.py`
+- `argus_server/tools/research_health.py`
+- `argus_server/tools/research_crawl.py`
+- `argus_server/tools/research_sources.py`
+- `argus_server/tools/research_topic.py`
+- `argus_server/tools/research_images.py`
+- `argus_server/tools/research_pack.py`
+- `argus_server/tools/research_workflow.py`
+- `argus_server/tools/research_gallery.py`
+- `argus_server/tools/research_render.py`
+- `argus_server/tools/research_web.py`
+- `argus_server/tools/research_brief.py`
+- `argus_server/tools/research_io.py`
 - `argus_server/server.py`
 
 Tests to run:
@@ -49,6 +62,8 @@ Known historical bugs:
 - Cross-source topic research must normalize source names and merged result shape.
 - Topic-driven image research must dedupe image URLs and preserve source page context.
 - Topic-driven evidence packets must crawl page candidates and preserve page-level crawl errors.
+- One-call research workflows must preserve source/page errors, retry only retriable crawl failures, keep exports inside the project directory, and write valid JSON/Markdown artifacts when requested.
+- Page-crawling research flows must still find URL-bearing source items when a web provider answer summary has no URL and occupies the top merged slot at low limits.
 - Optional `web:<provider>` research sources must preserve provider errors and normalize answer/result/citation shapes when configured.
 - Optional `codex` research source must preserve missing-SDK errors and normalize JSON SDK/runner output into the same merged result shape.
 - Research toolkit health must clearly report ready capabilities, missing setup, API key status, and attached adapters.
@@ -177,6 +192,14 @@ Test file:
 
 What it protects:
 - Keeps `research_pack` tied to topic search page candidates, crawls page text into structured documents, and preserves page-level crawl errors without failing the whole response.
+
+### Research toolkit web answer page candidate fallback
+
+Test file:
+- `tests/test_research_toolkit.py`
+
+What it protects:
+- Keeps `research_images`, `research_pack`, and `research_workflow` crawling URL-bearing web results when a provider answer summary has no URL and would otherwise occupy the only merged slot at `limit=1`.
 
 ### Research toolkit capability health matrix
 

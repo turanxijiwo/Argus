@@ -120,8 +120,8 @@ class ResearchToolkitToolsTest(unittest.TestCase):
     def test_toolkit_health_reports_missing_optional_capabilities(self):
         tool = ResearchToolkitTools(project_root=os.getcwd())
 
-        with patch("argus_server.tools.research_toolkit.shutil.which", return_value=None), \
-                patch("argus_server.tools.research_toolkit.importlib.util.find_spec", return_value=None), \
+        with patch("argus_server.tools.research_health.shutil.which", return_value=None), \
+                patch("argus_server.tools.research_health.importlib.util.find_spec", return_value=None), \
                 patch.dict(os.environ, {
                     "TAVILY_API_KEY": "",
                     "EXA_API_KEY": "",
@@ -140,6 +140,7 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertFalse(capabilities["research_topic_codex"]["can_use_now"])
         self.assertEqual(capabilities["research_topic_codex"]["missing"], ["openai-codex"])
         self.assertFalse(capabilities["research_pack"]["can_use_now"])
+        self.assertFalse(capabilities["research_workflow"]["can_use_now"])
         self.assertFalse(result["data"]["optional_cli"]["gallery-dl"]["installed"])
         self.assertFalse(result["data"]["optional_cli"]["openai-codex"]["installed"])
 
@@ -154,6 +155,7 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertTrue(result["data"]["capabilities"]["research_topic_web"]["can_use_now"])
         self.assertEqual(result["data"]["capabilities"]["research_topic_web"]["available_sources"], ["web:tavily"])
         self.assertTrue(result["data"]["capabilities"]["research_pack"]["can_use_now"])
+        self.assertTrue(result["data"]["capabilities"]["research_workflow"]["can_use_now"])
 
     def test_toolkit_health_marks_codex_runner_ready(self):
         tool = ResearchToolkitTools(
@@ -209,7 +211,7 @@ class ResearchToolkitToolsTest(unittest.TestCase):
     def test_crawl_url_render_js_reports_missing_crawl4ai(self):
         tool = ResearchToolkitTools(project_root=os.getcwd())
 
-        with patch("argus_server.tools.research_toolkit.importlib.util.find_spec", return_value=None):
+        with patch("argus_server.tools.research_render.importlib.util.find_spec", return_value=None):
             result = tool.crawl_url("https://example.com/base", render_js=True)
 
         self.assertFalse(result["success"])
@@ -236,7 +238,7 @@ class ResearchToolkitToolsTest(unittest.TestCase):
     def test_download_gallery_rejects_output_outside_project(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             tool = ResearchToolkitTools(project_root=tmpdir)
-            with patch("argus_server.tools.research_toolkit.shutil.which", return_value="/usr/bin/gallery-dl"):
+            with patch("argus_server.tools.research_gallery.shutil.which", return_value="/usr/bin/gallery-dl"):
                 result = tool.download_gallery(
                     target="https://example.com/gallery",
                     output_dir="/tmp/outside-argus",
@@ -249,7 +251,7 @@ class ResearchToolkitToolsTest(unittest.TestCase):
     def test_download_gallery_returns_dry_run_when_installed(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             tool = ResearchToolkitTools(project_root=tmpdir)
-            with patch("argus_server.tools.research_toolkit.shutil.which", return_value="/usr/bin/gallery-dl"):
+            with patch("argus_server.tools.research_gallery.shutil.which", return_value="/usr/bin/gallery-dl"):
                 result = tool.download_gallery(
                     target="https://example.com/gallery",
                     output_dir="output/media",
@@ -383,6 +385,206 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertEqual(document["error"]["code"], "NETWORK_ERROR")
         self.assertEqual(document["url"], "https://example.com/web")
 
+    def test_research_pack_uses_web_result_when_answer_has_no_url_at_limit_one(self):
+        tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())
+        crawled_urls = []
+
+        def fake_crawl(url, render_js, timeout, max_chars):
+            crawled_urls.append(url)
+            return {
+                "success": True,
+                "data": {
+                    "url": url,
+                    "final_url": url,
+                    "status_code": 200,
+                    "content_type": "text/html",
+                    "title": "AI browser field report",
+                    "description": "",
+                    "text": "Evidence text.",
+                    "text_truncated": False,
+                    "links": [],
+                    "images": [],
+                },
+            }
+
+        tool.crawl_url = fake_crawl
+
+        result = tool.research_pack("AI browser", sources=["web:tavily"], limit=1)
+
+        self.assertTrue(result["success"])
+        self.assertEqual(crawled_urls, ["https://example.com/web"])
+        self.assertEqual(result["summary"]["document_count"], 1)
+        self.assertEqual(result["data"]["documents"][0]["url"], "https://example.com/web")
+
+    def test_research_workflow_builds_and_saves_packet(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tool = ResearchToolkitTools(project_root=tmpdir, ai_search=FakeAIWebSearch())
+            tool.crawl_url = lambda url, render_js, timeout, max_chars: {
+                "success": True,
+                "summary": {"source": "http"},
+                "data": {
+                    "url": url,
+                    "final_url": url,
+                    "status_code": 200,
+                    "content_type": "text/html",
+                    "title": "AI browser field report",
+                    "description": "Demo page description",
+                    "text": "Evidence text about AI browser workflows.",
+                    "text_truncated": False,
+                    "links": [{"url": "https://example.com/next", "text": "Next"}],
+                    "images": [
+                        {
+                            "url": "https://example.com/image.png",
+                            "alt": "AI browser screenshot",
+                            "width": "1200",
+                        }
+                    ],
+                },
+            }
+
+            result = tool.research_workflow(
+                "AI browser",
+                sources=["web:tavily"],
+                limit=2,
+                save=True,
+                output_dir="output/research",
+            )
+
+            self.assertTrue(result["success"])
+            self.assertEqual(result["summary"]["document_count"], 1)
+            self.assertEqual(result["summary"]["crawl_error_count"], 0)
+            self.assertEqual(result["summary"]["image_count"], 1)
+            self.assertTrue(result["summary"]["brief_included"])
+            self.assertTrue(result["summary"]["brief_saved"])
+            artifact_path = result["data"]["artifact"]["path"]
+            brief_path = result["data"]["brief"]["artifact"]["path"]
+            self.assertTrue(artifact_path.startswith(tmpdir))
+            self.assertTrue(brief_path.startswith(tmpdir))
+            self.assertTrue(os.path.exists(artifact_path))
+            self.assertTrue(os.path.exists(brief_path))
+            with open(artifact_path, "r", encoding="utf-8") as handle:
+                saved = json.load(handle)
+            with open(brief_path, "r", encoding="utf-8") as handle:
+                brief = handle.read()
+            self.assertEqual(saved["query"], "AI browser")
+            self.assertEqual(saved["documents"][0]["page_title"], "AI browser field report")
+            self.assertEqual(saved["images"][0]["image_url"], "https://example.com/image.png")
+            self.assertIn("# Research Brief: AI browser", brief)
+            self.assertIn("AI browser field report", brief)
+            self.assertIn("Image Candidates", brief)
+
+    def test_research_workflow_can_skip_brief_payload(self):
+        tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())
+        tool.crawl_url = lambda url, render_js, timeout, max_chars: {
+            "success": True,
+            "data": {
+                "url": url,
+                "final_url": url,
+                "status_code": 200,
+                "content_type": "text/html",
+                "title": "AI browser field report",
+                "description": "",
+                "text": "Evidence text.",
+                "text_truncated": False,
+                "links": [],
+                "images": [],
+            },
+        }
+
+        result = tool.research_workflow(
+            "AI browser",
+            sources=["web:tavily"],
+            limit=2,
+            include_brief=False,
+        )
+
+        self.assertTrue(result["success"])
+        self.assertFalse(result["summary"]["brief_included"])
+        self.assertIsNone(result["data"]["brief"])
+
+    def test_research_workflow_preserves_crawl_errors_after_retries(self):
+        tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())
+        attempts = []
+
+        def failing_crawl(url, render_js, timeout, max_chars):
+            attempts.append(url)
+            return {
+                "success": False,
+                "error": {
+                    "code": "NETWORK_ERROR",
+                    "message": "Request failed",
+                    "url": url,
+                },
+            }
+
+        tool.crawl_url = failing_crawl
+
+        result = tool.research_workflow("AI browser", sources=["web:tavily"], limit=2, retries=1)
+
+        self.assertTrue(result["success"])
+        self.assertEqual(len(attempts), 2)
+        self.assertEqual(result["summary"]["crawl_error_count"], 1)
+        document = result["data"]["documents"][0]
+        self.assertFalse(document["success"])
+        self.assertEqual(document["crawl_attempts"], 2)
+        self.assertEqual(document["error"]["code"], "NETWORK_ERROR")
+
+    def test_research_workflow_uses_web_result_when_answer_has_no_url_at_limit_one(self):
+        tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())
+        crawled_urls = []
+
+        def fake_crawl(url, render_js, timeout, max_chars):
+            crawled_urls.append(url)
+            return {
+                "success": True,
+                "data": {
+                    "url": url,
+                    "final_url": url,
+                    "status_code": 200,
+                    "content_type": "text/html",
+                    "title": "AI browser field report",
+                    "description": "",
+                    "text": "Evidence text.",
+                    "text_truncated": False,
+                    "links": [],
+                    "images": [
+                        {
+                            "url": "https://example.com/image.png",
+                            "alt": "AI browser screenshot",
+                        }
+                    ],
+                },
+            }
+
+        tool.crawl_url = fake_crawl
+
+        result = tool.research_workflow(
+            "AI browser",
+            sources=["web:tavily"],
+            limit=1,
+            include_brief=False,
+        )
+
+        self.assertTrue(result["success"])
+        self.assertEqual(crawled_urls, ["https://example.com/web"])
+        self.assertEqual(result["summary"]["document_count"], 1)
+        self.assertEqual(result["summary"]["image_count"], 1)
+        self.assertEqual(result["data"]["documents"][0]["url"], "https://example.com/web")
+
+    def test_research_workflow_rejects_output_outside_project(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tool = ResearchToolkitTools(project_root=tmpdir, ai_search=FakeAIWebSearch())
+
+            result = tool.research_workflow(
+                "AI browser",
+                sources=["web:tavily"],
+                save=True,
+                output_dir="/tmp/outside-argus",
+            )
+
+        self.assertFalse(result["success"])
+        self.assertEqual(result["error"]["code"], "UNSAFE_OUTPUT_DIR")
+
     def test_research_images_discovers_page_images(self):
         tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())
         tool.discover_page_images = lambda url, timeout, limit: {
@@ -412,6 +614,36 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertEqual(image["source_page_url"], "https://example.com/web")
         self.assertEqual(image["source"], "web:tavily")
         self.assertGreater(image["confidence"], 0.8)
+
+    def test_research_images_uses_web_result_when_answer_has_no_url_at_limit_one(self):
+        tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())
+        crawled_urls = []
+
+        def fake_discover(url, timeout, limit):
+            crawled_urls.append(url)
+            return {
+                "success": True,
+                "data": {
+                    "page_url": url,
+                    "title": "AI browser gallery",
+                    "images": [
+                        {
+                            "url": "https://example.com/ai-browser.png",
+                            "alt": "AI browser screenshot",
+                        }
+                    ],
+                },
+            }
+
+        tool.discover_page_images = fake_discover
+
+        result = tool.research_images("AI browser", sources=["web:tavily"], limit=1)
+
+        self.assertTrue(result["success"])
+        self.assertEqual(crawled_urls, ["https://example.com/web"])
+        self.assertEqual(result["summary"]["page_count"], 1)
+        self.assertEqual(result["summary"]["image_count"], 1)
+        self.assertEqual(result["data"]["images"][0]["source_page_url"], "https://example.com/web")
 
     def test_research_images_dedupes_across_pages(self):
         tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeMultiPageAIWebSearch())

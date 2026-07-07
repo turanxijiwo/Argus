@@ -3123,7 +3123,7 @@ async def research_toolkit_health() -> str:
     检查研究工具包能力与可选开源 CLI 安装状态。
 
     覆盖:
-      - 内置无依赖能力: crawl_url / discover_page_images / research_images / research_topic / research_pack / download_gallery
+      - 内置无依赖能力: crawl_url / discover_page_images / research_images / research_topic / research_pack / research_workflow / download_gallery
       - 可选高质量 CLI/SDK: gallery-dl / yt-dlp / scrapy / crawl4ai / openai-codex
 
     Returns:
@@ -3335,6 +3335,63 @@ async def research_pack(
         limit=limit,
         timeout=timeout,
         max_chars_per_page=max_chars_per_page,
+    )
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+
+@mcp.tool
+async def research_workflow(
+    query: str,
+    sources: Optional[List[str]] = None,
+    limit: int = 5,
+    timeout: int = 20,
+    max_chars_per_page: int = 4000,
+    images_per_page: int = 5,
+    render_js: bool = False,
+    retries: int = 1,
+    include_brief: bool = True,
+    save: bool = False,
+    save_brief: bool = True,
+    output_dir: str = "output/research",
+) -> str:
+    """
+    一键执行研究流水线: 搜索主题、抓取候选页面、抽取图片候选, 生成 Markdown 简报, 并可选保存文件。
+
+    默认 sources 会优先使用已配置 web provider, 其次使用本地 Codex SDK, 再回退到 Argus 本地/公开源。
+    单个 source 或页面失败不会让整体失败, 错误会保留在 source_errors 或 documents[].error。
+
+    Args:
+        query: 查询主题。
+        sources: 用于找页面的信息源列表; 不传时自动选择可用源。
+        limit: 最多抓取多少个页面。
+        timeout: 单页面抓取超时秒数。
+        max_chars_per_page: 每页正文最大字符数。
+        images_per_page: 每页最多保留多少张图片候选。
+        render_js: 是否使用 Crawl4AI 渲染抓取页面。
+        retries: 对可重试抓取错误的额外重试次数, 0-3。
+        include_brief: 是否在响应中返回可读 Markdown 简报。
+        save: 是否保存 JSON 到项目内输出目录。
+        save_brief: save=True 时是否同时保存 Markdown 简报。
+        output_dir: 项目内输出目录, 默认 output/research。
+
+    Returns:
+        JSON: sources、documents、images、source_errors、brief 和可选 artifact 信息。
+    """
+    tools = _get_tools()
+    result = await asyncio.to_thread(
+        tools['research'].research_workflow,
+        query=query,
+        sources=sources,
+        limit=limit,
+        timeout=timeout,
+        max_chars_per_page=max_chars_per_page,
+        images_per_page=images_per_page,
+        render_js=render_js,
+        retries=retries,
+        include_brief=include_brief,
+        save=save,
+        save_brief=save_brief,
+        output_dir=output_dir,
     )
     return json.dumps(result, ensure_ascii=False, indent=2, default=str)
 

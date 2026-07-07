@@ -3,14 +3,16 @@
 ## 当前任务
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
-- Current product focus remains the Argus agent-native research and intelligence toolkit: 162 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest implementation step: `xhs_*` social tools now preflight `xhs_auth_status` before running business commands.
+- Current product focus remains the Argus agent-native research and intelligence toolkit: 163 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
+- Latest implementation step: reviewed the split Research Toolkit modules, removed stale internal wrappers from `research_toolkit.py`, and aligned the MCP health docstring with the eight public research tools.
 
 ## 已知问题
 
 - JavaScript rendering now has an optional Crawl4AI runtime adapter through `crawl_url(render_js=True)`, but it requires Crawl4AI and browser dependencies to be installed locally.
 - Broad web search can now reuse configured Tavily / Exa / Perplexity / Brave providers through `research_topic` sources such as `web:tavily`; optional local Codex SDK research is available through the `codex` source when `openai-codex` is installed; `research_images` provides page-derived image candidates, while a dedicated image-search backend remains a future adapter.
 - `research_pack` uses `research_topic` page candidates and built-in `crawl_url`; source/page failures are preserved in the response instead of failing the whole packet.
+- `research_workflow` can save JSON and Markdown research artifacts under a project-local output directory; unsafe output paths are rejected before search/crawl work starts.
+- `web:<provider>` answer summaries are useful in `research_topic.merged`, but page-crawling workflows must build candidates from both merged results and source raw items because answers can have no URL.
 - xhs CLI access still requires normal manual Xiaohongshu login; Argus reports expired/unavailable auth clearly, preflights `xhs_*` tools before business commands, and does not attempt to bypass login or auto-refresh cookies.
 - Codex SDK responses must return JSON for `research_topic(sources=["codex"])`; invalid JSON returns `PARSE_ERROR`, and missing SDK returns `NOT_INSTALLED`.
 - `download_gallery` requires `gallery-dl` to be installed locally and defaults to dry-run for safety.
@@ -18,6 +20,23 @@
 
 ## 最近变更记录
 
+- Reviewed the split Research Toolkit surface, removed unused private source-normalization wrappers from `research_toolkit.py`, and updated the server health-tool docstring to include `research_workflow`.
+- Refactored Research Toolkit page crawl/image discovery entrypoints into `research_page.py` while preserving `crawl_url`, `discover_page_images`, invalid URL handling, and optional Crawl4AI behavior.
+- Refactored Research Toolkit cross-source topic aggregation into `research_topic.py` while preserving the public `research_topic` method, default sources, per-source errors, and merged result ordering.
+- Refactored Research Toolkit full workflow orchestration into `research_workflow.py` while preserving the public `research_workflow` method, retry behavior, brief rendering, and artifact export shape.
+- Refactored Research Toolkit topic-driven image research into `research_images.py` while preserving the public `research_images` method and response shape.
+- Refactored Research Toolkit evidence packet construction into `research_pack.py` while preserving the public `research_pack` method and response shape.
+- Refactored Research Toolkit HTTP crawl orchestration into `research_crawl.py` for built-in HTTP response shaping, parser delegation, and page retry handling.
+- Refactored Research Toolkit health helpers into `research_health.py` for optional CLI/package status, web-search provider readiness, and capability matrix construction.
+- Refactored Research Toolkit Crawl4AI render helpers into `research_render.py` for optional JavaScript rendering import/runtime/timeout handling.
+- Refactored Research Toolkit gallery helpers into `research_gallery.py` for safe `gallery-dl` dry-run/execution and project-local media output handling.
+- Refactored Research Toolkit workflow helpers into `research_workflow.py` for crawled document construction and image confidence scoring.
+- Fixed a Research Toolkit edge case where `web:<provider>` answer summaries without URLs could occupy the only merged slot at `limit=1`, leaving `research_images`, `research_pack`, and `research_workflow` with no page candidates.
+- Refactored Research Toolkit source adapters into `research_sources.py` for local/news, external API, web provider, Codex SDK, page-candidate, and source-error normalization.
+- Refactored Research Toolkit web helpers into `research_web.py` for URL validation, HTML parsing, HTTP fetch normalization, and Crawl4AI result formatting.
+- Enhanced `research_workflow` with deterministic Markdown brief rendering and optional `.md` artifact export alongside the JSON evidence packet.
+- Refactored Research Toolkit helper code into `research_brief.py` for Markdown rendering and `research_io.py` for project-local JSON/Markdown artifact writing.
+- Added `research_workflow` MCP tool as a high-level research pipeline with automatic source selection, per-page crawl retries, image candidate extraction from crawled pages, and optional JSON artifact export.
 - Enhanced `research_toolkit_health` with a capability matrix that reports ready status, missing API keys/packages/CLIs, setup hints, and attached adapters.
 - Added `xhs_auth_status` MCP tool and normalized xhs CLI cookie/auth tracebacks into `AUTH_STORAGE_UNAVAILABLE` or `AUTH_REQUIRED`.
 - Added an auth preflight guard for `xhs_*` SocialOps tools so missing/expired login blocks before running feed/comment/post/delete commands; `confirm=True` gates still short-circuit before auth checks.
@@ -29,6 +48,6 @@
 - Initialized Engineering Memory: added project `AGENTS.md`, `.codex-memory.yaml`, and `engineering-memory/` files for project profile, module map, regression map, rules, bug memory, tech debt, and playbooks.
 - Filled the initial project profile, architecture module map, regression map, and project inventories from README, `pyproject.toml`, storage schemas, `argus_server/server.py`, and existing tests.
 - Added `ResearchToolkitTools` with page crawling, image discovery, safe gallery-dl planning/execution, optional CLI health checks, and cross-source topic research.
-- Registered seven Research Toolkit MCP tools: `research_toolkit_health`, `crawl_url`, `discover_page_images`, `research_images`, `research_pack`, `download_gallery`, and `research_topic`.
+- Registered eight Research Toolkit MCP tools: `research_toolkit_health`, `crawl_url`, `discover_page_images`, `research_images`, `research_pack`, `research_workflow`, `download_gallery`, and `research_topic`.
 - Updated README with the research toolkit MCP tools and open-source adapter roadmap.
 - Added unit tests for normal and error paths in the research toolkit.
