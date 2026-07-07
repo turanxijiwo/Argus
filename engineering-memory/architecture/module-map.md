@@ -206,6 +206,7 @@ Path:
 - `argus_server/tools/research_health.py`
 - `argus_server/tools/research_crawl.py`
 - `argus_server/tools/research_sources.py`
+- `argus_server/tools/research_source_ai.py`
 - `argus_server/tools/research_topic.py`
 - `argus_server/tools/research_images.py`
 - `argus_server/tools/research_pack.py`
@@ -220,7 +221,7 @@ Path:
 - `argus_server/tools/social_ops.py`
 
 Responsibility:
-- Provide dependency-free page crawling/image discovery entrypoints, HTTP crawl orchestration, cross-source topic aggregation, topic-driven image research, full research workflow orchestration, capability health matrix reporting, optional Crawl4AI render runtime, source adapter normalization, evidence packet construction, workflow document/image scoring helpers, safe gallery-dl wrapping, HTML/URL parsing, research brief rendering, safe project-local research artifact writing, public external API lookup, and optional social CLI wrappers.
+- Provide dependency-free page crawling/image discovery entrypoints, HTTP crawl orchestration, cross-source topic aggregation, topic-driven image research, full research workflow orchestration, capability health matrix reporting, optional Crawl4AI render runtime, source adapter normalization, optional AI-backed web/Codex source adapters, evidence packet construction, workflow document/image scoring helpers, safe gallery-dl wrapping, HTML/URL parsing, research brief rendering, safe project-local research artifact writing, public external API lookup, and optional social CLI wrappers.
 
 Depends on:
 - `requests`, optional local CLIs (`gallery-dl`, bili/xhs/twitter/tg/discord), optional local Codex SDK (`openai-codex`), external API availability.

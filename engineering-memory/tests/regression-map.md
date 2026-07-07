@@ -39,6 +39,7 @@ Related modules:
 - `argus_server/tools/research_health.py`
 - `argus_server/tools/research_crawl.py`
 - `argus_server/tools/research_sources.py`
+- `argus_server/tools/research_source_ai.py`
 - `argus_server/tools/research_topic.py`
 - `argus_server/tools/research_images.py`
 - `argus_server/tools/research_pack.py`
