@@ -41,7 +41,7 @@ web-provider validation remains optional when a provider API key is available.
 | gallery-dl dry-run | Ready | `download_gallery(..., confirm=False)` returned a dry-run command with project-local `cwd` and `confirm_required=true`. |
 | Crawl4AI package | Ready with permission note | Import succeeds; `render_js=True` succeeds outside the sandbox but fails inside the restricted sandbox because Crawl4AI cannot open its database file. |
 | Codex SDK source | Ready with permission note | Import succeeds; `research_topic(..., sources=["codex"])` succeeds outside the sandbox and returns one URL-bearing result, but fails inside the restricted sandbox because `~/.codex` sqlite state is read-only. |
-| Codex source smoke | Ready with permission note | `scripts/research_codex_smoke.py` returned exit code `0` with one URL-bearing topic result, one successful workflow document, one image, and a Markdown brief when run with approved unsandboxed execution; the same command returns exit code `2` inside the restricted sandbox because `~/.codex` sqlite state is read-only. |
+| Codex source smoke | Ready with permission note | `scripts/research_codex_smoke.py` returned exit code `0` with one URL-bearing topic result, one successful workflow document, and a Markdown brief when run with approved unsandboxed execution; image count depends on the selected source page. The same command returns exit code `2` inside the restricted sandbox because `~/.codex` sqlite state is read-only. |
 | Tavily / Exa / Perplexity / Brave | Not configured | No web-search provider API env vars are set in the current process. |
 
 ## Runtime Health Summary
