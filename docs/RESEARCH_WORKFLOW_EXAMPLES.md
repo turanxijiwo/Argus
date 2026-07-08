@@ -206,3 +206,56 @@ Current local result:
 - `scripts/research_artifact_review.py --format markdown --write-report output/research/artifact-reviews/latest-review.md` returned exit code `0`.
 - The generated report reviewed one artifact with average score `100.0`, status
   `ready`, and no warnings.
+
+## Batch Workflow And Review
+
+Use this command when you want one run to execute saved research workflows and
+then produce a review report:
+
+```bash
+uv run python scripts/research_batch_workflow.py --query "OpenAI" --query "AI safety"
+```
+
+The default source is `wikipedia`, so the command does not require commercial
+provider keys or Codex SDK state. Saved artifacts go under
+`output/research/batch/`, and the Markdown review report is written to
+`output/research/artifact-reviews/batch-review.md`.
+
+For a reusable query list:
+
+```text
+OpenAI
+AI safety
+browser automation agents
+```
+
+Run:
+
+```bash
+uv run python scripts/research_batch_workflow.py --queries-file queries.txt
+```
+
+The batch summary reports:
+
+- Per-query artifact and Markdown brief paths.
+- Per-query document, image, source-error, and crawl-error counts.
+- Review status counts and average score.
+- Review report write status.
+
+All artifact paths in the printed summary are project-relative, so the handoff
+output does not expose local machine paths.
+
+Exit codes:
+
+- `0`: all workflows succeeded, artifacts were readable, and the review report
+  was written.
+- `2`: Research Toolkit import/runtime was unavailable.
+- `3`: query input, workflow, artifact review, or report writing failed.
+
+Current local result:
+
+- `scripts/research_batch_workflow.py --query "OpenAI" --query "AI safety"` returned exit code `0`.
+- Two JSON artifacts and two Markdown briefs were saved under
+  `output/research/batch/`.
+- The generated review report scored both artifacts `ready` with average score
+  `100.0`.

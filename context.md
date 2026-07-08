@@ -4,7 +4,7 @@
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
 - Current product focus remains the Argus agent-native research and intelligence toolkit: 163 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest implementation step: added `scripts/research_artifact_review.py`, a Phase 2C local review/report tool for saved `research_workflow` JSON artifacts.
+- Latest implementation step: added `scripts/research_batch_workflow.py`, a Phase 2C batch runner that saves multiple `research_workflow` artifacts and writes a review report in one command.
 
 ## 已知问题
 
@@ -24,10 +24,12 @@
 - `docs/RESEARCH_WORKFLOW_EXAMPLES.md` is now the preferred handoff for running saved JSON + Markdown research workflows from an MCP client.
 - `scripts/research_artifact_smoke.py` saves artifacts under ignored `output/research/artifact-smoke/` and verifies JSON parseability, Markdown brief structure, project-local paths, successful documents, and readable handoff fields; the current local smoke passes with one successful document and Markdown/JSON artifacts saved.
 - `scripts/research_artifact_review.py` scans saved JSON artifacts under `output/research/` or explicit paths, scores readability/reuse quality, summarizes key documents and warnings, and can write a Markdown review report under ignored output paths; the current local review report is ready with score 100 and no warnings.
+- `scripts/research_batch_workflow.py` runs one or more saved workflows, stores artifacts under ignored `output/research/batch/`, prints project-relative artifact paths, and writes `output/research/artifact-reviews/batch-review.md` through the local artifact review pipeline; the current local batch for OpenAI and AI safety passes with two ready artifacts and average score 100.
 - `docs/HANDOFF.md` appears older than README/source for some counts and roadmap status; prefer README and current source when they disagree.
 
 ## 最近变更记录
 
+- Added `scripts/research_batch_workflow.py` and tests for one-command saved workflow batch execution plus artifact review report generation.
 - Added `scripts/research_artifact_review.py` and tests for local saved-artifact readability reports across one or more `research_workflow` JSON files.
 - Added `scripts/research_artifact_smoke.py` and tests so saved `research_workflow` JSON + Markdown artifacts have a repeatable quality gate.
 - Added `scripts/research_crawl_quality_smoke.py` and tests for repeatable public-page crawl/image/workflow quality checks without provider keys or Codex SDK state.

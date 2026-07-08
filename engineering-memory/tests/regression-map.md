@@ -58,6 +58,7 @@ Tests to run:
 - `uv run python -m unittest tests.test_research_crawl_quality_smoke`
 - `uv run python -m unittest tests.test_research_artifact_smoke`
 - `uv run python -m unittest tests.test_research_artifact_review`
+- `uv run python -m unittest tests.test_research_batch_workflow`
 - `uv run python -m unittest discover -s tests`
 
 Known historical bugs:
@@ -79,6 +80,7 @@ Known historical bugs:
 - Phase 2B public crawl quality smoke must validate fixed public page fixtures, image discovery shape, and a key-free Wikipedia `research_workflow` before treating crawl quality as ready.
 - Phase 2C artifact smoke must verify saved JSON and Markdown outputs are parseable, project-local, structurally readable, and tied to successful workflow documents.
 - Phase 2C artifact review must summarize saved research quality without full page-text replay, classify ready/partial/needs-attention artifacts, and preserve warnings for source/page/brief risks.
+- Phase 2C batch workflow must run multiple saved workflows, collect project-relative artifact paths, and generate a review report without requiring provider keys or replaying full page text.
 
 ### Flow: MCP server import and tool registration
 
@@ -220,6 +222,14 @@ Test file:
 
 What it protects:
 - Keeps local artifact review useful for batch handoff by summarizing quality status, scores, warnings, key source metadata, unreadable files, and Markdown report output without replaying full crawled page text.
+
+### Research toolkit batch workflow report
+
+Test file:
+- `tests/test_research_batch_workflow.py`
+
+What it protects:
+- Keeps the one-command saved workflow loop reliable by loading query lists, running per-query saved workflows, collecting project-relative artifact paths, and generating a Markdown review report from the local artifact review pipeline.
 
 ### Research toolkit topic image discovery
 
