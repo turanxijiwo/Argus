@@ -34,6 +34,7 @@ def toolkit_health(
                 "research_pack": "topic search plus page crawling into an evidence packet",
                 "research_images": "query-driven page discovery plus normalized image candidate extraction",
                 "research_workflow": "one-call topic search, page crawl, image extraction, markdown brief, retry summary, and optional export",
+                "research_batch_workflow": "multi-query saved research workflows plus compact artifact review report",
                 "download_gallery": "safe gallery-dl wrapper when installed",
             },
             "web_search_sources": ["web", "web:tavily", "web:exa", "web:perplexity", "web:brave"],
@@ -102,6 +103,12 @@ def toolkit_health(
                     missing=[] if topic_source_ready else ["a topic source that returns page URLs"],
                     setup_hint=None if topic_source_ready else "Use configured web search, the local Codex SDK, or Argus local/external sources",
                 ),
+                "research_batch_workflow": _capability(
+                    can_use_now=topic_source_ready,
+                    status="ready" if topic_source_ready else "needs_source",
+                    missing=[] if topic_source_ready else ["a topic source that returns page URLs"],
+                    setup_hint=None if topic_source_ready else "Use configured web search, the local Codex SDK, or Argus local/external sources",
+                ),
                 "download_gallery": _capability(
                     can_use_now=gallery_ready,
                     status="ready" if gallery_ready else "needs_setup",
@@ -127,6 +134,7 @@ def toolkit_health(
                 topic_source_ready,
                 web_search_ready,
                 codex_ready,
+                topic_source_ready,
                 topic_source_ready,
                 topic_source_ready,
                 topic_source_ready,

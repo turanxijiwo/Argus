@@ -32,7 +32,7 @@ web-provider validation remains optional when a provider API key is available.
 
 | Area | Status | Evidence |
 |---|---|---|
-| MCP registration | Ready | FastMCP exposes 163 tools and all eight Research Toolkit tools. |
+| MCP registration | Ready | FastMCP exposes 164 tools and all nine Research Toolkit tools. |
 | Built-in HTTP crawl | Ready | `crawl_url("https://example.com")` returned HTTP 200, title, text, and one link. `scripts/research_crawl_quality_smoke.py` now returns exit code `0` against a small public fixture set and a Wikipedia workflow. |
 | Page image discovery | Ready | `discover_page_images("https://example.com")` completed successfully with zero images, as expected for the page. |
 | Public source search | Ready | `research_topic("OpenAI", sources=["wikipedia"], limit=1)` returned one URL-bearing result. |

@@ -13,6 +13,11 @@ from typing import Any, Dict, List, Optional
 import requests
 
 from .research_crawl import fetch_page_html, parse_page_html
+from .research_batch import (
+    DEFAULT_BATCH_OUTPUT_DIR,
+    DEFAULT_BATCH_REPORT_PATH,
+    build_research_batch_workflow,
+)
 from .research_gallery import download_gallery as run_gallery_download
 from .research_health import (
     toolkit_health as build_toolkit_health,
@@ -253,6 +258,35 @@ class ResearchToolkitTools:
             crawl_url=self.crawl_url,
             max_text_chars=_MAX_TEXT_CHARS,
             retriable_errors=_RETRIABLE_CRAWL_ERRORS,
+        )
+
+    def research_batch_workflow(
+        self,
+        queries: List[str],
+        sources: Optional[List[str]] = None,
+        limit: int = 5,
+        timeout: int = 20,
+        max_chars_per_page: int = 4000,
+        images_per_page: int = 5,
+        render_js: bool = False,
+        retries: int = 1,
+        output_dir: str = DEFAULT_BATCH_OUTPUT_DIR,
+        report_path: str = DEFAULT_BATCH_REPORT_PATH,
+    ) -> Dict:
+        """Run saved research workflows for multiple queries and write a review report."""
+        return build_research_batch_workflow(
+            queries=queries,
+            sources=sources or self._default_workflow_sources(),
+            limit=limit,
+            timeout=timeout,
+            max_chars_per_page=max_chars_per_page,
+            images_per_page=images_per_page,
+            render_js=render_js,
+            retries=retries,
+            output_dir=output_dir,
+            report_path=report_path,
+            project_root=self.project_root,
+            research_workflow=self.research_workflow,
         )
 
     # ───────────────────────── Internal helpers ─────────────────────────

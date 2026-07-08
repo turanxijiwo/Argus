@@ -141,6 +141,7 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertEqual(capabilities["research_topic_codex"]["missing"], ["openai-codex"])
         self.assertFalse(capabilities["research_pack"]["can_use_now"])
         self.assertFalse(capabilities["research_workflow"]["can_use_now"])
+        self.assertFalse(capabilities["research_batch_workflow"]["can_use_now"])
         self.assertFalse(result["data"]["optional_cli"]["gallery-dl"]["installed"])
         self.assertFalse(result["data"]["optional_cli"]["openai-codex"]["installed"])
 
@@ -156,6 +157,7 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertEqual(result["data"]["capabilities"]["research_topic_web"]["available_sources"], ["web:tavily"])
         self.assertTrue(result["data"]["capabilities"]["research_pack"]["can_use_now"])
         self.assertTrue(result["data"]["capabilities"]["research_workflow"]["can_use_now"])
+        self.assertTrue(result["data"]["capabilities"]["research_batch_workflow"]["can_use_now"])
 
     def test_toolkit_health_marks_codex_runner_ready(self):
         tool = ResearchToolkitTools(
@@ -584,6 +586,119 @@ class ResearchToolkitToolsTest(unittest.TestCase):
 
         self.assertFalse(result["success"])
         self.assertEqual(result["error"]["code"], "UNSAFE_OUTPUT_DIR")
+
+    def test_research_batch_workflow_saves_relative_artifacts_and_report(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tool = ResearchToolkitTools(project_root=tmpdir, ai_search=FakeAIWebSearch())
+            evidence_text = "Evidence text about AI browser workflows. " * 30
+            tool.crawl_url = lambda url, render_js, timeout, max_chars: {
+                "success": True,
+                "data": {
+                    "url": url,
+                    "final_url": url,
+                    "status_code": 200,
+                    "content_type": "text/html",
+                    "title": "AI browser field report",
+                    "description": "",
+                    "text": evidence_text,
+                    "text_truncated": False,
+                    "links": [],
+                    "images": [
+                        {
+                            "url": "https://example.com/image.png",
+                            "alt": "AI browser screenshot",
+                        }
+                    ],
+                },
+            }
+
+            result = tool.research_batch_workflow(
+                ["AI browser", "AI browser", "AI safety"],
+                sources=["web:tavily"],
+                limit=1,
+                output_dir="output/research/batch",
+                report_path="output/research/artifact-reviews/batch-review.md",
+            )
+
+            self.assertTrue(result["success"])
+            self.assertEqual(result["summary"]["query_count"], 2)
+            self.assertEqual(result["summary"]["artifact_count"], 2)
+            self.assertEqual(result["data"]["review"]["status_counts"], {"ready": 2})
+            self.assertEqual(len(result["data"]["runs"]), 2)
+            self.assertEqual(len(result["data"]["artifact_paths"]), 2)
+            self.assertTrue(result["data"]["report_artifact"]["success"])
+            self.assertEqual(
+                result["data"]["report_artifact"]["data"]["path"],
+                "output/research/artifact-reviews/batch-review.md",
+            )
+            for run in result["data"]["runs"]:
+                self.assertTrue(run["artifact_path"].startswith("output/research/batch/"))
+                self.assertTrue(run["brief_path"].startswith("output/research/batch/"))
+                self.assertEqual(run["quality_status"], "ready")
+            serialized = json.dumps(result, ensure_ascii=False)
+            self.assertNotIn(tmpdir, serialized)
+            self.assertTrue(os.path.exists(os.path.join(tmpdir, "output/research/artifact-reviews/batch-review.md")))
+
+    def test_research_batch_workflow_rejects_empty_queries(self):
+        tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())
+
+        result = tool.research_batch_workflow(["", "   "], sources=["web:tavily"])
+
+        self.assertFalse(result["success"])
+        self.assertEqual(result["error"]["code"], "INVALID_QUERIES")
+
+    def test_research_batch_workflow_accepts_single_query_string(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tool = ResearchToolkitTools(project_root=tmpdir, ai_search=FakeAIWebSearch())
+            tool.crawl_url = lambda url, render_js, timeout, max_chars: {
+                "success": True,
+                "data": {
+                    "url": url,
+                    "final_url": url,
+                    "status_code": 200,
+                    "content_type": "text/html",
+                    "title": "AI browser field report",
+                    "description": "",
+                    "text": "Evidence text about AI browser workflows. " * 30,
+                    "text_truncated": False,
+                    "links": [],
+                    "images": [],
+                },
+            }
+
+            result = tool.research_batch_workflow("AI browser", sources=["web:tavily"])
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["summary"]["query_count"], 1)
+        self.assertEqual(result["data"]["queries"], ["AI browser"])
+
+    def test_research_batch_workflow_rejects_report_outside_project(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tool = ResearchToolkitTools(project_root=tmpdir, ai_search=FakeAIWebSearch())
+            tool.crawl_url = lambda url, render_js, timeout, max_chars: {
+                "success": True,
+                "data": {
+                    "url": url,
+                    "final_url": url,
+                    "status_code": 200,
+                    "content_type": "text/html",
+                    "title": "AI browser field report",
+                    "description": "",
+                    "text": "Evidence text about AI browser workflows. " * 30,
+                    "text_truncated": False,
+                    "links": [],
+                    "images": [],
+                },
+            }
+
+            result = tool.research_batch_workflow(
+                ["AI browser"],
+                sources=["web:tavily"],
+                report_path="/tmp/argus-batch-review.md",
+            )
+
+        self.assertFalse(result["success"])
+        self.assertEqual(result["error"]["code"], "UNSAFE_REPORT_PATH")
 
     def test_research_images_discovers_page_images(self):
         tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())

@@ -44,6 +44,7 @@ Related modules:
 - `argus_server/tools/research_images.py`
 - `argus_server/tools/research_pack.py`
 - `argus_server/tools/research_workflow.py`
+- `argus_server/tools/research_batch.py`
 - `argus_server/tools/research_gallery.py`
 - `argus_server/tools/research_render.py`
 - `argus_server/tools/research_web.py`
@@ -59,6 +60,7 @@ Tests to run:
 - `uv run python -m unittest tests.test_research_artifact_smoke`
 - `uv run python -m unittest tests.test_research_artifact_review`
 - `uv run python -m unittest tests.test_research_batch_workflow`
+- `uv run python -m unittest tests.test_mcp_registration`
 - `uv run python -m unittest discover -s tests`
 
 Known historical bugs:
@@ -81,6 +83,7 @@ Known historical bugs:
 - Phase 2C artifact smoke must verify saved JSON and Markdown outputs are parseable, project-local, structurally readable, and tied to successful workflow documents.
 - Phase 2C artifact review must summarize saved research quality without full page-text replay, classify ready/partial/needs-attention artifacts, and preserve warnings for source/page/brief risks.
 - Phase 2C batch workflow must run multiple saved workflows, collect project-relative artifact paths, and generate a review report without requiring provider keys or replaying full page text.
+- Phase 2D MCP batch workflow must expose the batch saved-workflow loop directly to agents while returning compact summaries and project-relative paths instead of full crawled page text.
 
 ### Flow: MCP server import and tool registration
 
@@ -227,9 +230,11 @@ What it protects:
 
 Test file:
 - `tests/test_research_batch_workflow.py`
+- `tests/test_research_toolkit.py`
 
 What it protects:
 - Keeps the one-command saved workflow loop reliable by loading query lists, running per-query saved workflows, collecting project-relative artifact paths, and generating a Markdown review report from the local artifact review pipeline.
+- Keeps the MCP-facing batch workflow reliable by deduping queries, saving per-query JSON/Markdown artifacts, writing a project-local review report, and rejecting unsafe report paths.
 
 ### Research toolkit topic image discovery
 
@@ -269,7 +274,7 @@ Test file:
 - `tests/test_mcp_registration.py`
 
 What it protects:
-- Keeps all eight Research Toolkit tools registered on the FastMCP server and catches accidental changes to the expected 163-tool public surface.
+- Keeps all nine Research Toolkit tools registered on the FastMCP server and catches accidental changes to the expected 164-tool public surface.
 
 ### xhs CLI auth status and friendly errors
 

@@ -1,9 +1,9 @@
 # Research Workflow Examples
 
-This guide shows repeatable MCP prompts for `research_workflow`. The examples
-focus on personal, non-commercial research, keep all saved artifacts inside the
-Argus project directory, and do not require commercial search-provider keys when
-using the `codex` source.
+This guide shows repeatable MCP prompts for `research_workflow` and
+`research_batch_workflow`. The examples focus on personal, non-commercial
+research, keep all saved artifacts inside the Argus project directory, and do
+not require commercial search-provider keys when using the `codex` source.
 
 ## Codex Source Workflow
 
@@ -209,8 +209,40 @@ Current local result:
 
 ## Batch Workflow And Review
 
-Use this command when you want one run to execute saved research workflows and
-then produce a review report:
+Use this prompt in an MCP client when you want Argus itself to batch several
+saved workflows and return a compact handoff:
+
+```text
+Use Argus research_batch_workflow for "OpenAI" and "AI safety". Use only the
+wikipedia source. Crawl 1 page per query, save artifacts under
+output/research/batch, and write the batch review report to
+output/research/artifact-reviews/batch-review.md.
+```
+
+Equivalent tool arguments:
+
+```json
+{
+  "queries": ["OpenAI", "AI safety"],
+  "sources": ["wikipedia"],
+  "limit": 1,
+  "timeout": 20,
+  "max_chars_per_page": 1500,
+  "images_per_page": 5,
+  "render_js": false,
+  "retries": 1,
+  "output_dir": "output/research/batch",
+  "report_path": "output/research/artifact-reviews/batch-review.md"
+}
+```
+
+The MCP response includes per-query counts, quality status, project-relative
+artifact paths, review status counts, and the report path. It does not return
+full crawled page text, so it is safer to hand off between agent steps.
+
+The standalone script remains useful from a terminal. Use this command when you
+want one local run to execute saved research workflows and then produce a review
+report:
 
 ```bash
 uv run python scripts/research_batch_workflow.py --query "OpenAI" --query "AI safety"
@@ -254,6 +286,10 @@ Exit codes:
 
 Current local result:
 
+- MCP `research_batch_workflow` with `queries=["OpenAI", "AI safety"]` and
+  `sources=["wikipedia"]` returned success, wrote
+  `output/research/artifact-reviews/batch-review.md`, and scored both artifacts
+  `ready` with average score `100.0`.
 - `scripts/research_batch_workflow.py --query "OpenAI" --query "AI safety"` returned exit code `0`.
 - Two JSON artifacts and two Markdown briefs were saved under
   `output/research/batch/`.

@@ -110,7 +110,7 @@ uv run python -m unittest discover -s tests
 git diff --check
 ```
 
-The expected public MCP tool count is `163`, with all eight Research Toolkit
+The expected public MCP tool count is `164`, with all nine Research Toolkit
 tools present.
 
 ## Phase 2 Candidate Work
