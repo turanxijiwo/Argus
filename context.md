@@ -4,7 +4,7 @@
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
 - Current product focus remains the Argus agent-native research and intelligence toolkit: 163 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest implementation step: added `docs/RESEARCH_TOOLKIT_BOUNDARIES.md` to lock the Research Toolkit Phase 1 scope, optional adapters, non-goals, verification gates, and Phase 2 candidates.
+- Latest implementation step: completed the Research Toolkit Phase 2A readiness audit and recorded local optional-runtime findings in `docs/RESEARCH_TOOLKIT_PHASE2A_AUDIT.md`.
 
 ## 已知问题
 
@@ -16,10 +16,13 @@
 - xhs CLI access still requires normal manual Xiaohongshu login; Argus reports expired/unavailable auth clearly, preflights `xhs_*` tools before business commands, and does not attempt to bypass login or auto-refresh cookies.
 - Codex SDK responses must return JSON for `research_topic(sources=["codex"])`; invalid JSON returns `PARSE_ERROR`, and missing SDK returns `NOT_INSTALLED`.
 - `download_gallery` requires `gallery-dl` to be installed locally and defaults to dry-run for safety.
+- Phase 2A audit found Crawl4AI and Codex SDK are installed and usable with approved unsandboxed execution, but both can fail inside the restricted Codex sandbox because they need user-level state/cache writes.
+- No Tavily / Exa / Perplexity / Brave API keys are configured in the current runtime, so real `web:<provider>` smoke remains the next provider task.
 - `docs/HANDOFF.md` appears older than README/source for some counts and roadmap status; prefer README and current source when they disagree.
 
 ## 最近变更记录
 
+- Added `docs/RESEARCH_TOOLKIT_PHASE2A_AUDIT.md` with current MCP registration, public crawl/workflow, gallery-dl dry-run, Crawl4AI, Codex SDK, and web-provider readiness results.
 - Added the Research Toolkit Phase 1 boundary document covering built-in capabilities, optional runtime adapters, explicit non-goals, safety/error contracts, verification gates, and Phase 2 candidate work.
 - Added an MCP registration smoke test for the Research Toolkit public tool surface, covering the 163-tool FastMCP count and the eight expected research tools.
 - Split Research Toolkit optional AI-backed source adapters into `research_source_ai.py` for web provider and Codex SDK normalization, reducing `research_sources.py` to dispatcher/local-source/page-candidate responsibilities.
