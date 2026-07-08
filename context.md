@@ -4,7 +4,7 @@
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
 - Current product focus remains the Argus agent-native research and intelligence toolkit: 163 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest implementation step: added a Codex-source-first Phase 2B smoke path through `scripts/research_codex_smoke.py`, so Research Toolkit validation can use the local Codex SDK instead of requiring commercial provider API keys.
+- Latest implementation step: documented reusable `research_workflow` MCP prompts and tool arguments in `docs/RESEARCH_WORKFLOW_EXAMPLES.md`, covering Codex, public Wikipedia, and optional provider-backed saved research workflows.
 
 ## 已知问题
 
@@ -20,10 +20,12 @@
 - No Tavily / Exa / Perplexity / Brave API keys are configured in the current runtime; `web:<provider>` smoke remains optional, while `scripts/research_codex_smoke.py` is the primary no-provider-key smoke path.
 - `scripts/research_codex_smoke.py` exits with code 2 for Codex SDK/state/permission unavailability and code 3 for Codex research-contract failures; the approved unsandboxed smoke currently passes with one URL-bearing topic result and one successful workflow document.
 - `scripts/research_provider_smoke.py` exits with code 2 and `NO_CONFIGURED_PROVIDER` when no provider key is configured; with a key, it validates `research_topic`, `research_pack`, and `research_workflow` against the chosen `web:<provider>` source.
+- `docs/RESEARCH_WORKFLOW_EXAMPLES.md` is now the preferred handoff for running saved JSON + Markdown research workflows from an MCP client.
 - `docs/HANDOFF.md` appears older than README/source for some counts and roadmap status; prefer README and current source when they disagree.
 
 ## 最近变更记录
 
+- Added `docs/RESEARCH_WORKFLOW_EXAMPLES.md` with MCP prompts, equivalent tool arguments, saved artifact fields, and safety notes for `research_workflow`.
 - Added `docs/RESEARCH_TOOLKIT_PHASE2A_AUDIT.md` with current MCP registration, public crawl/workflow, gallery-dl dry-run, Crawl4AI, Codex SDK, and web-provider readiness results.
 - Added `scripts/research_codex_smoke.py` and unit tests so Phase 2B can validate `research_topic` and `research_workflow` with `sources=["codex"]` without commercial provider keys.
 - Added `scripts/research_provider_smoke.py` and unit tests so Phase 2B web-provider smoke has a repeatable command and deterministic skip behavior when no API key is configured.

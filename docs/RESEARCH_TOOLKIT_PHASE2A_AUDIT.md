@@ -88,12 +88,20 @@ approved unsandboxed execution in future Codex sessions.
 2. Configure exactly one web-search provider key only if commercial-provider
    validation is needed, then run `scripts/research_provider_smoke.py` against
    `web:<provider>`.
-3. Add a documented example MCP prompt for `research_workflow` that saves JSON
-   and Markdown artifacts.
-4. Add a small public-page fixture list for repeatable crawl quality checks.
-5. Decide whether Crawl4AI should have an explicit
+3. Add a small public-page fixture list for repeatable crawl quality checks.
+4. Decide whether Crawl4AI should have an explicit
    `--allow-unsandboxed-runtime-check` style helper, so future audits do not
    confuse sandbox permission failures with adapter failures.
+
+## Phase 2B Workflow Examples
+
+`docs/RESEARCH_WORKFLOW_EXAMPLES.md` contains reusable MCP prompts and equivalent
+tool arguments for:
+
+- Codex-source research that saves JSON and Markdown artifacts without
+  commercial provider keys.
+- Wikipedia public-source research that avoids Codex SDK runtime state.
+- Optional `web:<provider>` research after a provider key is configured.
 
 ## Phase 2B Codex Smoke Entry
 
