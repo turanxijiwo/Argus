@@ -168,3 +168,41 @@ Current local result:
   successful document.
 - The saved Markdown brief included frontmatter, key sources, and the Argus
   generated marker.
+
+## Artifact Review Report
+
+Use this report when you have one or more saved JSON artifacts and want a quick
+quality/readability summary without re-running crawls:
+
+```bash
+uv run python scripts/research_artifact_review.py --format markdown --write-report output/research/artifact-reviews/latest-review.md
+```
+
+By default the review scans the latest saved JSON files under `output/research/`.
+You can also review explicit artifacts:
+
+```bash
+uv run python scripts/research_artifact_review.py --artifact output/research/artifact-smoke/research-OpenAI-YYYYMMDDTHHMMSSZ.json
+```
+
+The report summarizes:
+
+- `ready` / `partial` / `needs_attention` / `unreadable` quality status.
+- A 0-100 score based on successful documents, source/page errors, brief length,
+  available evidence text, and source metadata.
+- Warnings such as `source_errors_present`, `page_errors_present`,
+  `missing_brief`, `short_brief`, or `low_evidence_text`.
+- Key source titles, URLs, text length, link count, and image count.
+- Source and page error summaries without printing full page text.
+
+Exit codes:
+
+- `0`: report generated and all reviewed JSON artifacts were readable.
+- `2`: no artifacts were found or the review input was unavailable.
+- `3`: at least one reviewed artifact was unreadable, or report writing failed.
+
+Current local result:
+
+- `scripts/research_artifact_review.py --format markdown --write-report output/research/artifact-reviews/latest-review.md` returned exit code `0`.
+- The generated report reviewed one artifact with average score `100.0`, status
+  `ready`, and no warnings.
