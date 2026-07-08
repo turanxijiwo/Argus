@@ -68,6 +68,7 @@ Known historical bugs:
 - Optional `web:<provider>` research sources must preserve provider errors and normalize answer/result/citation shapes when configured.
 - Optional `codex` research source must preserve missing-SDK errors and normalize JSON SDK/runner output into the same merged result shape.
 - Research toolkit health must clearly report ready capabilities, missing setup, API key status, and attached adapters.
+- Phase 1 scope must stay explicit in `docs/RESEARCH_TOOLKIT_BOUNDARIES.md`: no new dependencies, no login bypass, optional adapters stay optional, and Phase 2 candidates remain separate.
 
 ### Flow: MCP server import and tool registration
 

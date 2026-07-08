@@ -24,7 +24,7 @@
 | **Alert 规则引擎** | `tools/alerts.py` | keyword_count / anomaly / semantic_hit 三类规则 |
 | **定时任务编排** | `tools/scheduler.py` + `scheduler_runner.py` | macOS launchd workflow DSL |
 | **MCP client 反向挂载** | `tools/mcp_proxy.py` | 把外部 MCP server 的工具挂到本服务下 |
-| **研究工具包** | `tools/research_toolkit.py` + `research_page.py` / `research_health.py` / `research_crawl.py` / `research_sources.py` / `research_topic.py` / `research_images.py` / `research_pack.py` / `research_workflow.py` / `research_gallery.py` / `research_render.py` / `research_web.py` / `research_brief.py` / `research_io.py` | 统一网页抓取、图片发现、gallery-dl 安全封装、跨源研究聚合 |
+| **研究工具包** | `tools/research_toolkit.py` + `research_page.py` / `research_health.py` / `research_crawl.py` / `research_sources.py` / `research_source_ai.py` / `research_topic.py` / `research_images.py` / `research_pack.py` / `research_workflow.py` / `research_gallery.py` / `research_render.py` / `research_web.py` / `research_brief.py` / `research_io.py` | 统一网页抓取、图片发现、gallery-dl 安全封装、跨源研究聚合 |
 | **多账号通知路由** | `tools/router.py` | 按关键词分流到多个飞书/钉钉/Bark 群 |
 | **飞书机器人反向通道** | `feishu_bot.py` | 群里 @ 机器人触发命令 → 调用 MCP → 回复 |
 | **Obsidian 导出** | `tools/exporter.py` | 每日简报 / 查询报告 / 异常报告自动落 vault |
@@ -92,6 +92,7 @@ Claude Code / Cherry Studio / 任何 MCP client 配置:
 | 文档 | 内容 |
 |---|---|
 | [docs/HANDOFF.md](docs/HANDOFF.md) | 项目完整架构、MCP 工具清单、凭证位置、故障排查 |
+| [docs/RESEARCH_TOOLKIT_BOUNDARIES.md](docs/RESEARCH_TOOLKIT_BOUNDARIES.md) | Research Toolkit 第一阶段边界: 内置能力、可选依赖、非目标、后续候选 |
 | [docs/SCHEDULER_GUIDE.md](docs/SCHEDULER_GUIDE.md) | 定时任务 DSL 语法 / 接入飞书 / 调试方法 |
 | [docs/FEISHU_BOT_SETUP.md](docs/FEISHU_BOT_SETUP.md) | 飞书反向通道接入:App 创建、Cloudflare Tunnel、联调 |
 | [NOTICE.md](NOTICE.md) | 上游项目、依赖包、贡献者归属声明 |
