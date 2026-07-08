@@ -642,6 +642,13 @@ class ResearchToolkitToolsTest(unittest.TestCase):
                 result["data"]["report_artifact"]["data"]["path"],
                 "output/research/artifact-reviews/batch-review.md",
             )
+            handoff = result["data"]["handoff"]
+            self.assertEqual(handoff["schema"], "argus.research.batch.handoff.v1")
+            self.assertEqual(handoff["entrypoint"], "mcp")
+            self.assertTrue(handoff["ready"])
+            self.assertIsNone(handoff["exit_code"])
+            self.assertEqual(handoff["artifact_paths"], result["data"]["artifact_paths"])
+            self.assertEqual(handoff["review_report"], "output/research/artifact-reviews/batch-review.md")
             for run in result["data"]["runs"]:
                 self.assertTrue(run["artifact_path"].startswith("output/research/batch/"))
                 self.assertTrue(run["brief_path"].startswith("output/research/batch/"))

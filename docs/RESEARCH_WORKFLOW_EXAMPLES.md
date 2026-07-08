@@ -240,6 +240,31 @@ The MCP response includes per-query counts, quality status, project-relative
 artifact paths, review status counts, and the report path. It does not return
 full crawled page text, so it is safer to hand off between agent steps.
 
+Both the MCP tool and the standalone script include a compact `handoff` block:
+
+```json
+{
+  "schema": "argus.research.batch.handoff.v1",
+  "entrypoint": "mcp",
+  "ready": true,
+  "query_count": 2,
+  "successful_workflow_count": 2,
+  "failed_workflow_count": 0,
+  "artifact_count": 2,
+  "artifact_paths": ["output/research/batch/research-OpenAI-YYYYMMDDTHHMMSSZ.json"],
+  "brief_paths": ["output/research/batch/research-OpenAI-YYYYMMDDTHHMMSSZ.md"],
+  "review_report": "output/research/artifact-reviews/batch-review.md",
+  "status_counts": {"ready": 2},
+  "average_score": 100.0,
+  "output_dir": "output/research/batch",
+  "exit_code": null
+}
+```
+
+For MCP responses, `exit_code` is `null`; for the standalone script, it is the
+actual process exit code. The shared handoff block is the preferred field for
+chaining follow-up review steps because it contains no full crawled page text.
+
 The standalone script remains useful from a terminal. Use this command when you
 want one local run to execute saved research workflows and then produce a review
 report:
@@ -288,8 +313,9 @@ Current local result:
 
 - MCP `research_batch_workflow` with `queries=["OpenAI", "AI safety"]` and
   `sources=["wikipedia"]` returned success, wrote
-  `output/research/artifact-reviews/batch-review.md`, and scored both artifacts
-  `ready` with average score `100.0`.
+  `output/research/artifact-reviews/batch-review.md`, returned
+  `handoff.schema == "argus.research.batch.handoff.v1"`, and scored both
+  artifacts `ready` with average score `100.0`.
 - `scripts/research_batch_workflow.py --query "OpenAI" --query "AI safety"` returned exit code `0`.
 - Two JSON artifacts and two Markdown briefs were saved under
   `output/research/batch/`.

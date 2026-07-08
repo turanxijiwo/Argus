@@ -36,6 +36,7 @@ What it protects:
 Related modules:
 - `argus_server/tools/research_toolkit.py`
 - `argus_server/tools/research_runtime.py`
+- `argus_server/tools/research_handoff.py`
 - `argus_server/tools/research_page.py`
 - `argus_server/tools/research_health.py`
 - `argus_server/tools/research_crawl.py`
@@ -86,6 +87,7 @@ Known historical bugs:
 - Phase 2C batch workflow must run multiple saved workflows, collect project-relative artifact paths, and generate a review report without requiring provider keys or replaying full page text.
 - Phase 2D MCP batch workflow must expose the batch saved-workflow loop directly to agents while returning compact summaries and project-relative paths instead of full crawled page text.
 - Phase 2E runtime defaults must stay behavior-preserving: session headers, default source selection, max crawl/text limits, and retriable crawl errors should not drift during structure cleanup.
+- Phase 2F batch handoff outputs must keep the shared `argus.research.batch.handoff.v1` schema aligned across MCP and script entrypoints, with project-relative artifact paths and script exit codes.
 
 ### Flow: MCP server import and tool registration
 
@@ -237,6 +239,7 @@ Test file:
 What it protects:
 - Keeps the one-command saved workflow loop reliable by loading query lists, running per-query saved workflows, collecting project-relative artifact paths, and generating a Markdown review report from the local artifact review pipeline.
 - Keeps the MCP-facing batch workflow reliable by deduping queries, saving per-query JSON/Markdown artifacts, writing a project-local review report, and rejecting unsafe report paths.
+- Keeps MCP and script batch workflow outputs aligned through the shared `handoff` block without replaying full crawled page text.
 
 ### Research toolkit topic image discovery
 

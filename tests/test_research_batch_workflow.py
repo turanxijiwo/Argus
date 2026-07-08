@@ -2,6 +2,7 @@ import argparse
 import contextlib
 import io
 import importlib.util
+import json
 import pathlib
 import sys
 import tempfile
@@ -171,10 +172,16 @@ class ResearchBatchWorkflowTest(unittest.TestCase):
                         exit_code = research_batch_workflow.run_batch(args)
 
             printed = output.getvalue()
+            payload = json.loads(printed)
             self.assertEqual(exit_code, 0)
             self.assertIn("output/research/batch/research.json", printed)
             self.assertNotIn("_review_artifact_paths", printed)
             self.assertNotIn(tmpdir, printed)
+            self.assertEqual(payload["handoff"]["schema"], "argus.research.batch.handoff.v1")
+            self.assertEqual(payload["handoff"]["entrypoint"], "script")
+            self.assertEqual(payload["handoff"]["exit_code"], 0)
+            self.assertEqual(payload["handoff"]["artifact_paths"], ["output/research/batch/research.json"])
+            self.assertTrue(payload["handoff"]["ready"])
 
     def test_batch_passed_requires_successful_runs_review_and_report(self):
         summary = {

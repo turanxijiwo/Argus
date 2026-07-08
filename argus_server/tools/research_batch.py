@@ -3,6 +3,7 @@
 import os
 from typing import Any, Callable, Dict, Iterable, List, Optional
 
+from .research_handoff import build_batch_handoff
 from .research_web import clean_text
 
 ResearchWorkflowFn = Callable[..., Dict]
@@ -60,12 +61,7 @@ def build_research_batch_workflow(
         runs.append(summarize_workflow_result(query, result, project_root))
 
     review = review_runs(runs)
-    markdown = render_batch_report(
-        runs=runs,
-        review=review,
-        sources=selected_sources,
-        output_dir=selected_output_dir,
-    )
+    markdown = render_batch_report(runs=runs, review=review, sources=selected_sources, output_dir=selected_output_dir)
     report_artifact = write_batch_report(markdown, selected_report_path, project_root)
     all_runs_success = all(run.get("success") for run in runs)
     batch_success = all_runs_success and bool(report_artifact.get("success"))
@@ -77,6 +73,10 @@ def build_research_batch_workflow(
         "review": review,
         "report_artifact": report_artifact,
     }
+    data["handoff"] = build_batch_handoff(
+        runs, data["artifact_paths"], review, report_artifact, len(selected_queries),
+        selected_output_dir, selected_report_path, "mcp", ready=batch_success,
+    )
     response = _ok(
         data,
         query_count=len(selected_queries),
@@ -88,6 +88,7 @@ def build_research_batch_workflow(
         report_written=bool(report_artifact.get("success")),
         output_dir=selected_output_dir,
         review_report=selected_report_path,
+        handoff_schema=data["handoff"]["schema"],
     )
     response["success"] = batch_success
     if not batch_success:
@@ -237,13 +238,8 @@ def write_batch_report(content: str, path: str, project_root: str) -> Dict[str, 
             handle.write(content)
     except OSError as ex:
         return _err(f"Failed to write batch review report: {ex}", code="WRITE_ERROR")
-    return _ok(
-        {
-            "format": "markdown",
-            "path": _relative_path(resolved["data"]["path"], project_root),
-        },
-        path=_relative_path(resolved["data"]["path"], project_root),
-    )
+    report_path = _relative_path(resolved["data"]["path"], project_root)
+    return _ok({"format": "markdown", "path": report_path}, path=report_path)
 
 
 def _normalize_queries(queries: Iterable[str]) -> List[str]:

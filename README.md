@@ -24,7 +24,7 @@
 | **Alert 规则引擎** | `tools/alerts.py` | keyword_count / anomaly / semantic_hit 三类规则 |
 | **定时任务编排** | `tools/scheduler.py` + `scheduler_runner.py` | macOS launchd workflow DSL |
 | **MCP client 反向挂载** | `tools/mcp_proxy.py` | 把外部 MCP server 的工具挂到本服务下 |
-| **研究工具包** | `tools/research_toolkit.py` + `research_runtime.py` / `research_page.py` / `research_health.py` / `research_crawl.py` / `research_sources.py` / `research_source_ai.py` / `research_topic.py` / `research_images.py` / `research_pack.py` / `research_workflow.py` / `research_batch.py` / `research_gallery.py` / `research_render.py` / `research_web.py` / `research_brief.py` / `research_io.py` | 统一网页抓取、图片发现、gallery-dl 安全封装、跨源研究聚合 |
+| **研究工具包** | `tools/research_toolkit.py` + `research_runtime.py` / `research_handoff.py` / `research_page.py` / `research_health.py` / `research_crawl.py` / `research_sources.py` / `research_source_ai.py` / `research_topic.py` / `research_images.py` / `research_pack.py` / `research_workflow.py` / `research_batch.py` / `research_gallery.py` / `research_render.py` / `research_web.py` / `research_brief.py` / `research_io.py` | 统一网页抓取、图片发现、gallery-dl 安全封装、跨源研究聚合 |
 | **多账号通知路由** | `tools/router.py` | 按关键词分流到多个飞书/钉钉/Bark 群 |
 | **飞书机器人反向通道** | `feishu_bot.py` | 群里 @ 机器人触发命令 → 调用 MCP → 回复 |
 | **Obsidian 导出** | `tools/exporter.py` | 每日简报 / 查询报告 / 异常报告自动落 vault |

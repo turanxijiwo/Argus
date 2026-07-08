@@ -8,6 +8,8 @@ import os
 import sys
 from typing import Any, Dict, Iterable, List, Optional
 
+from argus_server.tools.research_handoff import build_batch_handoff
+
 
 DEFAULT_QUERIES = ["OpenAI"]
 DEFAULT_OUTPUT_DIR = "output/research/batch"
@@ -165,8 +167,18 @@ def run_batch(args: argparse.Namespace) -> int:
             "status": "invalid_queries",
             "error": {"code": ex.__class__.__name__, "message": str(ex)},
         }
+        summary["exit_code"] = 3
+        summary["handoff"] = build_batch_handoff(
+            runs=[],
+            query_count=0,
+            output_dir=args.output_dir,
+            review_report=args.review_report,
+            entrypoint="script",
+            exit_code=summary["exit_code"],
+            ready=False,
+        )
         print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
-        return 3
+        return summary["exit_code"]
 
     workflows = run_workflows(args, queries, project_root)
     review = {}
@@ -186,6 +198,18 @@ def run_batch(args: argparse.Namespace) -> int:
     }
     summary["passed"] = batch_passed(summary)
     summary["exit_code"] = exit_code_for_summary(summary)
+    summary["handoff"] = build_batch_handoff(
+        runs=workflows.get("runs") or [],
+        artifact_paths=workflows.get("artifact_paths") or [],
+        review=review,
+        report_artifact=review.get("report_artifact") or {},
+        query_count=len(queries),
+        output_dir=args.output_dir,
+        review_report=args.review_report,
+        entrypoint="script",
+        exit_code=summary["exit_code"],
+        ready=summary["passed"],
+    )
     print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
     return summary["exit_code"]
 
