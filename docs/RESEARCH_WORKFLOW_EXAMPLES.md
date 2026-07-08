@@ -130,3 +130,41 @@ Equivalent tool arguments:
   `documents[].error` before trusting the brief.
 - The workflow records evidence snippets and links. It should not be used to
   copy full copyrighted articles or bypass authenticated website access.
+
+## Artifact Quality Smoke
+
+Use this smoke when changing artifact export, Markdown rendering, or handoff
+docs:
+
+```bash
+uv run python scripts/research_artifact_smoke.py
+```
+
+The default command runs `research_workflow` with `sources=["wikipedia"]`,
+`save=True`, and `save_brief=True`, then validates:
+
+- JSON and Markdown artifact metadata exists.
+- Saved paths stay inside the Argus project directory.
+- JSON can be parsed and contains query, sources, documents, a successful
+  document, and brief content.
+- Markdown has frontmatter, `type: argus-research-brief`, a research title, key
+  sources, minimum readable length, and the Argus generated marker.
+
+Default saved artifacts go under `output/research/artifact-smoke/`, which is a
+runtime output directory ignored by git.
+
+Exit codes:
+
+- `0`: JSON and Markdown artifact checks passed.
+- `2`: Research Toolkit import/runtime was unavailable.
+- `3`: the workflow ran but saved artifact quality checks failed.
+
+Current local result:
+
+- `scripts/research_artifact_smoke.py` returned exit code `0`.
+- Saved JSON and Markdown artifacts were written under
+  `output/research/artifact-smoke/`.
+- The saved JSON was parseable, stayed project-local, and contained one
+  successful document.
+- The saved Markdown brief included frontmatter, key sources, and the Argus
+  generated marker.

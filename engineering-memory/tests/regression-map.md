@@ -56,6 +56,7 @@ Tests to run:
 - `uv run python -m unittest tests.test_research_provider_smoke`
 - `uv run python -m unittest tests.test_research_codex_smoke`
 - `uv run python -m unittest tests.test_research_crawl_quality_smoke`
+- `uv run python -m unittest tests.test_research_artifact_smoke`
 - `uv run python -m unittest discover -s tests`
 
 Known historical bugs:
@@ -75,6 +76,7 @@ Known historical bugs:
 - Phase 2B Codex-source smoke must distinguish local SDK/state/permission unavailability from Codex research-contract failures and validate the topic-to-workflow chain when available.
 - Phase 2B web-provider smoke must skip clearly when no provider key is configured and must validate `research_topic`, `research_pack`, and `research_workflow` when a provider is available.
 - Phase 2B public crawl quality smoke must validate fixed public page fixtures, image discovery shape, and a key-free Wikipedia `research_workflow` before treating crawl quality as ready.
+- Phase 2C artifact smoke must verify saved JSON and Markdown outputs are parseable, project-local, structurally readable, and tied to successful workflow documents.
 
 ### Flow: MCP server import and tool registration
 
@@ -200,6 +202,14 @@ Test file:
 
 What it protects:
 - Keeps the Phase 2B public crawl quality runner repeatable by checking fixed public fixture contracts, page image discovery summaries, and a Wikipedia workflow success contract without provider keys or Codex SDK state.
+
+### Research toolkit saved artifact quality smoke runner
+
+Test file:
+- `tests/test_research_artifact_smoke.py`
+
+What it protects:
+- Keeps saved `research_workflow` artifacts useful for handoff by checking JSON parseability, Markdown brief structure, project-local paths, successful document evidence, and exit code behavior.
 
 ### Research toolkit topic image discovery
 
