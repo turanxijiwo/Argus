@@ -4,7 +4,7 @@
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
 - Current product focus remains the Argus agent-native research and intelligence toolkit: 163 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest implementation step: split optional AI-backed research source adapters from `research_sources.py` into `research_source_ai.py`, keeping public research topic behavior unchanged.
+- Latest implementation step: added an MCP registration smoke test that verifies the 163-tool FastMCP surface includes all eight Research Toolkit tools.
 
 ## 已知问题
 
@@ -20,6 +20,7 @@
 
 ## 最近变更记录
 
+- Added an MCP registration smoke test for the Research Toolkit public tool surface, covering the 163-tool FastMCP count and the eight expected research tools.
 - Split Research Toolkit optional AI-backed source adapters into `research_source_ai.py` for web provider and Codex SDK normalization, reducing `research_sources.py` to dispatcher/local-source/page-candidate responsibilities.
 - Reviewed the split Research Toolkit surface, removed unused private source-normalization wrappers from `research_toolkit.py`, and updated the server health-tool docstring to include `research_workflow`.
 - Refactored Research Toolkit page crawl/image discovery entrypoints into `research_page.py` while preserving `crawl_url`, `discover_page_images`, invalid URL handling, and optional Crawl4AI behavior.

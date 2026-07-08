@@ -76,8 +76,8 @@ Related modules:
 - `argus_server/tools/`
 
 Tests to run:
-- No dedicated automated test is mapped yet.
-- Use a targeted import/registration smoke check before changing tool registration.
+- `uv run python -m unittest tests.test_mcp_registration`
+- `uv run python -m unittest discover -s tests`
 
 Known historical bugs:
 - Public MCP surface is large and client-facing; tool names, signatures, and response shapes are regression-sensitive.
@@ -209,6 +209,14 @@ Test file:
 
 What it protects:
 - Keeps `research_toolkit_health` useful for MCP clients by reporting immediate readiness, missing optional setup, configured web providers, and attached adapters.
+
+### Research toolkit MCP registration surface
+
+Test file:
+- `tests/test_mcp_registration.py`
+
+What it protects:
+- Keeps all eight Research Toolkit tools registered on the FastMCP server and catches accidental changes to the expected 163-tool public surface.
 
 ### xhs CLI auth status and friendly errors
 
