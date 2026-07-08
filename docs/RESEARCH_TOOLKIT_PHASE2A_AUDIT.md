@@ -80,12 +80,30 @@ approved unsandboxed execution in future Codex sessions.
 
 ## Next Recommended Work
 
-1. Configure exactly one web-search provider key, then run a real
-   `web:<provider>` smoke for `research_topic`, `research_pack`, and
-   `research_workflow`.
+1. Configure exactly one web-search provider key, then run
+   `scripts/research_provider_smoke.py` to test `research_topic`,
+   `research_pack`, and `research_workflow` against `web:<provider>`.
 2. Add a documented example MCP prompt for `research_workflow` that saves JSON
    and Markdown artifacts.
 3. Add a small public-page fixture list for repeatable crawl quality checks.
 4. Decide whether Crawl4AI and Codex SDK smokes should have an explicit
    `--allow-unsandboxed-runtime-check` style helper, so future audits do not
    confuse sandbox permission failures with adapter failures.
+
+## Phase 2B Provider Smoke Entry
+
+Run the smoke after setting one provider key in the environment:
+
+```bash
+uv run python scripts/research_provider_smoke.py --provider tavily --query "OpenAI research toolkit"
+```
+
+If no provider key is configured, the script exits with code `2` and returns a
+JSON payload with `status="skipped"` and `reason="NO_CONFIGURED_PROVIDER"`.
+
+Provider env vars:
+
+- `TAVILY_API_KEY`
+- `EXA_API_KEY`
+- `PERPLEXITY_API_KEY`
+- `BRAVE_API_KEY`

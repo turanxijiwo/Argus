@@ -53,6 +53,7 @@ Related modules:
 
 Tests to run:
 - `uv run python -m unittest tests.test_research_toolkit`
+- `uv run python -m unittest tests.test_research_provider_smoke`
 - `uv run python -m unittest discover -s tests`
 
 Known historical bugs:
@@ -69,6 +70,7 @@ Known historical bugs:
 - Optional `codex` research source must preserve missing-SDK errors and normalize JSON SDK/runner output into the same merged result shape.
 - Research toolkit health must clearly report ready capabilities, missing setup, API key status, and attached adapters.
 - Phase 1 scope must stay explicit in `docs/RESEARCH_TOOLKIT_BOUNDARIES.md`: no new dependencies, no login bypass, optional adapters stay optional, and Phase 2 candidates remain separate.
+- Phase 2B web-provider smoke must skip clearly when no provider key is configured and must validate `research_topic`, `research_pack`, and `research_workflow` when a provider is available.
 
 ### Flow: MCP server import and tool registration
 
