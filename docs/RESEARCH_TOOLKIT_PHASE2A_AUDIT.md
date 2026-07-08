@@ -33,7 +33,7 @@ web-provider validation remains optional when a provider API key is available.
 | Area | Status | Evidence |
 |---|---|---|
 | MCP registration | Ready | FastMCP exposes 163 tools and all eight Research Toolkit tools. |
-| Built-in HTTP crawl | Ready | `crawl_url("https://example.com")` returned HTTP 200, title, text, and one link. |
+| Built-in HTTP crawl | Ready | `crawl_url("https://example.com")` returned HTTP 200, title, text, and one link. `scripts/research_crawl_quality_smoke.py` now returns exit code `0` against a small public fixture set and a Wikipedia workflow. |
 | Page image discovery | Ready | `discover_page_images("https://example.com")` completed successfully with zero images, as expected for the page. |
 | Public source search | Ready | `research_topic("OpenAI", sources=["wikipedia"], limit=1)` returned one URL-bearing result. |
 | Public workflow | Ready | `research_workflow("OpenAI", sources=["wikipedia"], limit=1)` crawled one document, extracted images, and preserved zero source/crawl errors. |
@@ -88,10 +88,50 @@ approved unsandboxed execution in future Codex sessions.
 2. Configure exactly one web-search provider key only if commercial-provider
    validation is needed, then run `scripts/research_provider_smoke.py` against
    `web:<provider>`.
-3. Add a small public-page fixture list for repeatable crawl quality checks.
-4. Decide whether Crawl4AI should have an explicit
+3. Decide whether Crawl4AI should have an explicit
    `--allow-unsandboxed-runtime-check` style helper, so future audits do not
    confuse sandbox permission failures with adapter failures.
+
+## Phase 2B Public Crawl Quality Smoke
+
+`scripts/research_crawl_quality_smoke.py` runs a repeatable public-source smoke
+without commercial provider keys or Codex SDK state. It validates:
+
+- `crawl_url` against fixed public page fixtures.
+- `discover_page_images` against the same fixture pages.
+- `research_workflow` with `sources=["wikipedia"]`, one successful crawled
+  document, no source errors, and a Markdown brief.
+
+Default fixtures:
+
+- `example_domain`: `https://example.com/`
+- `iana_reserved_domains`: `https://www.iana.org/domains/reserved`
+
+Run:
+
+```bash
+uv run python scripts/research_crawl_quality_smoke.py
+```
+
+Useful options:
+
+```bash
+uv run python scripts/research_crawl_quality_smoke.py --list-fixtures
+uv run python scripts/research_crawl_quality_smoke.py --fixture example_domain
+```
+
+Exit codes:
+
+- `0`: all fixture and workflow checks passed.
+- `2`: Research Toolkit import/runtime was unavailable.
+- `3`: the smoke ran but a fixture or workflow quality check failed.
+
+Current local result:
+
+- `scripts/research_crawl_quality_smoke.py` returned exit code `0`.
+- `example_domain`: HTTP 200, expected title, text threshold met, one link, image discovery succeeded.
+- `iana_reserved_domains`: HTTP 200, expected title, text threshold met, links and image discovery succeeded.
+- Wikipedia workflow: one successful document, five image candidates, Markdown brief included, zero source errors, zero crawl errors.
 
 ## Phase 2B Workflow Examples
 

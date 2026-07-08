@@ -55,6 +55,7 @@ Tests to run:
 - `uv run python -m unittest tests.test_research_toolkit`
 - `uv run python -m unittest tests.test_research_provider_smoke`
 - `uv run python -m unittest tests.test_research_codex_smoke`
+- `uv run python -m unittest tests.test_research_crawl_quality_smoke`
 - `uv run python -m unittest discover -s tests`
 
 Known historical bugs:
@@ -73,6 +74,7 @@ Known historical bugs:
 - Phase 1 scope must stay explicit in `docs/RESEARCH_TOOLKIT_BOUNDARIES.md`: no new dependencies, no login bypass, optional adapters stay optional, and Phase 2 candidates remain separate.
 - Phase 2B Codex-source smoke must distinguish local SDK/state/permission unavailability from Codex research-contract failures and validate the topic-to-workflow chain when available.
 - Phase 2B web-provider smoke must skip clearly when no provider key is configured and must validate `research_topic`, `research_pack`, and `research_workflow` when a provider is available.
+- Phase 2B public crawl quality smoke must validate fixed public page fixtures, image discovery shape, and a key-free Wikipedia `research_workflow` before treating crawl quality as ready.
 
 ### Flow: MCP server import and tool registration
 
@@ -190,6 +192,14 @@ Test file:
 
 What it protects:
 - Keeps the Phase 2B Codex smoke runner independent from commercial provider keys, distinguishes runtime unavailable exit code `2` from contract failure exit code `3`, and requires a URL-bearing topic result plus a successful workflow document before passing.
+
+### Research toolkit public crawl quality smoke runner
+
+Test file:
+- `tests/test_research_crawl_quality_smoke.py`
+
+What it protects:
+- Keeps the Phase 2B public crawl quality runner repeatable by checking fixed public fixture contracts, page image discovery summaries, and a Wikipedia workflow success contract without provider keys or Codex SDK state.
 
 ### Research toolkit topic image discovery
 
