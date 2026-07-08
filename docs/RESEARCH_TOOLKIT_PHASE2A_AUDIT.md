@@ -27,7 +27,8 @@ It does not cover:
 
 ## Current Result
 
-Overall status: ready for Phase 2B targeted real-provider validation.
+Overall status: ready for Phase 2B Codex-first validation. Commercial
+web-provider validation remains optional when a provider API key is available.
 
 | Area | Status | Evidence |
 |---|---|---|
@@ -40,6 +41,7 @@ Overall status: ready for Phase 2B targeted real-provider validation.
 | gallery-dl dry-run | Ready | `download_gallery(..., confirm=False)` returned a dry-run command with project-local `cwd` and `confirm_required=true`. |
 | Crawl4AI package | Ready with permission note | Import succeeds; `render_js=True` succeeds outside the sandbox but fails inside the restricted sandbox because Crawl4AI cannot open its database file. |
 | Codex SDK source | Ready with permission note | Import succeeds; `research_topic(..., sources=["codex"])` succeeds outside the sandbox and returns one URL-bearing result, but fails inside the restricted sandbox because `~/.codex` sqlite state is read-only. |
+| Codex source smoke | Ready with permission note | `scripts/research_codex_smoke.py` returned exit code `0` with one URL-bearing topic result, one successful workflow document, one image, and a Markdown brief when run with approved unsandboxed execution; the same command returns exit code `2` inside the restricted sandbox because `~/.codex` sqlite state is read-only. |
 | Tavily / Exa / Perplexity / Brave | Not configured | No web-search provider API env vars are set in the current process. |
 
 ## Runtime Health Summary
@@ -80,19 +82,42 @@ approved unsandboxed execution in future Codex sessions.
 
 ## Next Recommended Work
 
-1. Configure exactly one web-search provider key, then run
-   `scripts/research_provider_smoke.py` to test `research_topic`,
-   `research_pack`, and `research_workflow` against `web:<provider>`.
-2. Add a documented example MCP prompt for `research_workflow` that saves JSON
+1. Run `scripts/research_codex_smoke.py` with approved unsandboxed execution in
+   Codex sessions to validate the personal Codex source path without commercial
+   provider keys.
+2. Configure exactly one web-search provider key only if commercial-provider
+   validation is needed, then run `scripts/research_provider_smoke.py` against
+   `web:<provider>`.
+3. Add a documented example MCP prompt for `research_workflow` that saves JSON
    and Markdown artifacts.
-3. Add a small public-page fixture list for repeatable crawl quality checks.
-4. Decide whether Crawl4AI and Codex SDK smokes should have an explicit
+4. Add a small public-page fixture list for repeatable crawl quality checks.
+5. Decide whether Crawl4AI should have an explicit
    `--allow-unsandboxed-runtime-check` style helper, so future audits do not
    confuse sandbox permission failures with adapter failures.
 
+## Phase 2B Codex Smoke Entry
+
+Run the smoke from a Codex session after approving unsandboxed execution when
+prompted:
+
+```bash
+uv run python scripts/research_codex_smoke.py --query "OpenAI research toolkit"
+```
+
+The script uses `sources=["codex"]` and does not require Tavily, Exa,
+Perplexity, Brave, or another commercial provider key.
+
+Exit codes:
+
+- `0`: Codex source and workflow contract passed.
+- `2`: local Codex SDK, state, or permission is unavailable.
+- `3`: Codex ran but the returned research chain did not satisfy the expected
+  URL/workflow-document contract.
+
 ## Phase 2B Provider Smoke Entry
 
-Run the smoke after setting one provider key in the environment:
+Run the optional provider smoke after setting one provider key in the
+environment:
 
 ```bash
 uv run python scripts/research_provider_smoke.py --provider tavily --query "OpenAI research toolkit"

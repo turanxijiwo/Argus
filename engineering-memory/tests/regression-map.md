@@ -54,6 +54,7 @@ Related modules:
 Tests to run:
 - `uv run python -m unittest tests.test_research_toolkit`
 - `uv run python -m unittest tests.test_research_provider_smoke`
+- `uv run python -m unittest tests.test_research_codex_smoke`
 - `uv run python -m unittest discover -s tests`
 
 Known historical bugs:
@@ -70,6 +71,7 @@ Known historical bugs:
 - Optional `codex` research source must preserve missing-SDK errors and normalize JSON SDK/runner output into the same merged result shape.
 - Research toolkit health must clearly report ready capabilities, missing setup, API key status, and attached adapters.
 - Phase 1 scope must stay explicit in `docs/RESEARCH_TOOLKIT_BOUNDARIES.md`: no new dependencies, no login bypass, optional adapters stay optional, and Phase 2 candidates remain separate.
+- Phase 2B Codex-source smoke must distinguish local SDK/state/permission unavailability from Codex research-contract failures and validate the topic-to-workflow chain when available.
 - Phase 2B web-provider smoke must skip clearly when no provider key is configured and must validate `research_topic`, `research_pack`, and `research_workflow` when a provider is available.
 
 ### Flow: MCP server import and tool registration
@@ -180,6 +182,14 @@ Test file:
 
 What it protects:
 - Keeps optional `codex` source dependency-optional: injected runner output normalizes into merged research results, while missing `openai-codex` returns `NOT_INSTALLED` without failing the whole `research_topic` response.
+
+### Research toolkit Codex source smoke runner
+
+Test file:
+- `tests/test_research_codex_smoke.py`
+
+What it protects:
+- Keeps the Phase 2B Codex smoke runner independent from commercial provider keys, distinguishes runtime unavailable exit code `2` from contract failure exit code `3`, and requires a URL-bearing topic result plus a successful workflow document before passing.
 
 ### Research toolkit topic image discovery
 
