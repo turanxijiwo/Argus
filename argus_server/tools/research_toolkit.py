@@ -6,11 +6,8 @@ stable MCP-facing surface for simple HTTP crawling, page image discovery,
 cross-source research aggregation, and optional external CLI adapters.
 """
 
-import importlib.util
 import os
 from typing import Any, Dict, List, Optional
-
-import requests
 
 from .research_crawl import fetch_page_html, parse_page_html
 from .research_batch import (
@@ -19,10 +16,7 @@ from .research_batch import (
     build_research_batch_workflow,
 )
 from .research_gallery import download_gallery as run_gallery_download
-from .research_health import (
-    toolkit_health as build_toolkit_health,
-    web_search_provider_status as _web_search_provider_status,
-)
+from .research_health import toolkit_health as build_toolkit_health
 from .research_images import build_research_images
 from .research_pack import build_research_pack
 from .research_page import (
@@ -30,22 +24,19 @@ from .research_page import (
     discover_page_images as build_discover_page_images,
 )
 from .research_render import format_crawl4ai_result
+from .research_runtime import (
+    MAX_HTML_BYTES,
+    MAX_TEXT_CHARS,
+    RETRIABLE_CRAWL_ERRORS,
+    create_research_session,
+    default_workflow_sources,
+)
 from .research_sources import run_source_search
 from .research_topic import build_research_topic
 from .research_workflow import (
     build_research_workflow,
     image_confidence as _image_confidence,
 )
-
-
-_DEFAULT_UA = (
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) ArgusResearch/1.0 Safari/537.36"
-)
-
-_MAX_HTML_BYTES = 3 * 1024 * 1024
-_MAX_TEXT_CHARS = 20000
-_RETRIABLE_CRAWL_ERRORS = {"NETWORK_ERROR", "TIMEOUT", "CRAWL4AI_ERROR"}
 
 
 class ResearchToolkitTools:
@@ -66,13 +57,7 @@ class ResearchToolkitTools:
         self.article_reader = article_reader
         self.ai_search = ai_search
         self.codex_runner = codex_runner
-        self.session = requests.Session()
-        self.session.headers.update(
-            {
-                "User-Agent": _DEFAULT_UA,
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            }
-        )
+        self.session = create_research_session()
 
     # ───────────────────────── Capability map ─────────────────────────
     def toolkit_health(self) -> Dict:
@@ -99,7 +84,7 @@ class ResearchToolkitTools:
             max_chars=max_chars,
             fetch_html=self._fetch_html,
             parse_html=self._parse_html,
-            max_text_chars=_MAX_TEXT_CHARS,
+            max_text_chars=MAX_TEXT_CHARS,
         )
 
     def _format_crawl4ai_result(self, url: str, result: Any, max_chars: int) -> Dict:
@@ -214,7 +199,7 @@ class ResearchToolkitTools:
             max_chars_per_page=max_chars_per_page,
             research_topic=self.research_topic,
             crawl_url=self.crawl_url,
-            max_text_chars=_MAX_TEXT_CHARS,
+            max_text_chars=MAX_TEXT_CHARS,
         )
 
     def research_workflow(
@@ -239,7 +224,7 @@ class ResearchToolkitTools:
         return useful evidence. Hard failures are limited to invalid input and unsafe
         or unwritable export paths.
         """
-        sources = sources or self._default_workflow_sources()
+        sources = sources or default_workflow_sources(self.ai_search, self.codex_runner)
         return build_research_workflow(
             query=query,
             sources=sources,
@@ -256,8 +241,8 @@ class ResearchToolkitTools:
             project_root=self.project_root,
             research_topic=self.research_topic,
             crawl_url=self.crawl_url,
-            max_text_chars=_MAX_TEXT_CHARS,
-            retriable_errors=_RETRIABLE_CRAWL_ERRORS,
+            max_text_chars=MAX_TEXT_CHARS,
+            retriable_errors=RETRIABLE_CRAWL_ERRORS,
         )
 
     def research_batch_workflow(
@@ -276,7 +261,7 @@ class ResearchToolkitTools:
         """Run saved research workflows for multiple queries and write a review report."""
         return build_research_batch_workflow(
             queries=queries,
-            sources=sources or self._default_workflow_sources(),
+            sources=sources or default_workflow_sources(self.ai_search, self.codex_runner),
             limit=limit,
             timeout=timeout,
             max_chars_per_page=max_chars_per_page,
@@ -290,19 +275,8 @@ class ResearchToolkitTools:
         )
 
     # ───────────────────────── Internal helpers ─────────────────────────
-    def _default_workflow_sources(self) -> List[str]:
-        configured_web_sources = [
-            f"web:{name}" for name, provider in _web_search_provider_status().items()
-            if provider["configured"]
-        ]
-        if self.ai_search and configured_web_sources:
-            return [configured_web_sources[0]]
-        if self.codex_runner or importlib.util.find_spec("openai_codex"):
-            return ["codex"]
-        return ["local_news", "hackernews", "wikipedia"]
-
     def _fetch_html(self, url: str, timeout: int) -> Dict:
-        return fetch_page_html(self.session, url=url, timeout=timeout, max_html_bytes=_MAX_HTML_BYTES)
+        return fetch_page_html(self.session, url=url, timeout=timeout, max_html_bytes=MAX_HTML_BYTES)
 
     def _parse_html(self, html: str, base_url: str) -> Dict:
         return parse_page_html(html=html, base_url=base_url)

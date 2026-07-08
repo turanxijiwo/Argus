@@ -202,6 +202,7 @@ Required tests:
 
 Path:
 - `argus_server/tools/research_toolkit.py`
+- `argus_server/tools/research_runtime.py`
 - `argus_server/tools/research_page.py`
 - `argus_server/tools/research_health.py`
 - `argus_server/tools/research_crawl.py`
@@ -223,7 +224,7 @@ Path:
 - `docs/RESEARCH_TOOLKIT_BOUNDARIES.md`
 
 Responsibility:
-- Provide dependency-free page crawling/image discovery entrypoints, HTTP crawl orchestration, cross-source topic aggregation, topic-driven image research, full research workflow orchestration, batch saved-workflow orchestration, capability health matrix reporting, optional Crawl4AI render runtime, source adapter normalization, optional AI-backed web/Codex source adapters, evidence packet construction, workflow document/image scoring helpers, safe gallery-dl wrapping, HTML/URL parsing, research brief rendering, safe project-local research artifact writing, public external API lookup, and optional social CLI wrappers.
+- Provide dependency-free page crawling/image discovery entrypoints, runtime defaults/session setup, HTTP crawl orchestration, cross-source topic aggregation, topic-driven image research, full research workflow orchestration, batch saved-workflow orchestration, capability health matrix reporting, optional Crawl4AI render runtime, source adapter normalization, optional AI-backed web/Codex source adapters, evidence packet construction, workflow document/image scoring helpers, safe gallery-dl wrapping, HTML/URL parsing, research brief rendering, safe project-local research artifact writing, public external API lookup, and optional social CLI wrappers.
 
 Depends on:
 - `requests`, optional local CLIs (`gallery-dl`, bili/xhs/twitter/tg/discord), optional local Codex SDK (`openai-codex`), external API availability.

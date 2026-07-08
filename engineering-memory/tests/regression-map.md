@@ -35,6 +35,7 @@ What it protects:
 
 Related modules:
 - `argus_server/tools/research_toolkit.py`
+- `argus_server/tools/research_runtime.py`
 - `argus_server/tools/research_page.py`
 - `argus_server/tools/research_health.py`
 - `argus_server/tools/research_crawl.py`
@@ -84,6 +85,7 @@ Known historical bugs:
 - Phase 2C artifact review must summarize saved research quality without full page-text replay, classify ready/partial/needs-attention artifacts, and preserve warnings for source/page/brief risks.
 - Phase 2C batch workflow must run multiple saved workflows, collect project-relative artifact paths, and generate a review report without requiring provider keys or replaying full page text.
 - Phase 2D MCP batch workflow must expose the batch saved-workflow loop directly to agents while returning compact summaries and project-relative paths instead of full crawled page text.
+- Phase 2E runtime defaults must stay behavior-preserving: session headers, default source selection, max crawl/text limits, and retriable crawl errors should not drift during structure cleanup.
 
 ### Flow: MCP server import and tool registration
 

@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+from argus_server.tools.research_runtime import default_workflow_sources
 from argus_server.tools.research_toolkit import ResearchToolkitTools
 
 
@@ -172,6 +173,16 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertEqual(result["data"]["capabilities"]["research_topic_codex"]["status"], "ready")
         self.assertTrue(result["data"]["adapters"]["codex_runner_attached"])
 
+    def test_default_workflow_sources_prefer_configured_web_then_codex_then_public_sources(self):
+        with patch.dict(os.environ, {"TAVILY_API_KEY": "test-key"}, clear=False), \
+                patch("argus_server.tools.research_runtime.importlib.util.find_spec", return_value=None):
+            self.assertEqual(default_workflow_sources(ai_search=FakeAIWebSearch()), ["web:tavily"])
+
+        with patch.dict(os.environ, {"TAVILY_API_KEY": ""}, clear=False), \
+                patch("argus_server.tools.research_runtime.importlib.util.find_spec", return_value=None):
+            self.assertEqual(default_workflow_sources(codex_runner=lambda query, limit: "{}"), ["codex"])
+            self.assertEqual(default_workflow_sources(), ["local_news", "hackernews", "wikipedia"])
+
     def test_crawl_url_extracts_text_links_and_images(self):
         tool = ResearchToolkitTools(project_root=os.getcwd())
         html = """
@@ -322,7 +333,7 @@ class ResearchToolkitToolsTest(unittest.TestCase):
     def test_research_topic_reports_missing_codex_sdk(self):
         tool = ResearchToolkitTools(project_root=os.getcwd())
 
-        with patch("argus_server.tools.research_toolkit.importlib.util.find_spec", return_value=None):
+        with patch("argus_server.tools.research_source_ai.importlib.util.find_spec", return_value=None):
             result = tool.research_topic("AI browser", sources=["codex"], limit=2)
 
         self.assertTrue(result["success"])

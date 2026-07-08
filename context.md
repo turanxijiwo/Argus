@@ -4,7 +4,7 @@
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
 - Current product focus remains the Argus agent-native research and intelligence toolkit: 164 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest implementation step: added the `research_batch_workflow` MCP tool, a Phase 2D agent-facing batch runner that saves multiple `research_workflow` artifacts and writes a compact Markdown review report in one call.
+- Latest implementation step: split Research Toolkit runtime defaults/session setup into `argus_server/tools/research_runtime.py`, keeping `research_toolkit.py` under 300 lines without changing the 164-tool MCP surface.
 
 ## 已知问题
 
@@ -26,10 +26,12 @@
 - `scripts/research_artifact_review.py` scans saved JSON artifacts under `output/research/` or explicit paths, scores readability/reuse quality, summarizes key documents and warnings, and can write a Markdown review report under ignored output paths; the current local review report is ready with score 100 and no warnings.
 - `scripts/research_batch_workflow.py` runs one or more saved workflows, stores artifacts under ignored `output/research/batch/`, prints project-relative artifact paths, and writes `output/research/artifact-reviews/batch-review.md` through the local artifact review pipeline; the current local batch for OpenAI and AI safety passes with two ready artifacts and average score 100.
 - The MCP `research_batch_workflow` tool now exposes batch saved-workflow execution to agents directly, dedupes query lists, saves per-query JSON/Markdown artifacts, writes a compact review report, and returns only counts plus project-relative paths; the current local MCP batch for OpenAI and AI safety passes with two ready artifacts and average score 100.
+- `research_runtime.py` now owns Research Toolkit session headers, max HTML/text limits, retriable crawl error defaults, and automatic workflow source selection; this is a structure-only split from `research_toolkit.py`.
 - `docs/HANDOFF.md` appears older than README/source for some counts and roadmap status; prefer README and current source when they disagree.
 
 ## 最近变更记录
 
+- Split Research Toolkit runtime defaults/session setup into `research_runtime.py` so `research_toolkit.py` stays below the project 300-line reminder threshold while preserving behavior.
 - Added MCP `research_batch_workflow`, `argus_server/tools/research_batch.py`, and registration/tool tests for direct agent-facing batch saved workflow execution.
 - Added `scripts/research_batch_workflow.py` and tests for one-command saved workflow batch execution plus artifact review report generation.
 - Added `scripts/research_artifact_review.py` and tests for local saved-artifact readability reports across one or more `research_workflow` JSON files.
