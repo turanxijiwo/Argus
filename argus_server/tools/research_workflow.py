@@ -11,6 +11,7 @@ from .research_io import (
     save_research_json_artifact,
     utc_timestamp_for_filename,
 )
+from .research_handoff import build_workflow_handoff
 from .research_sources import (
     page_candidate_items,
     page_candidates,
@@ -159,6 +160,13 @@ def build_research_workflow(
         if not save_result.get("success"):
             return save_result
 
+    workflow["handoff"] = build_workflow_handoff(
+        workflow=workflow,
+        project_root=project_root,
+        output_dir=selected_output_dir if save else "",
+        entrypoint="mcp",
+    )
+
     return _ok(
         workflow,
         source_count=len(selected_sources),
@@ -173,6 +181,7 @@ def build_research_workflow(
         brief_included=bool(workflow.get("brief")),
         saved=bool(workflow.get("artifact")),
         brief_saved=bool((workflow.get("brief") or {}).get("artifact")),
+        handoff_schema=workflow["handoff"]["schema"],
     )
 
 

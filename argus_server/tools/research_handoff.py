@@ -5,6 +5,42 @@ from typing import Any, Dict, Iterable, List, Optional
 
 
 BATCH_HANDOFF_SCHEMA = "argus.research.batch.handoff.v1"
+WORKFLOW_HANDOFF_SCHEMA = "argus.research.workflow.handoff.v1"
+
+
+def build_workflow_handoff(
+    workflow: Dict[str, Any],
+    project_root: str,
+    output_dir: str = "",
+    entrypoint: str = "mcp",
+) -> Dict[str, Any]:
+    documents = workflow.get("documents") or []
+    successful_documents = sum(1 for document in documents if document.get("success"))
+    crawl_error_count = sum(1 for document in documents if not document.get("success"))
+    source_errors = workflow.get("source_errors") or {}
+    artifact_path = _project_relative_path(
+        (workflow.get("artifact") or {}).get("path"), project_root
+    )
+    brief_path = _project_relative_path(
+        ((workflow.get("brief") or {}).get("artifact") or {}).get("path"), project_root
+    )
+    ready = bool(documents and successful_documents and not source_errors and not crawl_error_count)
+    status = "ready" if ready else "partial" if successful_documents else "needs_attention"
+    return {
+        "schema": WORKFLOW_HANDOFF_SCHEMA,
+        "entrypoint": entrypoint,
+        "ready": ready,
+        "status": status,
+        "query": workflow.get("query", ""),
+        "artifact_path": artifact_path,
+        "brief_path": brief_path,
+        "document_count": len(documents),
+        "successful_document_count": successful_documents,
+        "crawl_error_count": crawl_error_count,
+        "source_error_count": len(source_errors),
+        "image_count": len(workflow.get("images") or []),
+        "output_dir": _relative_hint(output_dir),
+    }
 
 
 def build_batch_handoff(
@@ -60,6 +96,16 @@ def _relative_hint(path: str) -> Optional[str]:
     if not path or os.path.isabs(path):
         return None
     return path
+
+
+def _project_relative_path(path: Optional[str], project_root: str) -> Optional[str]:
+    if not path:
+        return None
+    root = os.path.abspath(project_root)
+    absolute_path = os.path.abspath(path)
+    if os.path.commonpath([root, absolute_path]) != root:
+        return None
+    return os.path.relpath(absolute_path, root)
 
 
 def _ready(runs: List[Dict[str, Any]], report_artifact: Dict[str, Any], status_counts: Dict[str, Any]) -> bool:

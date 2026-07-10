@@ -469,6 +469,16 @@ class ResearchToolkitToolsTest(unittest.TestCase):
             self.assertEqual(result["summary"]["image_count"], 1)
             self.assertTrue(result["summary"]["brief_included"])
             self.assertTrue(result["summary"]["brief_saved"])
+            self.assertEqual(
+                result["summary"]["handoff_schema"],
+                "argus.research.workflow.handoff.v1",
+            )
+            handoff = result["data"]["handoff"]
+            self.assertTrue(handoff["ready"])
+            self.assertEqual(handoff["status"], "ready")
+            self.assertEqual(handoff["artifact_path"].split(os.sep, 1)[0], "output")
+            self.assertEqual(handoff["brief_path"].split(os.sep, 1)[0], "output")
+            self.assertNotIn(tmpdir, json.dumps(handoff))
             artifact_path = result["data"]["artifact"]["path"]
             brief_path = result["data"]["brief"]["artifact"]["path"]
             self.assertTrue(artifact_path.startswith(tmpdir))
@@ -514,6 +524,9 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertFalse(result["summary"]["brief_included"])
         self.assertIsNone(result["data"]["brief"])
+        self.assertEqual(result["data"]["handoff"]["status"], "ready")
+        self.assertIsNone(result["data"]["handoff"]["artifact_path"])
+        self.assertIsNone(result["data"]["handoff"]["brief_path"])
 
     def test_research_workflow_preserves_crawl_errors_after_retries(self):
         tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())

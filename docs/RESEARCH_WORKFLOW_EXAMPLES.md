@@ -51,6 +51,30 @@ Expected result fields to inspect:
   errors.
 - `data.documents[].error`: page-level crawl failures.
 
+Every single workflow also returns a compact `data.handoff` block:
+
+```json
+{
+  "schema": "argus.research.workflow.handoff.v1",
+  "entrypoint": "mcp",
+  "ready": true,
+  "status": "ready",
+  "query": "OpenAI",
+  "artifact_path": "output/research/public/research-OpenAI-YYYYMMDDTHHMMSSZ.json",
+  "brief_path": "output/research/public/research-OpenAI-YYYYMMDDTHHMMSSZ.md",
+  "document_count": 1,
+  "successful_document_count": 1,
+  "crawl_error_count": 0,
+  "source_error_count": 0,
+  "image_count": 3,
+  "output_dir": "output/research/public"
+}
+```
+
+Use `artifact_path` first when handing the result to a later agent, then read
+`brief_path` for the concise narrative. Paths are project-relative and are
+`null` when the workflow was run without saving artifacts.
+
 Saved file names use this shape:
 
 ```text
