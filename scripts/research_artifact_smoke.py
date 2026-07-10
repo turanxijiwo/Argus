@@ -75,7 +75,31 @@ def summarize_artifacts(result: Dict[str, Any], project_root: str) -> Dict[str, 
 
 def smoke_passed(summary: Dict[str, Any]) -> bool:
     artifact_summary = summary.get("artifacts") or {}
-    return bool(artifact_summary.get("passed"))
+    review_summary = summary.get("review") or {}
+    return bool(artifact_summary.get("passed") and review_summary.get("passed"))
+
+
+def summarize_handoff_review(workflow_result: Dict[str, Any], review_result: Dict[str, Any]) -> Dict[str, Any]:
+    workflow_handoff = ((workflow_result.get("data") or {}).get("handoff") or {})
+    review_data = review_result.get("data") or {}
+    review_handoff = review_data.get("handoff") or {}
+    checks = {
+        "workflow_handoff_ready": bool(workflow_handoff.get("ready")),
+        "workflow_handoff_has_artifact": bool(workflow_handoff.get("artifact_path")),
+        "review_success": bool(review_result.get("success")),
+        "review_handoff_schema": review_handoff.get("schema") == "argus.research.review.handoff.v1",
+        "review_path_matches_workflow": review_handoff.get("artifact_path") == workflow_handoff.get("artifact_path"),
+        "review_quality_ready": review_data.get("quality_status") == "ready",
+    }
+    return {
+        "passed": all(checks.values()),
+        "checks": checks,
+        "quality_status": review_data.get("quality_status"),
+        "score": review_data.get("score"),
+        "warnings": review_data.get("warnings") or [],
+        "handoff": review_handoff,
+        "error": review_result.get("error") or {},
+    }
 
 
 def exit_code_for_summary(summary: Dict[str, Any]) -> int:
@@ -119,6 +143,9 @@ def run_smoke(args: argparse.Namespace) -> int:
         save_brief=True,
         output_dir=args.output_dir,
     )
+    review_result = research.research_review_artifact(
+        handoff=((result.get("data") or {}).get("handoff") or {}),
+    )
     summary = {
         "success": False,
         "passed": False,
@@ -127,6 +154,7 @@ def run_smoke(args: argparse.Namespace) -> int:
         "sources": sources,
         "output_dir": args.output_dir,
         "artifacts": summarize_artifacts(result, project_root),
+        "review": summarize_handoff_review(result, review_result),
     }
     summary["passed"] = smoke_passed(summary)
     summary["success"] = summary["passed"]

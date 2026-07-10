@@ -119,8 +119,39 @@ class ResearchArtifactSmokeTest(unittest.TestCase):
             self.assertEqual(summary["errors"]["json"]["code"], "JSONDecodeError")
 
     def test_smoke_passed_uses_artifact_summary(self):
-        self.assertTrue(research_artifact_smoke.smoke_passed({"artifacts": {"passed": True}}))
-        self.assertFalse(research_artifact_smoke.smoke_passed({"artifacts": {"passed": False}}))
+        self.assertTrue(
+            research_artifact_smoke.smoke_passed({"artifacts": {"passed": True}, "review": {"passed": True}})
+        )
+        self.assertFalse(
+            research_artifact_smoke.smoke_passed({"artifacts": {"passed": True}, "review": {"passed": False}})
+        )
+
+    def test_summarize_handoff_review_requires_direct_path_match(self):
+        workflow_result = {
+            "data": {
+                "handoff": {
+                    "ready": True,
+                    "artifact_path": "output/research/research-openai.json",
+                }
+            }
+        }
+        review_result = {
+            "success": True,
+            "data": {
+                "quality_status": "ready",
+                "score": 100,
+                "warnings": [],
+                "handoff": {
+                    "schema": "argus.research.review.handoff.v1",
+                    "artifact_path": "output/research/research-openai.json",
+                },
+            },
+        }
+
+        summary = research_artifact_smoke.summarize_handoff_review(workflow_result, review_result)
+
+        self.assertTrue(summary["passed"])
+        self.assertEqual(summary["score"], 100)
 
     def test_exit_code_distinguishes_unavailable_from_artifact_failure(self):
         self.assertEqual(

@@ -82,6 +82,9 @@ previous workflow's `data.handoff` object. Its response uses the same compact
 quality fields as batch review and includes a new
 `argus.research.review.handoff.v1` block for the next agent step.
 
+`scripts/research_artifact_smoke.py` also verifies this direct workflow-to-review
+handoff chain against the public Wikipedia source without a provider key.
+
 Saved file names use this shape:
 
 ```text
