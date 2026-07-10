@@ -31,6 +31,7 @@
 - Single `research_workflow` responses now expose `data.handoff` with `argus.research.workflow.handoff.v1`, readiness/status, project-relative JSON/Markdown paths, and compact document/image/error counts; `ready` requires a saved JSON artifact plus successful, error-free documents, while unsaved runs return null artifact paths.
 - `research_review_artifact` now provides an MCP-side compact quality review for one saved JSON artifact, with project-local path validation and no page-text replay.
 - `research_review_artifact` can now consume a prior workflow `data.handoff` directly and returns `argus.research.review.handoff.v1` for the next agent step.
+- `research_review_artifact` can also consume a batch handoff and select a project-relative artifact through `artifact_index`, so single and batch workflows share one review entrypoint.
 - `scripts/research_artifact_smoke.py` now executes the zero-key `research_workflow -> research_review_artifact` handoff chain and verifies ready review status plus matching project-relative artifact paths.
 - `docs/HANDOFF.md` appears older than README/source for some counts and roadmap status; prefer README and current source when they disagree.
 
@@ -39,6 +40,7 @@
 - Added the single-workflow handoff block so follow-up agents can select the JSON artifact and Markdown brief without replaying page text or parsing absolute paths; corrected unsaved workflows to remain not-ready.
 - Added `research_review_artifact` as the unified single-artifact quality-review entrypoint for follow-up agents.
 - Extended artifact review to consume workflow handoffs and emit a reusable review handoff with unified quality fields.
+- Extended artifact review to select individual artifacts from batch handoffs through `artifact_index`.
 - Extended the saved-artifact smoke to cover the direct workflow-to-review handoff chain.
 - Added the shared Research Toolkit batch handoff block for both MCP and terminal batch outputs, plus tests that lock the schema and script exit-code field.
 - Split Research Toolkit runtime defaults/session setup into `research_runtime.py` so `research_toolkit.py` stays below the project 300-line reminder threshold while preserving behavior.

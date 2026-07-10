@@ -82,6 +82,9 @@ previous workflow's `data.handoff` object. Its response uses the same compact
 quality fields as batch review and includes a new
 `argus.research.review.handoff.v1` block for the next agent step.
 
+It also accepts a batch `handoff`; use `artifact_index` to select one entry
+from `artifact_paths` (the first saved artifact is index `0`).
+
 `scripts/research_artifact_smoke.py` also verifies this direct workflow-to-review
 handoff chain against the public Wikipedia source without a provider key.
 

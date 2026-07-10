@@ -92,6 +92,7 @@ Known historical bugs:
 - Phase 2H artifact review must validate project-local JSON paths, return compact quality scores/statuses, and avoid replaying saved page text through MCP.
 - Phase 2I review handoff chaining must accept `research_workflow.data.handoff`, preserve project-relative paths, and emit `argus.research.review.handoff.v1` with batch-compatible quality fields.
 - Phase 2J artifact smoke must execute the public zero-key workflow-to-review chain and require ready review status with matching workflow/review artifact paths.
+- Phase 2K artifact review must accept batch handoff artifact lists, select only a valid indexed project-relative artifact, and reject missing or out-of-range selections.
 
 ### Flow: MCP server import and tool registration
 

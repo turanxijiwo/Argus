@@ -276,10 +276,15 @@ class ResearchToolkitTools:
         )
 
     def research_review_artifact(
-        self, artifact_path: Optional[str] = None, handoff: Optional[Dict[str, Any]] = None
+        self,
+        artifact_path: Optional[str] = None,
+        handoff: Optional[Dict[str, Any]] = None,
+        artifact_index: int = 0,
     ) -> Dict:
         """Review one saved research JSON artifact without returning page text."""
-        return review_research_artifact(artifact_path, self.project_root, handoff=handoff)
+        return review_research_artifact(
+            artifact_path, self.project_root, handoff=handoff, artifact_index=artifact_index
+        )
 
     # ───────────────────────── Internal helpers ─────────────────────────
     def _fetch_html(self, url: str, timeout: int) -> Dict:

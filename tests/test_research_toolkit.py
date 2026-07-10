@@ -578,6 +578,36 @@ class ResearchToolkitToolsTest(unittest.TestCase):
             self.assertEqual(result["data"]["path"], "output/research/handoff.json")
             self.assertEqual(result["data"]["quality_status"], "needs_attention")
 
+    def test_research_review_artifact_consumes_batch_handoff_by_index(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tool = ResearchToolkitTools(project_root=tmpdir)
+            for name in ("first.json", "second.json"):
+                path = os.path.join(tmpdir, "output", "research", name)
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                with open(path, "w", encoding="utf-8") as handle:
+                    json.dump({"query": name, "sources": {}, "documents": [], "images": []}, handle)
+
+            result = tool.research_review_artifact(
+                handoff={
+                    "schema": "argus.research.batch.handoff.v1",
+                    "artifact_paths": ["output/research/first.json", "output/research/second.json"],
+                },
+                artifact_index=1,
+            )
+
+            self.assertTrue(result["success"])
+            self.assertEqual(result["data"]["path"], "output/research/second.json")
+
+    def test_research_review_artifact_rejects_batch_handoff_missing_selected_artifact(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tool = ResearchToolkitTools(project_root=tmpdir)
+            result = tool.research_review_artifact(
+                handoff={"schema": "argus.research.batch.handoff.v1", "artifact_paths": []}
+            )
+
+            self.assertFalse(result["success"])
+            self.assertEqual(result["error"]["code"], "INVALID_HANDOFF")
+
     def test_research_workflow_preserves_crawl_errors_after_retries(self):
         tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())
         attempts = []

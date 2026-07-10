@@ -11,9 +11,15 @@ REVIEW_HANDOFF_SCHEMA = "argus.research.review.handoff.v1"
 
 
 def review_research_artifact(
-    path: Optional[str], project_root: str, handoff: Optional[Dict[str, Any]] = None
+    path: Optional[str],
+    project_root: str,
+    handoff: Optional[Dict[str, Any]] = None,
+    artifact_index: int = 0,
 ) -> Dict[str, Any]:
-    path = path or (handoff or {}).get("artifact_path")
+    if not path and handoff:
+        path = _handoff_artifact_path(handoff, artifact_index)
+        if not path:
+            return _err("handoff does not contain a selected artifact path", "INVALID_HANDOFF")
     resolved = _resolve_project_path(path, project_root)
     if not resolved:
         return _err("artifact_path must point inside the Argus project", "UNSAFE_ARTIFACT_PATH")
@@ -114,6 +120,19 @@ def _resolve_project_path(path: str, project_root: str) -> Optional[str]:
 
 def _relative_path(path: str, project_root: str) -> str:
     return os.path.relpath(path, os.path.abspath(project_root))
+
+
+def _handoff_artifact_path(handoff: Dict[str, Any], artifact_index: int) -> Optional[str]:
+    if handoff.get("artifact_path"):
+        return handoff["artifact_path"]
+    artifact_paths = handoff.get("artifact_paths") or []
+    try:
+        index = int(artifact_index)
+    except (TypeError, ValueError):
+        return None
+    if index < 0 or index >= len(artifact_paths):
+        return None
+    return artifact_paths[index]
 
 
 def _err(message: str, code: str) -> Dict[str, Any]:
