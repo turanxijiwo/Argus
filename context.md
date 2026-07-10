@@ -33,6 +33,7 @@
 - `research_review_artifact` can now consume a prior workflow `data.handoff` directly and returns `argus.research.review.handoff.v1` for the next agent step.
 - `research_review_artifact` can also consume a batch handoff and select a project-relative artifact through `artifact_index`, so single and batch workflows share one review entrypoint.
 - `scripts/research_artifact_smoke.py` now executes the zero-key `research_workflow -> research_review_artifact` handoff chain and verifies ready review status plus matching project-relative artifact paths.
+- `scripts/research_batch_handoff_smoke.py` verifies the zero-key `research_batch_workflow -> batch handoff -> research_review_artifact` chain for a selected batch artifact.
 - `docs/HANDOFF.md` appears older than README/source for some counts and roadmap status; prefer README and current source when they disagree.
 
 ## 最近变更记录
@@ -42,6 +43,7 @@
 - Extended artifact review to consume workflow handoffs and emit a reusable review handoff with unified quality fields.
 - Extended artifact review to select individual artifacts from batch handoffs through `artifact_index`.
 - Extended the saved-artifact smoke to cover the direct workflow-to-review handoff chain.
+- Added a dedicated batch-handoff smoke for selected artifact review.
 - Added the shared Research Toolkit batch handoff block for both MCP and terminal batch outputs, plus tests that lock the schema and script exit-code field.
 - Split Research Toolkit runtime defaults/session setup into `research_runtime.py` so `research_toolkit.py` stays below the project 300-line reminder threshold while preserving behavior.
 - Added MCP `research_batch_workflow`, `argus_server/tools/research_batch.py`, and registration/tool tests for direct agent-facing batch saved workflow execution.

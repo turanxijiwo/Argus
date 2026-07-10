@@ -88,6 +88,16 @@ from `artifact_paths` (the first saved artifact is index `0`).
 `scripts/research_artifact_smoke.py` also verifies this direct workflow-to-review
 handoff chain against the public Wikipedia source without a provider key.
 
+For the batch equivalent, run:
+
+```bash
+uv run python scripts/research_batch_handoff_smoke.py
+```
+
+It saves two Wikipedia workflow artifacts under
+`output/research/batch-handoff-smoke/`, passes the batch handoff to
+`research_review_artifact`, and reviews artifact index `1`.
+
 Saved file names use this shape:
 
 ```text
