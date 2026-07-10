@@ -1,5 +1,8 @@
 # Research Toolkit Phase 1 Boundaries
 
+> Historical Phase 1 contract. The current Phase 2 surface is documented in
+> `RESEARCH_TOOLKIT_PHASE2_DELIVERY_AUDIT.md`.
+
 This document keeps the Research Toolkit scope explicit so later work does not
 drift into unrelated crawling, account automation, or dependency installation.
 
@@ -110,8 +113,9 @@ uv run python -m unittest discover -s tests
 git diff --check
 ```
 
-The expected public MCP tool count is `164`, with all nine Research Toolkit
-tools present.
+At Phase 1 completion, the expected public MCP tool count was `163`, with all
+eight Research Toolkit tools present. The current Phase 2 surface intentionally
+extends that baseline.
 
 ## Phase 2 Candidate Work
 

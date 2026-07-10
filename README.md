@@ -91,9 +91,10 @@ Claude Code / Cherry Studio / 任何 MCP client 配置:
 
 | 文档 | 内容 |
 |---|---|
-| [docs/HANDOFF.md](docs/HANDOFF.md) | 项目完整架构、MCP 工具清单、凭证位置、故障排查 |
+| [docs/HANDOFF.md](docs/HANDOFF.md) | 当前项目交接入口、验证命令、Research Toolkit 流程与运行时风险 |
 | [docs/RESEARCH_TOOLKIT_BOUNDARIES.md](docs/RESEARCH_TOOLKIT_BOUNDARIES.md) | Research Toolkit 第一阶段边界: 内置能力、可选依赖、非目标、后续候选 |
 | [docs/RESEARCH_TOOLKIT_PHASE2A_AUDIT.md](docs/RESEARCH_TOOLKIT_PHASE2A_AUDIT.md) | Research Toolkit Phase 2A 本机可选运行时与真实公开源 readiness 审计 |
+| [docs/RESEARCH_TOOLKIT_PHASE2_DELIVERY_AUDIT.md](docs/RESEARCH_TOOLKIT_PHASE2_DELIVERY_AUDIT.md) | Research Toolkit Phase 2 当前交付状态、验证证据与剩余运行时风险 |
 | [docs/RESEARCH_WORKFLOW_EXAMPLES.md](docs/RESEARCH_WORKFLOW_EXAMPLES.md) | `research_workflow` MCP prompt 示例、工具参数、保存产物和失败检查点 |
 | [docs/SCHEDULER_GUIDE.md](docs/SCHEDULER_GUIDE.md) | 定时任务 DSL 语法 / 接入飞书 / 调试方法 |
 | [docs/FEISHU_BOT_SETUP.md](docs/FEISHU_BOT_SETUP.md) | 飞书反向通道接入:App 创建、Cloudflare Tunnel、联调 |

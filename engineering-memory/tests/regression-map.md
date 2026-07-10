@@ -62,6 +62,7 @@ Tests to run:
 - `uv run python -m unittest tests.test_research_artifact_smoke`
 - `uv run python -m unittest tests.test_research_artifact_review`
 - `uv run python -m unittest tests.test_research_batch_workflow`
+- `uv run python -m unittest tests.test_research_batch_handoff_smoke`
 - `uv run python -m unittest tests.test_mcp_registration`
 - `uv run python -m unittest discover -s tests`
 
@@ -285,7 +286,7 @@ Test file:
 - `tests/test_mcp_registration.py`
 
 What it protects:
-- Keeps all nine Research Toolkit tools registered on the FastMCP server and catches accidental changes to the expected 164-tool public surface.
+- Keeps all ten Research Toolkit tools registered on the FastMCP server and catches accidental changes to the expected 165-tool public surface.
 
 ### xhs CLI auth status and friendly errors
 

@@ -60,7 +60,6 @@ class ResearchToolkitTools:
         self.codex_runner = codex_runner
         self.session = create_research_session()
 
-    # ───────────────────────── Capability map ─────────────────────────
     def toolkit_health(self) -> Dict:
         return build_toolkit_health(
             external_api=self.external_api,
@@ -69,7 +68,6 @@ class ResearchToolkitTools:
             codex_runner=self.codex_runner,
         )
 
-    # ───────────────────────── HTTP crawling ─────────────────────────
     def crawl_url(
         self,
         url: str,
@@ -105,7 +103,6 @@ class ResearchToolkitTools:
             crawl_url=self.crawl_url,
         )
 
-    # ───────────────────────── Optional media CLI ─────────────────────────
     def download_gallery(
         self,
         target: str,
@@ -127,7 +124,6 @@ class ResearchToolkitTools:
             timeout=timeout,
         )
 
-    # ───────────────────────── Cross-source research ─────────────────────────
     def research_topic(
         self,
         query: str,
@@ -286,7 +282,6 @@ class ResearchToolkitTools:
             artifact_path, self.project_root, handoff=handoff, artifact_index=artifact_index
         )
 
-    # ───────────────────────── Internal helpers ─────────────────────────
     def _fetch_html(self, url: str, timeout: int) -> Dict:
         return fetch_page_html(self.session, url=url, timeout=timeout, max_html_bytes=MAX_HTML_BYTES)
 

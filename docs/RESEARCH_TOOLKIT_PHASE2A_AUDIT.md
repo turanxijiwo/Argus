@@ -1,5 +1,8 @@
 # Research Toolkit Phase 2A Readiness Audit
 
+> Historical Phase 2A snapshot from 2026-07-08. See
+> `RESEARCH_TOOLKIT_PHASE2_DELIVERY_AUDIT.md` for the current delivery state.
+
 Date: 2026-07-08
 
 This audit checks the current local/runtime readiness for Research Toolkit Phase
