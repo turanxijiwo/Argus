@@ -56,9 +56,9 @@ project-relative paths and avoid replaying full crawled page text.
 - Crawl4AI, gallery-dl, yt-dlp, Scrapy, and openai-codex are installed locally.
 - Commercial web providers are inactive until a Tavily, Exa, Perplexity, or
   Brave API key is configured.
-- The Codex SDK package is installed, but the current user-level Codex config
-  uses unsupported reasoning effort `ultra`; Argus does not modify global Codex
-  settings.
+- The Codex SDK and current user-level configuration have been runtime-verified
+  with `research_runtime_probe`; the backup made before the authorized config
+  update remains outside the repository.
 - `research_runtime_probe` is the explicit check for Crawl4AI/Codex runtime
   compatibility; normal health reports package and CLI readiness only.
 - Xiaohongshu requires normal manual login. No authentication bypass or

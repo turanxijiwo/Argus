@@ -6,6 +6,10 @@ Date: 2026-07-10
 > Toolkit tools. Phase 3 later added `research_runtime_probe`; use `context.md`
 > and `docs/HANDOFF.md` for the current surface.
 
+> The historical Codex configuration block recorded below was resolved on
+> 2026-07-10 through a user-authorized update from `ultra` to `xhigh`, verified
+> by the Phase 3 runtime probe.
+
 ## Verdict
 
 Research Toolkit Phase 2 is ready for personal, agent-driven research using
