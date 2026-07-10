@@ -24,7 +24,7 @@ uv build
 uv run python scripts/research_crawl_quality_smoke.py
 uv run python scripts/research_artifact_smoke.py
 uv run python scripts/research_batch_handoff_smoke.py
-uv run python -c 'from argus_server.server import _get_tools; print(_get_tools()["research"].research_runtime_probe())'
+uv run python scripts/research_runtime_probe_smoke.py
 ```
 
 ## Research Toolkit Flow

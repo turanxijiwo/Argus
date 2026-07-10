@@ -64,6 +64,7 @@ Tests to run:
 - `uv run python -m unittest tests.test_research_batch_workflow`
 - `uv run python -m unittest tests.test_research_batch_handoff_smoke`
 - `uv run python -m unittest tests.test_research_probe`
+- `uv run python -m unittest tests.test_research_runtime_probe_smoke`
 - `uv run python -m unittest tests.test_mcp_registration`
 - `uv run python -m unittest discover -s tests`
 
@@ -97,6 +98,7 @@ Known historical bugs:
 - Phase 2K artifact review must accept batch handoff artifact lists, select only a valid indexed project-relative artifact, and reject missing or out-of-range selections.
 - Phase 2L batch handoff smoke must execute two public saved workflows, select a batch artifact by index for review, and require matching batch/review handoff paths.
 - Phase 3 optional runtime probe must distinguish installed packages from explicit runtime verification and sanitize Codex configuration or permission failures.
+- Phase 3 runtime-probe smoke must return exit code 2 for recognized configuration/permission/install blocks and exit code 3 for unexpected runtime failures.
 
 ### Flow: MCP server import and tool registration
 

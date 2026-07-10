@@ -180,6 +180,13 @@ for the Crawl4AI probe and "OpenAI research toolkit" for the Codex probe.
 returns `runtime_verified` or a compact `runtime_failed` reason such as
 `CONFIG_ERROR` or `PERMISSION_ERROR`.
 
+For a repeatable terminal check with exit code `0` (ready), `2` (configuration,
+permission, or install block), or `3` (unexpected runtime failure), run:
+
+```bash
+uv run python scripts/research_runtime_probe_smoke.py
+```
+
 ## Safety Notes
 
 - Keep `output_dir` under the project root. Absolute paths outside Argus return

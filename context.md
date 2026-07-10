@@ -36,11 +36,13 @@
 - `scripts/research_batch_handoff_smoke.py` verifies the zero-key `research_batch_workflow -> batch handoff -> research_review_artifact` chain for a selected batch artifact.
 - The installed Codex SDK currently cannot run because global `model_reasoning_effort = "ultra"` is rejected by its config parser, which accepts up to `xhigh`; the project does not modify global Codex configuration.
 - `research_runtime_probe` classifies this as a sanitized `CONFIG_ERROR`; it also classifies user-state access failures as `PERMISSION_ERROR`.
+- `scripts/research_runtime_probe_smoke.py` provides repeatable explicit runtime validation with exit code 0 for verified runtimes, 2 for configuration/permission/install blocks, and 3 for other failures.
 - `docs/HANDOFF.md` has been refreshed as the current concise handoff and points to the Phase 2 delivery audit for verification evidence.
 
 ## 最近变更记录
 
 - Added `research_runtime_probe` for explicit optional Crawl4AI/Codex runtime verification and sanitized configuration/permission failure reporting.
+- Added a runtime-probe smoke command with stable exit codes for future Codex configuration validation.
 - Added the Phase 2 delivery audit, reconciled historical/current tool counts, refreshed the project handoff, and recorded the remaining Codex runtime configuration risk.
 - Added the single-workflow handoff block so follow-up agents can select the JSON artifact and Markdown brief without replaying page text or parsing absolute paths; corrected unsaved workflows to remain not-ready.
 - Added `research_review_artifact` as the unified single-artifact quality-review entrypoint for follow-up agents.
