@@ -18,7 +18,7 @@
 - `download_gallery` requires `gallery-dl` to be installed locally and defaults to dry-run for safety.
 - Phase 2A audit found Crawl4AI and Codex SDK are installed and usable with approved unsandboxed execution, but both can fail inside the restricted Codex sandbox because they need user-level state/cache writes.
 - No Tavily / Exa / Perplexity / Brave API keys are configured in the current runtime; `web:<provider>` smoke remains optional, while `scripts/research_codex_smoke.py` is the primary no-provider-key smoke path.
-- `scripts/research_codex_smoke.py` exits with code 2 for Codex SDK/state/permission unavailability and code 3 for Codex research-contract failures; the approved unsandboxed smoke currently passes with one URL-bearing topic result and one successful workflow document.
+- `scripts/research_codex_smoke.py` exits with code 2 for Codex SDK/state/permission unavailability and code 3 for Codex research-contract failures; the approved unsandboxed smoke currently passes with one URL-bearing topic result, one successful workflow document, and can use `--save` to verify the saved artifact-to-review handoff.
 - `scripts/research_provider_smoke.py` exits with code 2 and `NO_CONFIGURED_PROVIDER` when no provider key is configured; with a key, it validates `research_topic`, `research_pack`, and `research_workflow` against the chosen `web:<provider>` source.
 - `scripts/research_crawl_quality_smoke.py` exits with code 0 only when both public crawl fixtures and the public Wikipedia workflow pass; the current local smoke passes with two fixture pages, one successful Wikipedia workflow document, five images, and a Markdown brief.
 - `docs/RESEARCH_WORKFLOW_EXAMPLES.md` is now the preferred handoff for running saved JSON + Markdown research workflows from an MCP client.
@@ -44,6 +44,7 @@
 - Added `research_runtime_probe` for explicit optional Crawl4AI/Codex runtime verification and sanitized configuration/permission failure reporting.
 - Verified the Codex runtime after updating the user-authorized global reasoning-effort setting from `ultra` to `xhigh` with a preserved backup.
 - Added a runtime-probe smoke command with stable exit codes for future Codex configuration validation.
+- Extended the Codex smoke with an opt-in saved artifact and review-handoff path.
 - Added the Phase 2 delivery audit, reconciled historical/current tool counts, refreshed the project handoff, and recorded the remaining Codex runtime configuration risk.
 - Added the single-workflow handoff block so follow-up agents can select the JSON artifact and Markdown brief without replaying page text or parsing absolute paths; corrected unsaved workflows to remain not-ready.
 - Added `research_review_artifact` as the unified single-artifact quality-review entrypoint for follow-up agents.

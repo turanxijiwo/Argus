@@ -48,12 +48,36 @@ def summarize_workflow(result: Dict[str, Any]) -> Dict[str, Any]:
 def smoke_passed(summary: Dict[str, Any]) -> bool:
     topic = summary.get("topic") or {}
     workflow = summary.get("workflow") or {}
-    return (
+    workflow_passed = (
         topic.get("success")
         and topic.get("first_result_has_url")
         and workflow.get("success")
         and workflow.get("successful_document_count", 0) > 0
     )
+    if not summary.get("save"):
+        return workflow_passed
+    return workflow_passed and bool((summary.get("review") or {}).get("passed"))
+
+
+def summarize_review(workflow_result: Dict[str, Any], review_result: Dict[str, Any]) -> Dict[str, Any]:
+    workflow_handoff = ((workflow_result.get("data") or {}).get("handoff") or {})
+    review_data = review_result.get("data") or {}
+    review_handoff = review_data.get("handoff") or {}
+    checks = {
+        "workflow_handoff_ready": bool(workflow_handoff.get("ready")),
+        "review_success": bool(review_result.get("success")),
+        "review_handoff_schema": review_handoff.get("schema") == "argus.research.review.handoff.v1",
+        "review_path_matches_workflow": review_handoff.get("artifact_path") == workflow_handoff.get("artifact_path"),
+        "review_quality_ready": review_data.get("quality_status") == "ready",
+    }
+    return {
+        "passed": all(checks.values()),
+        "checks": checks,
+        "quality_status": review_data.get("quality_status"),
+        "score": review_data.get("score"),
+        "warnings": review_data.get("warnings") or [],
+        "error": review_result.get("error") or {},
+    }
 
 
 def exit_code_for_summary(summary: Dict[str, Any]) -> int:
@@ -103,10 +127,19 @@ def run_smoke(args: argparse.Namespace) -> int:
             max_chars_per_page=args.max_chars_per_page,
             images_per_page=args.images_per_page,
             include_brief=True,
-            save=False,
+            save=args.save,
+            save_brief=args.save,
+            output_dir=args.output_dir,
         )
         summary["workflow"] = summarize_workflow(workflow_result)
+        if args.save:
+            review_result = research.research_review_artifact(
+                handoff=((workflow_result.get("data") or {}).get("handoff") or {}),
+            )
+            summary["review"] = summarize_review(workflow_result, review_result)
 
+    summary["save"] = args.save
+    summary["output_dir"] = args.output_dir if args.save else None
     summary["passed"] = smoke_passed(summary)
     summary["success"] = summary["passed"]
     summary["exit_code"] = exit_code_for_summary(summary)
@@ -149,7 +182,7 @@ def _summary_errors(summary: Dict[str, Any]) -> Iterable[Dict[str, Any]]:
     if isinstance(tool_error, dict):
         yield tool_error
 
-    for section_name in ("topic", "workflow"):
+    for section_name in ("topic", "workflow", "review"):
         section = summary.get(section_name) or {}
         top_level_error = section.get("top_level_error")
         if isinstance(top_level_error, dict) and top_level_error:
@@ -166,6 +199,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--timeout", type=int, default=20, help="Page crawl timeout in seconds.")
     parser.add_argument("--max-chars-per-page", type=int, default=1500, help="Maximum page text characters to keep.")
     parser.add_argument("--images-per-page", type=int, default=3, help="Maximum images to keep per page.")
+    parser.add_argument("--save", action="store_true", help="Save JSON/Markdown artifacts and verify their review handoff.")
+    parser.add_argument("--output-dir", default="output/research/codex-smoke", help="Project-local saved artifact directory.")
     return parser
 
 

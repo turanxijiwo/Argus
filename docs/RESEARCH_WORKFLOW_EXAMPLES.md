@@ -88,6 +88,13 @@ from `artifact_paths` (the first saved artifact is index `0`).
 `scripts/research_artifact_smoke.py` also verifies this direct workflow-to-review
 handoff chain against the public Wikipedia source without a provider key.
 
+Once the local Codex runtime probe is ready, run the equivalent saved Codex
+chain with:
+
+```bash
+uv run python scripts/research_codex_smoke.py --save
+```
+
 For the batch equivalent, run:
 
 ```bash

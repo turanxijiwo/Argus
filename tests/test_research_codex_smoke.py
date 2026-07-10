@@ -57,6 +57,37 @@ class ResearchCodexSmokeTest(unittest.TestCase):
         summary["workflow"]["successful_document_count"] = 0
         self.assertFalse(research_codex_smoke.smoke_passed(summary))
 
+    def test_saved_smoke_requires_ready_review_handoff(self):
+        summary = {
+            "save": True,
+            "topic": {"success": True, "first_result_has_url": True},
+            "workflow": {"success": True, "successful_document_count": 1},
+            "review": {"passed": True},
+        }
+
+        self.assertTrue(research_codex_smoke.smoke_passed(summary))
+        summary["review"] = {"passed": False}
+        self.assertFalse(research_codex_smoke.smoke_passed(summary))
+
+    def test_summarize_review_requires_matching_ready_handoffs(self):
+        workflow_result = {"data": {"handoff": {"ready": True, "artifact_path": "output/research/codex.json"}}}
+        review_result = {
+            "success": True,
+            "data": {
+                "quality_status": "ready",
+                "score": 100,
+                "handoff": {
+                    "schema": "argus.research.review.handoff.v1",
+                    "artifact_path": "output/research/codex.json",
+                },
+            },
+        }
+
+        summary = research_codex_smoke.summarize_review(workflow_result, review_result)
+
+        self.assertTrue(summary["passed"])
+        self.assertEqual(summary["score"], 100)
+
     def test_exit_code_reports_runtime_unavailable_errors(self):
         summary = {
             "passed": False,

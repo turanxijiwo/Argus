@@ -99,6 +99,7 @@ Known historical bugs:
 - Phase 2L batch handoff smoke must execute two public saved workflows, select a batch artifact by index for review, and require matching batch/review handoff paths.
 - Phase 3 optional runtime probe must distinguish installed packages from explicit runtime verification and sanitize Codex configuration or permission failures.
 - Phase 3 runtime-probe smoke must return exit code 2 for recognized configuration/permission/install blocks and exit code 3 for unexpected runtime failures.
+- Saved Codex smoke must require a ready review handoff whose artifact path matches the saved Codex workflow handoff.
 
 ### Flow: MCP server import and tool registration
 
