@@ -31,6 +31,7 @@ from .research_runtime import (
     create_research_session,
     default_workflow_sources,
 )
+from .research_review import review_research_artifact
 from .research_sources import run_source_search
 from .research_topic import build_research_topic
 from .research_workflow import (
@@ -273,6 +274,10 @@ class ResearchToolkitTools:
             project_root=self.project_root,
             research_workflow=self.research_workflow,
         )
+
+    def research_review_artifact(self, artifact_path: str) -> Dict:
+        """Review one saved research JSON artifact without returning page text."""
+        return review_research_artifact(artifact_path, self.project_root)
 
     # ───────────────────────── Internal helpers ─────────────────────────
     def _fetch_html(self, url: str, timeout: int) -> Dict:

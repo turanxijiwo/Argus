@@ -529,6 +529,37 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertIsNone(result["data"]["handoff"]["artifact_path"])
         self.assertIsNone(result["data"]["handoff"]["brief_path"])
 
+    def test_research_review_artifact_returns_compact_quality_summary(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tool = ResearchToolkitTools(project_root=tmpdir)
+            path = os.path.join(tmpdir, "output", "research", "review.json")
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump({
+                    "query": "OpenAI",
+                    "sources": {"wikipedia": {}},
+                    "source_errors": [],
+                    "brief": {"content": "brief " * 50},
+                    "images": [{"image_url": "https://example.com/image.png"}],
+                    "documents": [{"success": True, "text": "evidence " * 100}],
+                }, handle)
+
+            result = tool.research_review_artifact("output/research/review.json")
+
+            self.assertTrue(result["success"])
+            self.assertEqual(result["data"]["quality_status"], "ready")
+            self.assertEqual(result["data"]["score"], 100)
+            self.assertEqual(result["data"]["path"], "output/research/review.json")
+            self.assertNotIn("evidence evidence", json.dumps(result))
+
+    def test_research_review_artifact_rejects_outside_project(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tool = ResearchToolkitTools(project_root=tmpdir)
+            result = tool.research_review_artifact("/tmp/outside-research.json")
+
+            self.assertFalse(result["success"])
+            self.assertEqual(result["error"]["code"], "UNSAFE_ARTIFACT_PATH")
+
     def test_research_workflow_preserves_crawl_errors_after_retries(self):
         tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())
         attempts = []

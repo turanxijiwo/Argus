@@ -3447,6 +3447,14 @@ async def research_batch_workflow(
     return json.dumps(result, ensure_ascii=False, indent=2, default=str)
 
 
+@mcp.tool
+async def research_review_artifact(artifact_path: str) -> str:
+    """审查一个已保存的 Research Toolkit JSON 产物并返回紧凑质量摘要。"""
+    tools = _get_tools()
+    result = await asyncio.to_thread(tools['research'].research_review_artifact, artifact_path=artifact_path)
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+
 # ==================== 定时任务 (Batch 5a, launchd) ====================
 
 @mcp.tool
