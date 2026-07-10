@@ -24,7 +24,13 @@ def build_workflow_handoff(
     brief_path = _project_relative_path(
         ((workflow.get("brief") or {}).get("artifact") or {}).get("path"), project_root
     )
-    ready = bool(documents and successful_documents and not source_errors and not crawl_error_count)
+    ready = bool(
+        artifact_path
+        and documents
+        and successful_documents
+        and not source_errors
+        and not crawl_error_count
+    )
     status = "ready" if ready else "partial" if successful_documents else "needs_attention"
     return {
         "schema": WORKFLOW_HANDOFF_SCHEMA,

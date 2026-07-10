@@ -88,7 +88,7 @@ Known historical bugs:
 - Phase 2D MCP batch workflow must expose the batch saved-workflow loop directly to agents while returning compact summaries and project-relative paths instead of full crawled page text.
 - Phase 2E runtime defaults must stay behavior-preserving: session headers, default source selection, max crawl/text limits, and retriable crawl errors should not drift during structure cleanup.
 - Phase 2F batch handoff outputs must keep the shared `argus.research.batch.handoff.v1` schema aligned across MCP and script entrypoints, with project-relative artifact paths and script exit codes.
-- Phase 2G single-workflow handoff outputs must expose `argus.research.workflow.handoff.v1`, compact readiness/error counts, and project-relative artifact paths without leaking the project root.
+- Phase 2G single-workflow handoff outputs must expose `argus.research.workflow.handoff.v1`, compact readiness/error counts, and project-relative artifact paths without leaking the project root; unsaved workflows must not claim readiness.
 
 ### Flow: MCP server import and tool registration
 

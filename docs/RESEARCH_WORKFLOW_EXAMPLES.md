@@ -72,8 +72,10 @@ Every single workflow also returns a compact `data.handoff` block:
 ```
 
 Use `artifact_path` first when handing the result to a later agent, then read
-`brief_path` for the concise narrative. Paths are project-relative and are
-`null` when the workflow was run without saving artifacts.
+`brief_path` for the concise narrative. `ready` is true only when the JSON
+artifact exists, at least one document succeeded, and no source or page errors
+are present. Paths are project-relative and are `null` when the workflow was
+run without saving artifacts.
 
 Saved file names use this shape:
 

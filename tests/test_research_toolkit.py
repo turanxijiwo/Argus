@@ -524,7 +524,8 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertFalse(result["summary"]["brief_included"])
         self.assertIsNone(result["data"]["brief"])
-        self.assertEqual(result["data"]["handoff"]["status"], "ready")
+        self.assertFalse(result["data"]["handoff"]["ready"])
+        self.assertEqual(result["data"]["handoff"]["status"], "partial")
         self.assertIsNone(result["data"]["handoff"]["artifact_path"])
         self.assertIsNone(result["data"]["handoff"]["brief_path"])
 
