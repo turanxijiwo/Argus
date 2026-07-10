@@ -3464,6 +3464,25 @@ async def research_review_artifact(
     return json.dumps(result, ensure_ascii=False, indent=2, default=str)
 
 
+@mcp.tool
+async def research_runtime_probe(
+    adapters: Optional[List[str]] = None,
+    url: str = "https://example.com",
+    query: str = "OpenAI research toolkit",
+    timeout: int = 30,
+) -> str:
+    """显式验证 Crawl4AI 或 Codex SDK 是否可在当前本机配置下真实运行。"""
+    tools = _get_tools()
+    result = await asyncio.to_thread(
+        tools['research'].research_runtime_probe,
+        adapters=adapters,
+        url=url,
+        query=query,
+        timeout=timeout,
+    )
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+
 # ==================== 定时任务 (Batch 5a, launchd) ====================
 
 @mcp.tool

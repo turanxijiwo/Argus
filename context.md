@@ -3,8 +3,8 @@
 ## 当前任务
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
-- Current product focus remains the Argus agent-native research and intelligence toolkit: 165 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest milestone: Research Toolkit Phase 2 delivery audit confirms the 165-tool MCP surface, ten Research Toolkit tools, build, public crawl, saved artifact, single/batch handoff, and artifact review paths.
+- Current product focus remains the Argus agent-native research and intelligence toolkit: 166 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
+- Latest milestone: Phase 3 added an explicit optional runtime probe that separates installed-package readiness from verified Crawl4AI/Codex execution without changing user settings.
 
 ## 已知问题
 
@@ -35,10 +35,12 @@
 - `scripts/research_artifact_smoke.py` now executes the zero-key `research_workflow -> research_review_artifact` handoff chain and verifies ready review status plus matching project-relative artifact paths.
 - `scripts/research_batch_handoff_smoke.py` verifies the zero-key `research_batch_workflow -> batch handoff -> research_review_artifact` chain for a selected batch artifact.
 - The installed Codex SDK currently cannot run because global `model_reasoning_effort = "ultra"` is rejected by its config parser, which accepts up to `xhigh`; the project does not modify global Codex configuration.
+- `research_runtime_probe` classifies this as a sanitized `CONFIG_ERROR`; it also classifies user-state access failures as `PERMISSION_ERROR`.
 - `docs/HANDOFF.md` has been refreshed as the current concise handoff and points to the Phase 2 delivery audit for verification evidence.
 
 ## 最近变更记录
 
+- Added `research_runtime_probe` for explicit optional Crawl4AI/Codex runtime verification and sanitized configuration/permission failure reporting.
 - Added the Phase 2 delivery audit, reconciled historical/current tool counts, refreshed the project handoff, and recorded the remaining Codex runtime configuration risk.
 - Added the single-workflow handoff block so follow-up agents can select the JSON artifact and Markdown brief without replaying page text or parsing absolute paths; corrected unsaved workflows to remain not-ready.
 - Added `research_review_artifact` as the unified single-artifact quality-review entrypoint for follow-up agents.

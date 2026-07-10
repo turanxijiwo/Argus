@@ -63,6 +63,7 @@ Tests to run:
 - `uv run python -m unittest tests.test_research_artifact_review`
 - `uv run python -m unittest tests.test_research_batch_workflow`
 - `uv run python -m unittest tests.test_research_batch_handoff_smoke`
+- `uv run python -m unittest tests.test_research_probe`
 - `uv run python -m unittest tests.test_mcp_registration`
 - `uv run python -m unittest discover -s tests`
 
@@ -95,6 +96,7 @@ Known historical bugs:
 - Phase 2J artifact smoke must execute the public zero-key workflow-to-review chain and require ready review status with matching workflow/review artifact paths.
 - Phase 2K artifact review must accept batch handoff artifact lists, select only a valid indexed project-relative artifact, and reject missing or out-of-range selections.
 - Phase 2L batch handoff smoke must execute two public saved workflows, select a batch artifact by index for review, and require matching batch/review handoff paths.
+- Phase 3 optional runtime probe must distinguish installed packages from explicit runtime verification and sanitize Codex configuration or permission failures.
 
 ### Flow: MCP server import and tool registration
 
@@ -286,7 +288,7 @@ Test file:
 - `tests/test_mcp_registration.py`
 
 What it protects:
-- Keeps all ten Research Toolkit tools registered on the FastMCP server and catches accidental changes to the expected 165-tool public surface.
+- Keeps all eleven Research Toolkit tools registered on the FastMCP server and catches accidental changes to the expected 166-tool public surface.
 
 ### xhs CLI auth status and friendly errors
 

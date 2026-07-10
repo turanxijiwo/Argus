@@ -11,8 +11,8 @@ storage, schema, auth, refactor, or bug-fix work.
 
 - Branch: `feature/intelligence-toolkit`.
 - Runtime: Python 3.12+ with `uv`.
-- MCP surface: 165 FastMCP tools and 8 resources.
-- Research Toolkit: 10 public MCP tools.
+- MCP surface: 166 FastMCP tools and 8 resources.
+- Research Toolkit: 11 public MCP tools.
 - Verification baseline: 87 tests passing and `uv build` successful.
 - Current delivery report: `docs/RESEARCH_TOOLKIT_PHASE2_DELIVERY_AUDIT.md`.
 
@@ -24,6 +24,7 @@ uv build
 uv run python scripts/research_crawl_quality_smoke.py
 uv run python scripts/research_artifact_smoke.py
 uv run python scripts/research_batch_handoff_smoke.py
+uv run python -c 'from argus_server.server import _get_tools; print(_get_tools()["research"].research_runtime_probe())'
 ```
 
 ## Research Toolkit Flow
@@ -58,6 +59,8 @@ project-relative paths and avoid replaying full crawled page text.
 - The Codex SDK package is installed, but the current user-level Codex config
   uses unsupported reasoning effort `ultra`; Argus does not modify global Codex
   settings.
+- `research_runtime_probe` is the explicit check for Crawl4AI/Codex runtime
+  compatibility; normal health reports package and CLI readiness only.
 - Xiaohongshu requires normal manual login. No authentication bypass or
   unsupported cookie refresh is implemented.
 

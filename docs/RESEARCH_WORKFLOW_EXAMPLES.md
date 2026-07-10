@@ -165,6 +165,21 @@ Equivalent tool arguments:
 }
 ```
 
+## Optional Runtime Probe
+
+Use this MCP prompt only when you want to test optional local runtimes. It can
+access the local Crawl4AI browser state or Codex SDK user state, but it never
+changes global settings:
+
+```text
+Use Argus research_runtime_probe for crawl4ai and codex. Use https://example.com
+for the Crawl4AI probe and "OpenAI research toolkit" for the Codex probe.
+```
+
+`research_toolkit_health` reports package/CLI availability. The explicit probe
+returns `runtime_verified` or a compact `runtime_failed` reason such as
+`CONFIG_ERROR` or `PERMISSION_ERROR`.
+
 ## Safety Notes
 
 - Keep `output_dir` under the project root. Absolute paths outside Argus return

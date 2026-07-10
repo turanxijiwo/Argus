@@ -23,6 +23,7 @@ from .research_page import (
     crawl_page_url,
     discover_page_images as build_discover_page_images,
 )
+from .research_probe import build_research_runtime_probe
 from .research_render import format_crawl4ai_result
 from .research_runtime import (
     MAX_HTML_BYTES,
@@ -33,6 +34,7 @@ from .research_runtime import (
 )
 from .research_review import review_research_artifact
 from .research_sources import run_source_search
+from .research_source_ai import run_codex_search
 from .research_topic import build_research_topic
 from .research_workflow import (
     build_research_workflow,
@@ -214,13 +216,7 @@ class ResearchToolkitTools:
         save_brief: bool = True,
         output_dir: str = "output/research",
     ) -> Dict:
-        """
-        Run the full research loop: search, crawl, extract images, and render a brief.
-
-        Page-level failures stay in documents[].error so a partial workflow can still
-        return useful evidence. Hard failures are limited to invalid input and unsafe
-        or unwritable export paths.
-        """
+        """Run search, crawl, image extraction, brief rendering, and optional export."""
         sources = sources or default_workflow_sources(self.ai_search, self.codex_runner)
         return build_research_workflow(
             query=query,
@@ -272,14 +268,18 @@ class ResearchToolkitTools:
         )
 
     def research_review_artifact(
-        self,
-        artifact_path: Optional[str] = None,
-        handoff: Optional[Dict[str, Any]] = None,
-        artifact_index: int = 0,
+        self, artifact_path: Optional[str] = None, handoff: Optional[Dict[str, Any]] = None, artifact_index: int = 0
     ) -> Dict:
-        """Review one saved research JSON artifact without returning page text."""
         return review_research_artifact(
             artifact_path, self.project_root, handoff=handoff, artifact_index=artifact_index
+        )
+    def research_runtime_probe(
+        self, adapters: Optional[List[str]] = None, url: str = "https://example.com",
+        query: str = "OpenAI research toolkit", timeout: int = 30,
+    ) -> Dict:
+        return build_research_runtime_probe(
+            adapters or ["crawl4ai", "codex"], url, query, timeout, self.crawl_url,
+            lambda query, limit: run_codex_search(query, limit, self.codex_runner),
         )
 
     def _fetch_html(self, url: str, timeout: int) -> Dict:

@@ -2,6 +2,10 @@
 
 Date: 2026-07-10
 
+> Historical Phase 2 delivery baseline: 165 FastMCP tools and 10 Research
+> Toolkit tools. Phase 3 later added `research_runtime_probe`; use `context.md`
+> and `docs/HANDOFF.md` for the current surface.
+
 ## Verdict
 
 Research Toolkit Phase 2 is ready for personal, agent-driven research using

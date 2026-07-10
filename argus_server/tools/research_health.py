@@ -36,6 +36,7 @@ def toolkit_health(
                 "research_workflow": "one-call topic search, page crawl, image extraction, markdown brief, retry summary, and optional export",
                 "research_batch_workflow": "multi-query saved research workflows plus compact artifact review report",
                 "research_review_artifact": "compact quality review for one saved JSON research artifact",
+                "research_runtime_probe": "explicit optional Crawl4AI/Codex runtime verification",
                 "download_gallery": "safe gallery-dl wrapper when installed",
             },
             "web_search_sources": ["web", "web:tavily", "web:exa", "web:perplexity", "web:brave"],
@@ -114,6 +115,12 @@ def toolkit_health(
                     can_use_now=True,
                     status="ready",
                     mode="project_local_json_review",
+                ),
+                "research_runtime_probe": _capability(
+                    can_use_now=True,
+                    status="ready",
+                    mode="explicit_opt_in_runtime_probe",
+                    note="Package detection does not prove runtime compatibility; call research_runtime_probe to verify.",
                 ),
                 "download_gallery": _capability(
                     can_use_now=gallery_ready,

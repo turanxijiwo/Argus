@@ -76,7 +76,7 @@ Path:
 - `argus_server/utils/`
 
 Responsibility:
-- Register 165 MCP tools and 8 MCP resources, create shared tool adapters, normalize tool responses, and provide the `argus-mcp` console script.
+- Register 166 MCP tools and 8 MCP resources, create shared tool adapters, normalize tool responses, and provide the `argus-mcp` console script.
 
 Depends on:
 - `fastmcp`, Argus core/storage modules, all `argus_server.tools` adapters
@@ -220,13 +220,14 @@ Path:
 - `argus_server/tools/research_brief.py`
 - `argus_server/tools/research_io.py`
 - `argus_server/tools/research_review.py`
+- `argus_server/tools/research_probe.py`
 - `argus_server/tools/external_apis.py`
 - `argus_server/tools/cli_tools.py`
 - `argus_server/tools/social_ops.py`
 - `docs/RESEARCH_TOOLKIT_BOUNDARIES.md`
 
 Responsibility:
-- Provide dependency-free page crawling/image discovery entrypoints, runtime defaults/session setup, compact handoff summaries, HTTP crawl orchestration, cross-source topic aggregation, topic-driven image research, full research workflow orchestration, batch saved-workflow orchestration, saved-artifact quality review, capability health matrix reporting, optional Crawl4AI render runtime, source adapter normalization, optional AI-backed web/Codex source adapters, evidence packet construction, workflow document/image scoring helpers, safe gallery-dl wrapping, HTML/URL parsing, research brief rendering, safe project-local research artifact writing, public external API lookup, and optional social CLI wrappers.
+- Provide dependency-free page crawling/image discovery entrypoints, runtime defaults/session setup, compact handoff summaries, explicit optional runtime probes, HTTP crawl orchestration, cross-source topic aggregation, topic-driven image research, full research workflow orchestration, batch saved-workflow orchestration, saved-artifact quality review, capability health matrix reporting, optional Crawl4AI render runtime, source adapter normalization, optional AI-backed web/Codex source adapters, evidence packet construction, workflow document/image scoring helpers, safe gallery-dl wrapping, HTML/URL parsing, research brief rendering, safe project-local research artifact writing, public external API lookup, and optional social CLI wrappers.
 
 Depends on:
 - `requests`, optional local CLIs (`gallery-dl`, bili/xhs/twitter/tg/discord), optional local Codex SDK (`openai-codex`), external API availability.

@@ -37,7 +37,7 @@ How do we know this debt is resolved?
 ## DEBT-0001: Optional Runtime Health Is Package-Level
 
 Date: 2026-07-10
-Status: open
+Status: resolved
 Severity: low
 Area: Research Toolkit optional adapters
 Related bugs:
@@ -61,11 +61,11 @@ part of every health check would be slow and stateful.
 Agents may interpret package availability as end-to-end Codex source readiness.
 
 ### Proposed Resolution
-Distinguish `installed` from `runtime_verified` in optional adapter health, and
-add an explicit opt-in runtime probe that returns configuration and permission
-errors without changing user state.
+Implemented through `research_runtime_probe`, which performs explicit
+verification and returns sanitized configuration or permission errors without
+changing user state.
 
 ### Exit Criteria
 - Health output distinguishes package detection from a successful runtime probe.
-- The probe has deterministic tests for configuration and permission failures.
+- The probe has deterministic tests for configuration failures and error sanitization.
 - No global Codex configuration is modified by Argus.
