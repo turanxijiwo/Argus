@@ -7,9 +7,13 @@ from typing import Any, Dict, List, Optional
 
 MIN_BRIEF_CHARS = 200
 MIN_EVIDENCE_TEXT_CHARS = 500
+REVIEW_HANDOFF_SCHEMA = "argus.research.review.handoff.v1"
 
 
-def review_research_artifact(path: str, project_root: str) -> Dict[str, Any]:
+def review_research_artifact(
+    path: Optional[str], project_root: str, handoff: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    path = path or (handoff or {}).get("artifact_path")
     resolved = _resolve_project_path(path, project_root)
     if not resolved:
         return _err("artifact_path must point inside the Argus project", "UNSAFE_ARTIFACT_PATH")
@@ -29,13 +33,15 @@ def review_research_artifact(path: str, project_root: str) -> Dict[str, Any]:
     evidence_chars = sum(len(document.get("text") or "") for document in successful)
     warnings = _warnings(successful, failed, source_errors, brief_chars, evidence_chars)
     score = _score(successful, failed, source_errors, brief_chars, evidence_chars, payload)
+    quality_status = _status(score, warnings)
+    relative_path = _relative_path(resolved, project_root)
     return {
         "success": True,
-        "summary": {"quality_status": _status(score, warnings), "score": score},
+        "summary": {"quality_status": quality_status, "score": score},
         "data": {
-            "path": _relative_path(resolved, project_root),
+            "path": relative_path,
             "query": payload.get("query"),
-            "quality_status": _status(score, warnings),
+            "quality_status": quality_status,
             "score": score,
             "warnings": warnings,
             "counts": {
@@ -46,6 +52,14 @@ def review_research_artifact(path: str, project_root: str) -> Dict[str, Any]:
                 "source_errors": len(source_errors),
                 "brief_chars": brief_chars,
                 "evidence_text_chars": evidence_chars,
+            },
+            "handoff": {
+                "schema": REVIEW_HANDOFF_SCHEMA,
+                "ready": quality_status == "ready",
+                "artifact_path": relative_path,
+                "quality_status": quality_status,
+                "score": score,
+                "warnings": warnings,
             },
         },
     }

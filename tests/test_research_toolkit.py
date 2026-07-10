@@ -550,6 +550,8 @@ class ResearchToolkitToolsTest(unittest.TestCase):
             self.assertEqual(result["data"]["quality_status"], "ready")
             self.assertEqual(result["data"]["score"], 100)
             self.assertEqual(result["data"]["path"], "output/research/review.json")
+            self.assertTrue(result["data"]["handoff"]["ready"])
+            self.assertEqual(result["data"]["handoff"]["schema"], "argus.research.review.handoff.v1")
             self.assertNotIn("evidence evidence", json.dumps(result))
 
     def test_research_review_artifact_rejects_outside_project(self):
@@ -559,6 +561,22 @@ class ResearchToolkitToolsTest(unittest.TestCase):
 
             self.assertFalse(result["success"])
             self.assertEqual(result["error"]["code"], "UNSAFE_ARTIFACT_PATH")
+
+    def test_research_review_artifact_consumes_workflow_handoff(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tool = ResearchToolkitTools(project_root=tmpdir)
+            path = os.path.join(tmpdir, "output", "research", "handoff.json")
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump({"query": "OpenAI", "sources": {}, "documents": [], "images": []}, handle)
+
+            result = tool.research_review_artifact(
+                handoff={"schema": "argus.research.workflow.handoff.v1", "artifact_path": "output/research/handoff.json"}
+            )
+
+            self.assertTrue(result["success"])
+            self.assertEqual(result["data"]["path"], "output/research/handoff.json")
+            self.assertEqual(result["data"]["quality_status"], "needs_attention")
 
     def test_research_workflow_preserves_crawl_errors_after_retries(self):
         tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())

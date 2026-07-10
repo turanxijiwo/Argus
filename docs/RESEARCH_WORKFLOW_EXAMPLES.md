@@ -77,6 +77,11 @@ artifact exists, at least one document succeeded, and no source or page errors
 are present. Paths are project-relative and are `null` when the workflow was
 run without saving artifacts.
 
+The `research_review_artifact` tool accepts either `artifact_path` or the
+previous workflow's `data.handoff` object. Its response uses the same compact
+quality fields as batch review and includes a new
+`argus.research.review.handoff.v1` block for the next agent step.
+
 Saved file names use this shape:
 
 ```text

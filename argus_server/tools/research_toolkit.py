@@ -275,9 +275,11 @@ class ResearchToolkitTools:
             research_workflow=self.research_workflow,
         )
 
-    def research_review_artifact(self, artifact_path: str) -> Dict:
+    def research_review_artifact(
+        self, artifact_path: Optional[str] = None, handoff: Optional[Dict[str, Any]] = None
+    ) -> Dict:
         """Review one saved research JSON artifact without returning page text."""
-        return review_research_artifact(artifact_path, self.project_root)
+        return review_research_artifact(artifact_path, self.project_root, handoff=handoff)
 
     # ───────────────────────── Internal helpers ─────────────────────────
     def _fetch_html(self, url: str, timeout: int) -> Dict:

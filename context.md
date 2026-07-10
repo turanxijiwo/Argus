@@ -30,12 +30,14 @@
 - MCP and script batch workflows now share `handoff.schema == "argus.research.batch.handoff.v1"` with entrypoint, readiness, artifact/brief paths, review report, status counts, average score, output dir, and process exit code when applicable; current local MCP and script batch runs both pass with two ready artifacts and average score 100.
 - Single `research_workflow` responses now expose `data.handoff` with `argus.research.workflow.handoff.v1`, readiness/status, project-relative JSON/Markdown paths, and compact document/image/error counts; `ready` requires a saved JSON artifact plus successful, error-free documents, while unsaved runs return null artifact paths.
 - `research_review_artifact` now provides an MCP-side compact quality review for one saved JSON artifact, with project-local path validation and no page-text replay.
+- `research_review_artifact` can now consume a prior workflow `data.handoff` directly and returns `argus.research.review.handoff.v1` for the next agent step.
 - `docs/HANDOFF.md` appears older than README/source for some counts and roadmap status; prefer README and current source when they disagree.
 
 ## 最近变更记录
 
 - Added the single-workflow handoff block so follow-up agents can select the JSON artifact and Markdown brief without replaying page text or parsing absolute paths; corrected unsaved workflows to remain not-ready.
 - Added `research_review_artifact` as the unified single-artifact quality-review entrypoint for follow-up agents.
+- Extended artifact review to consume workflow handoffs and emit a reusable review handoff with unified quality fields.
 - Added the shared Research Toolkit batch handoff block for both MCP and terminal batch outputs, plus tests that lock the schema and script exit-code field.
 - Split Research Toolkit runtime defaults/session setup into `research_runtime.py` so `research_toolkit.py` stays below the project 300-line reminder threshold while preserving behavior.
 - Added MCP `research_batch_workflow`, `argus_server/tools/research_batch.py`, and registration/tool tests for direct agent-facing batch saved workflow execution.
