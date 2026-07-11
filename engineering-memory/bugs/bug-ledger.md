@@ -237,3 +237,43 @@ Derived health metrics must be calculated from their owning capability records, 
 
 ### Follow-up
 None.
+
+## BUG-0006: Locator Validation Masked Invalid Citation Error
+
+Date: 2026-07-11
+Severity: P2
+Status: verified
+Area: Research comparison contract
+Tags: error-precedence, citation, locator, compatibility
+
+### Symptom
+An unknown source citation that previously returned `INVALID_CITATIONS` was reclassified as `INVALID_EVIDENCE_LOCATORS` after locator validation was added.
+
+### Reproduction / Trigger
+`test_rejects_unknown_citations` changed an agreement citation from `S2` to unknown `S9`; the remaining `S2:L1` locator then also produced a derived source-mismatch issue, and the locator error code won.
+
+### Root Cause
+The error selector chose the locator code when any locator issue existed, even when that locator issue was downstream of a primary missing or unknown citation violation.
+
+### Affected Chain
+Codex comparison payload -> claim citation normalization -> locator-source validation -> aggregate error-code selection.
+
+### Fix
+`INVALID_EVIDENCE_LOCATORS` is now used only when every validation issue is locator-specific; citation, statement, and shape violations retain the existing `INVALID_CITATIONS` contract.
+
+### Tests Added / Updated
+- Test file: `tests/test_research_compare.py`
+- Test case: `test_rejects_unknown_citations`
+- Test file: `tests/test_research_compare_locators.py`
+- Test cases: unknown locator, source mismatch, and insufficient cross-source locator coverage
+
+### Prevention
+Primary contract violations must take precedence over dependent validation errors when preserving public error-code compatibility.
+
+### Related Files
+- `argus_server/tools/research_compare_contract.py`
+- `tests/test_research_compare.py`
+- `tests/test_research_compare_locators.py`
+
+### Follow-up
+None.

@@ -346,6 +346,13 @@ What it protects:
 - Requires 2–6 unique project-local artifacts with readable evidence and caps Codex input per source and in total.
 - Enforces known `S1...Sn` citations, requires cited evidence, rejects invalid output, and sanitizes runner failures.
 - Keeps source text out of MCP output while preserving compact source metadata, Markdown/JSON artifacts, and comparison handoff readiness.
+- Generates bounded artifact locators whose document/character coordinates reconstruct the saved source text, while treating page numbers as optional observed metadata.
+- Requires claim locators to exist, belong to cited sources, and span at least two sources for agreement/difference claims.
+- Preserves creators and available DOI/arXiv/ISBN metadata in deterministic BibTeX without inventing unknown fields.
+
+Additional test files:
+- `tests/test_research_compare_sources.py`
+- `tests/test_research_compare_locators.py`
 
 ### xhs CLI auth status and friendly errors
 

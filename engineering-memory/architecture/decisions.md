@@ -32,10 +32,10 @@ Context:
 Multi-resource comparison needs traceability without re-crawling sources, replaying full document text through MCP, or presenting model-generated citations as independently verified facts.
 
 Decision:
-`research_compare_artifacts` consumes 2–6 project-local saved JSON artifacts, gives each source a stable `S1...Sn` ID, runs Codex in the existing ephemeral read-only deny-all boundary, and rejects missing or unknown source IDs. Comparison output uses a dedicated `argus.research.comparison.handoff.v1` schema. Citation validation is explicitly source-level and structural.
+`research_compare_artifacts` consumes 2–6 project-local saved JSON artifacts, gives each source a stable `S1...Sn` ID and each bounded evidence unit a stable `S1:L1` locator, runs Codex in the existing ephemeral read-only deny-all boundary, and rejects missing, unknown, or source-mismatched IDs. Locators resolve to saved artifact document/character coordinates and retain section/page metadata only when explicitly extractable. Existing normalized identifiers generate DOI/arXiv/ISBN metadata and BibTeX without inventing missing fields. Comparison output uses `argus.research.comparison.handoff.v1`.
 
 Consequences:
-Comparisons are reproducible from saved inputs, compact at the MCP boundary, and cannot silently invent source IDs. Fine-grained page/paragraph locators and independent fact verification remain separate future capabilities.
+Comparisons are reproducible from saved inputs, compact at the MCP boundary, and cannot silently invent source or locator IDs. Locator metadata exposes coordinates but not evidence text. PDF-native page boundaries and independent fact verification remain separate future capabilities.
 
 Alternatives Considered:
 Re-crawling every source during comparison was rejected because it adds network drift and repeats access work. Treating free-form model citations as valid was rejected because it weakens traceability. Reusing the workflow handoff schema was rejected because comparison claim/citation counts have different readiness semantics.

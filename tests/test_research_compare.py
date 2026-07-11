@@ -14,17 +14,27 @@ VALID_COMPARISON = {
         {
             "statement": "Both sources treat attention as central to the architecture.",
             "citations": ["S1", "S2"],
+            "locators": ["S1:L1", "S2:L1"],
         }
     ],
     "differences": [
         {
             "statement": "One source emphasizes the paper while the other emphasizes teaching.",
             "citations": ["S1", "S2"],
+            "locators": ["S1:L1", "S2:L1"],
         }
     ],
     "evidence": [
-        {"statement": "The paper describes self-attention.", "citations": ["S1"]},
-        {"statement": "The course organizes related learning material.", "citations": ["S2"]},
+        {
+            "statement": "The paper describes self-attention.",
+            "citations": ["S1"],
+            "locators": ["S1:L1"],
+        },
+        {
+            "statement": "The course organizes related learning material.",
+            "citations": ["S2"],
+            "locators": ["S2:L1"],
+        },
     ],
     "open_questions": ["How should the materials be sequenced for study?"],
 }
@@ -107,12 +117,18 @@ class ResearchComparisonToolsTest(unittest.TestCase):
             self.assertEqual(result["summary"]["source_count"], 2)
             self.assertEqual(result["summary"]["claim_count"], 4)
             self.assertEqual(result["summary"]["citation_count"], 6)
+            self.assertEqual(result["summary"]["locator_count"], 6)
             report = result["data"]
             self.assertEqual([source["source_id"] for source in report["sources"]], ["S1", "S2"])
+            self.assertTrue(report["sources"][0]["locators"])
+            self.assertNotIn("text", report["sources"][0]["locators"][0])
+            self.assertIn("bibtex", report["sources"][0]["citation"])
             self.assertEqual(report["comparison"]["runner"], "injected")
             self.assertTrue(report["comparison"]["citation_validation"]["valid"])
             self.assertIn("## Evidence", report["brief"]["content"])
             self.assertIn("`S1`", report["brief"]["content"])
+            self.assertIn("`S1:L1`", report["brief"]["content"])
+            self.assertIn("## References", report["brief"]["content"])
             self.assertEqual(report["handoff"]["status"], "partial")
             self.assertEqual(
                 report["handoff"]["schema"],
@@ -137,6 +153,8 @@ class ResearchComparisonToolsTest(unittest.TestCase):
             self.assertTrue(result["success"])
             handoff = result["data"]["handoff"]
             self.assertTrue(handoff["ready"])
+            self.assertTrue(handoff["locators_valid"])
+            self.assertEqual(handoff["locator_count"], 6)
             self.assertTrue(os.path.isfile(os.path.join(project_root, handoff["artifact_path"])))
             self.assertTrue(os.path.isfile(os.path.join(project_root, handoff["brief_path"])))
             self.assertNotIn(project_root, json.dumps(handoff))

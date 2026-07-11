@@ -31,9 +31,12 @@ def render_comparison_brief(report: Dict) -> Dict:
     ]
     for source in sources:
         label = _markdown_link(source.get("title") or source["source_id"], source.get("url"))
+        citation = source.get("citation") or {}
+        identifier = citation.get("doi") or citation.get("arxiv_id") or citation.get("isbn")
+        identifier_text = f"; id: `{identifier}`" if identifier else ""
         lines.append(
             f"- `{source['source_id']}` {label} "
-            f"(artifact: `{source.get('artifact_path')}`)"
+            f"(artifact: `{source.get('artifact_path')}`{identifier_text})"
         )
     lines.append("")
     for category, heading in (
@@ -47,8 +50,46 @@ def render_comparison_brief(report: Dict) -> Dict:
             lines.append("- None identified.")
         for claim in claims:
             citations = ", ".join(f"`{item}`" for item in claim["citations"])
-            lines.append(f"- {_clip(claim.get('statement'), 1200)} ({citations})")
+            locators = ", ".join(f"`{item}`" for item in claim.get("locators") or [])
+            lines.append(
+                f"- {_clip(claim.get('statement'), 1200)} "
+                f"(sources: {citations}; locators: {locators})"
+            )
         lines.append("")
+    used_locators = {
+        locator
+        for category in ("agreements", "differences", "evidence")
+        for claim in comparison.get(category) or []
+        for locator in claim.get("locators") or []
+    }
+    lines.extend(["## Locator Index", ""])
+    for source in sources:
+        for locator in source.get("locators") or []:
+            if locator["locator_id"] not in used_locators:
+                continue
+            context = []
+            if locator.get("page") is not None:
+                context.append(f"page {locator['page']}")
+            if locator.get("section"):
+                context.append(f"section {locator['section']}")
+            context.append(
+                f"document {locator['document_index']}, chars {locator['start_char']}:{locator['end_char']}"
+            )
+            lines.append(f"- `{locator['locator_id']}`: " + "; ".join(context))
+    lines.append("")
+    lines.extend(["## References", ""])
+    for source in sources:
+        citation = source.get("citation") or {}
+        lines.extend(
+            [
+                f"### {source['source_id']}",
+                "",
+                "```bibtex",
+                citation.get("bibtex") or "",
+                "```",
+                "",
+            ]
+        )
     lines.extend(["## Open Questions", ""])
     questions = comparison.get("open_questions") or []
     if not questions:
@@ -64,6 +105,7 @@ def render_comparison_brief(report: Dict) -> Dict:
         "source_count": len(sources),
         "claim_count": comparison.get("claim_count") or 0,
         "citation_count": comparison.get("citation_count") or 0,
+        "locator_count": comparison.get("locator_count") or 0,
     }
 
 

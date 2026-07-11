@@ -24,7 +24,7 @@
 | **Alert 规则引擎** | `tools/alerts.py` | keyword_count / anomaly / semantic_hit 三类规则 |
 | **定时任务编排** | `tools/scheduler.py` + `scheduler_runner.py` | macOS launchd workflow DSL |
 | **MCP client 反向挂载** | `tools/mcp_proxy.py` | 把外部 MCP server 的工具挂到本服务下 |
-| **研究工具包** | `tools/research_toolkit.py` + `research_resources.py` / `research_resource_normalize.py` / `research_resource_workflow.py` / `research_resource_content.py` / `research_codex_summary.py` / `research_compare.py` / `research_compare_contract.py` / `research_compare_brief.py` / `research_runtime.py` / `research_handoff.py` / `research_page.py` / `research_health.py` / `research_crawl.py` / `research_sources.py` / `research_source_ai.py` / `research_topic.py` / `research_images.py` / `research_pack.py` / `research_workflow.py` / `research_batch.py` / `research_gallery.py` / `research_render.py` / `research_web.py` / `research_brief.py` / `research_io.py` | 统一网页抓取、图书/论文/课程资源发现与公开内容读取、Codex 摘要、带来源引用的多 artifact 比较、图片发现、gallery-dl 安全封装、跨源研究聚合 |
+| **研究工具包** | `tools/research_toolkit.py` + `research_resources.py` / `research_resource_normalize.py` / `research_resource_workflow.py` / `research_resource_content.py` / `research_codex_summary.py` / `research_compare.py` / `research_compare_contract.py` / `research_compare_sources.py` / `research_compare_brief.py` / `research_citation.py` / `research_runtime.py` / `research_handoff.py` / `research_page.py` / `research_health.py` / `research_crawl.py` / `research_sources.py` / `research_source_ai.py` / `research_topic.py` / `research_images.py` / `research_pack.py` / `research_workflow.py` / `research_batch.py` / `research_gallery.py` / `research_render.py` / `research_web.py` / `research_brief.py` / `research_io.py` | 统一网页抓取、图书/论文/课程资源发现与公开内容读取、Codex 摘要、带 DOI/BibTeX 和证据 locator 的多 artifact 比较、图片发现、gallery-dl 安全封装、跨源研究聚合 |
 | **多账号通知路由** | `tools/router.py` | 按关键词分流到多个飞书/钉钉/Bark 群 |
 | **飞书机器人反向通道** | `feishu_bot.py` | 群里 @ 机器人触发命令 → 调用 MCP → 回复 |
 | **Obsidian 导出** | `tools/exporter.py` | 每日简报 / 查询报告 / 异常报告自动落 vault |
@@ -130,7 +130,7 @@ Claude Code / Cherry Studio / 任何 MCP client 配置:
 
 `research_resource_workflow` 会选择一个资源结果,通过 Jina Reader 读取已验证的公开 PDF 或课程页,可选用本机 Codex SDK 生成摘要,并保存项目内 JSON + Markdown 产物。摘要使用本机 Codex 登录状态,不要求单独 API key; `summarize=False` 可完全跳过 Codex。默认拒绝未验证、借阅、预览和仅元数据资源;图书若只有 EPUB/Kindle 文件,当前只读取资源页,不声称已读取全文。
 
-`research_compare_artifacts` 消费 2–6 个已保存 JSON artifact,不重新联网抓取,用本机 Codex 生成共识、差异、证据陈述与开放问题,并可选保存 comparison JSON/Markdown 及 `argus.research.comparison.handoff.v1`。每条可核验陈述必须引用已知 `S1...Sn`; Argus 会拒绝空引用或未知引用。这是来源级结构校验,不等于页码/段落级定位或独立事实核验。
+`research_compare_artifacts` 消费 2–6 个已保存 JSON artifact,不重新联网抓取,用本机 Codex 生成共识、差异、证据陈述与开放问题,并可选保存 comparison JSON/Markdown 及 `argus.research.comparison.handoff.v1`。每条可核验陈述必须同时引用已知 `S1...Sn` 和 `S1:L1` 形式 locator; locator 记录原 artifact 的 document index、section/page(若原文明确提供)、paragraph 与字符区间。来源表同时从现有 metadata 导出 DOI、arXiv、ISBN 和 BibTeX, 不会猜测缺失的 DOI 或 PDF 页码。这仍是结构追溯,不等于独立事实核验。
 
 小红书 `xhs_*` 细化工具会先检查 `xhs_auth_status`, 未安装、未登录或 cookie 存储不可用时直接返回明确的人工处理提示; 评论、发帖、删除仍需 `confirm=True`。
 

@@ -69,3 +69,31 @@ changing user state.
 - Health output distinguishes package detection from a successful runtime probe.
 - The probe has deterministic tests for configuration failures and error sanitization.
 - No global Codex configuration is modified by Argus.
+
+## DEBT-0002: PDF-Native Page Boundaries Are Not Preserved
+
+Date: 2026-07-11
+Status: open
+Severity: medium
+Area: Research comparison evidence locators
+Related bugs:
+- None
+Related patterns:
+- Evidence traceability
+
+### Problem
+Jina Reader markdown can preserve headings and report a document's total page count without emitting a marker for each source PDF page. Argus can therefore guarantee saved-artifact document/character locators and often section/paragraph context, but cannot always map those ranges back to original PDF page numbers.
+
+### Why Not Fixed Now
+The current project has no PDF-native extraction dependency or adapter that preserves page boundaries. Adding one would be a separate dependency and ingestion-path decision rather than a safe extension of the saved-artifact comparison contract.
+
+### Risk
+Users may expect a publication citation to include a PDF page even when the extracted artifact does not contain enough information to prove it.
+
+### Proposed Resolution
+Add an optional PDF-native extraction adapter that records page boundaries during resource reading, then propagate verified page numbers into the existing locator schema.
+
+### Exit Criteria
+- PDF artifacts retain page-boundary metadata during ingestion.
+- Every emitted page locator is reproducible against the original PDF.
+- Section/paragraph/character fallback remains available for HTML and page-less text.

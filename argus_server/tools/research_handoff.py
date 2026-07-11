@@ -123,7 +123,9 @@ def build_comparison_handoff(
         "source_count": source_count,
         "claim_count": comparison.get("claim_count") or 0,
         "citation_count": comparison.get("citation_count") or 0,
+        "locator_count": comparison.get("locator_count") or 0,
         "citations_valid": citations_valid,
+        "locators_valid": citations_valid,
         "output_dir": _relative_hint(output_dir),
     }
 

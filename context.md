@@ -4,8 +4,8 @@
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
 - Current product focus remains the Argus agent-native research and intelligence toolkit: 169 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest milestone: added `research_compare_artifacts` for comparing 2–6 saved research artifacts with structurally validated source IDs, Markdown/JSON export, and a reusable comparison handoff; the MCP surface is now 169 tools.
-- Next candidate stage: add paragraph/page/section locators plus DOI/BibTeX metadata so source-level comparison citations can become publication-ready references.
+- Latest milestone: enhanced `research_compare_artifacts` with artifact-backed evidence locators, DOI/arXiv/ISBN citation metadata, BibTeX references, and strict source-locator validation; the MCP surface remains 169 tools.
+- Next candidate stage: add a bounded locator resolver plus CSL-JSON/RIS export so agents can inspect cited evidence and move references into external writing tools without replaying full artifacts.
 
 ## 已知问题
 
@@ -14,7 +14,9 @@
 - `find_research_resource` uses Open Library plus Project Gutenberg OPDS for books, arXiv / Semantic Scholar / OpenReview / Crossref for papers, and the Codex source for official course pages; it labels open download/read, borrow, preview, metadata-only, and unverified results without bypassing access controls.
 - `research_resource_workflow` reads verified public PDF/HTML/TXT links through Jina Reader, optionally summarizes with the local Codex SDK, and can save project-local JSON/Markdown artifacts; unverified links require explicit opt-in, while borrow/preview/metadata-only results remain blocked.
 - Books that expose only EPUB/Kindle files currently fall back to reading the public resource landing page; the workflow does not claim that this is full-book text.
-- `research_compare_artifacts` validates that each comparison claim cites known `S1...Sn` sources, but this is structural source-level traceability rather than independent fact verification or paragraph/page-level citation.
+- `research_compare_artifacts` validates known `S1...Sn` sources and `S1:L1` locators, with each locator resolving to a saved artifact document and character range; this remains structural traceability rather than independent fact verification.
+- Page values are emitted only when extracted text contains an explicit current-page marker. Jina PDF markdown may expose section headings and total page count without per-page boundaries, so Argus falls back to section/paragraph/character locators instead of guessing pages.
+- DOI, arXiv, and ISBN fields are preserved only when present in normalized metadata; BibTeX omits unknown fields rather than inventing publication data.
 - Comparison input is capped at 40,000 characters total and 8,000 per source; reports return compact source registries rather than replaying artifact document text.
 - Research artifact reads, writes, report paths, and handoff paths now resolve symlinks before enforcing the project-root boundary.
 - Semantic Scholar anonymous paper search can be rate-limited; the unified resource response preserves that source error while retaining results from other academic sources.
@@ -51,6 +53,10 @@
 
 ## 最近变更记录
 
+- Added deterministic evidence locators with document index, section/page when explicit, paragraph index, and source-text character ranges; comparison claims now require matching source and locator IDs.
+- Added DOI/arXiv/ISBN citation extraction and deterministic BibTeX generation using normalized resource `creators`, year, institution, identifiers, and canonical URL.
+- Added Markdown Locator Index and BibTeX References sections while keeping locator text private at the MCP/report boundary.
+- Verified a real arXiv Transformer paper versus MIT OCW comparison with 6 claims, 10 source citations, 33 locator uses, 19 resolvable unique locators, 8 paper authors, and a ready saved handoff.
 - Added `research_compare_artifacts` with 2–6 project-local artifact inputs, secure Codex comparison, strict source-ID validation, compact source registries, Markdown/JSON export, and `argus.research.comparison.handoff.v1`.
 - Verified a real comparison between the arXiv Transformer paper and MIT OpenCourseWare algorithms material: 9 claims, 16 valid `S1/S2` citations, ready saved handoff, and no source-text replay.
 - Fixed project-boundary checks to use canonical paths, preventing symlink-based artifact reads, output writes, report paths, and handoff paths from escaping the repository.

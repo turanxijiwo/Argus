@@ -162,3 +162,28 @@ Compute aggregate counts directly from the returned capability dictionary and as
 
 ### Related Bugs
 - BUG-0005
+
+## RC-0006: Derived Validation Error Took Precedence Over Primary Violation
+
+Status: active
+Category: API contract
+First observed: BUG-0006
+Recurring count: 1
+Severity trend: medium
+
+### Description
+Layered validation produced both a primary unknown-citation error and a dependent locator-source mismatch. Aggregate error selection looked only for the presence of locator issues, so the dependent error changed the public code.
+
+### Typical Symptoms
+- Adding deeper validation changes an established error code for the same malformed input.
+- One invalid field creates several issues and the least useful derived issue is reported as primary.
+
+### Common Triggers
+- Validation layers depend on identifiers normalized by earlier layers.
+- Error selection uses `any()` rather than explicit precedence rules.
+
+### Prevention Rule
+Classify errors by primary contract layer and emit a specialized downstream code only when all detected issues belong to that layer.
+
+### Related Bugs
+- BUG-0006

@@ -1,4 +1,4 @@
-"""Compare saved Research Toolkit artifacts with source-level citations."""
+"""Compare saved research artifacts with source and evidence locators."""
 
 import json
 import os
@@ -8,11 +8,13 @@ from .research_codex_summary import run_secure_codex_json
 from .research_compare_brief import render_comparison_brief
 from .research_compare_contract import (
     COMPARISON_DEVELOPER_INSTRUCTIONS,
+    build_comparison_prompt,
+    normalize_comparison_payload,
+)
+from .research_compare_sources import (
     MAX_SOURCE_CHARS,
     MAX_TOTAL_SOURCE_CHARS,
-    build_comparison_prompt,
     build_comparison_source,
-    normalize_comparison_payload,
     public_comparison_source,
 )
 from .research_handoff import build_comparison_handoff
@@ -32,7 +34,7 @@ DEFAULT_COMPARISON_OUTPUT_DIR = "output/research/comparisons"
 
 
 class ResearchComparisonTools:
-    """Create a traceable comparison from saved research artifacts."""
+    """Create a locator-backed comparison from saved research artifacts."""
 
     def __init__(
         self,
@@ -153,6 +155,7 @@ class ResearchComparisonTools:
             source_count=len(sources),
             claim_count=comparison["claim_count"],
             citation_count=comparison["citation_count"],
+            locator_count=comparison["locator_count"],
             saved=bool(report.get("artifact")),
             handoff_schema=report["handoff"]["schema"],
         )
@@ -233,7 +236,11 @@ class ResearchComparisonTools:
 
         normalized = normalize_comparison_payload(
             payload=payload,
-            source_ids=[source["source_id"] for source in sources],
+            locator_sources={
+                locator["locator_id"]: source["source_id"]
+                for source in sources
+                for locator in source.get("locators") or []
+            },
             max_claims=max_claims,
             focus=focus,
         )

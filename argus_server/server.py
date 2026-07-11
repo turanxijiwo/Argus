@@ -3407,10 +3407,10 @@ async def research_compare_artifacts(
     output_dir: str = "output/research/comparisons",
 ) -> str:
     """
-    比较 2–6 个已保存的研究 JSON artifact, 生成带来源编号的共识、差异和证据报告。
+    比较 2–6 个已保存的研究 JSON artifact, 生成带来源编号和证据 locator 的对比报告。
 
     本工具不重新联网抓取; 只读取 Argus 项目内的 artifact。每条可核验陈述
-    必须引用已知 `S1...Sn` 来源, 空引用或未知引用会返回契约错误。Codex 只在
+    必须引用已知 `S1...Sn` 来源及 `S1:L1` 形式的 locator; 空、未知或来源不匹配的引用会返回契约错误。Codex 只在
     临时、只读、deny-all 线程中处理有限长度的 artifact 正文。
 
     Args:
@@ -3423,7 +3423,7 @@ async def research_compare_artifacts(
         output_dir: 项目内输出目录。
 
     Returns:
-        JSON: 来源表、结构化比较、引用校验、Markdown、artifact 和 comparison handoff。
+        JSON: 来源表、DOI/arXiv/ISBN/BibTeX、artifact 字符区间 locator、结构化比较、Markdown 和 handoff。
     """
     tools = _get_tools()
     result = await asyncio.to_thread(
