@@ -102,6 +102,13 @@ def build_comparison_handoff(
     brief_path = _project_relative_path(
         ((report.get("brief") or {}).get("artifact") or {}).get("path"), project_root
     )
+    citation_artifacts = report.get("citation_artifacts") or {}
+    csl_json_path = _project_relative_path(
+        (citation_artifacts.get("csl_json") or {}).get("path"), project_root
+    )
+    ris_path = _project_relative_path(
+        (citation_artifacts.get("ris") or {}).get("path"), project_root
+    )
     source_count = len(report.get("sources") or [])
     citations_valid = bool(
         (comparison.get("citation_validation") or {}).get("valid")
@@ -120,6 +127,8 @@ def build_comparison_handoff(
         "query": report.get("query", ""),
         "artifact_path": artifact_path,
         "brief_path": brief_path,
+        "csl_json_path": csl_json_path,
+        "ris_path": ris_path,
         "source_count": source_count,
         "claim_count": comparison.get("claim_count") or 0,
         "citation_count": comparison.get("citation_count") or 0,

@@ -58,7 +58,10 @@ Related modules:
 - `argus_server/tools/research_compare_sources.py`
 - `argus_server/tools/research_compare_brief.py`
 - `argus_server/tools/research_citation.py`
+- `argus_server/tools/research_citation_bundle.py`
+- `argus_server/tools/research_integrity.py`
 - `argus_server/tools/research_locator.py`
+- `argus_server/tools/research_locator_evidence.py`
 - `argus_server/server.py`
 
 Tests to run:
@@ -75,6 +78,7 @@ Tests to run:
 - `uv run python -m unittest tests.test_research_compare`
 - `uv run python -m unittest tests.test_research_compare_sources`
 - `uv run python -m unittest tests.test_research_compare_locators`
+- `uv run python -m unittest tests.test_research_compare_exports`
 - `uv run python -m unittest tests.test_research_locator`
 - `uv run python -m unittest tests.test_research_path_safety`
 - `uv run python -m unittest tests.test_mcp_registration`
@@ -116,6 +120,8 @@ Known historical bugs:
 - Project-local research paths must be checked after symlink resolution before reading, writing, or publishing handoff paths.
 - Saved-artifact comparisons must reject empty/unknown source IDs, avoid replaying source text, and distinguish source-level traceability from fact verification.
 - Locator replay must stay project-local, reject malformed source paths and stale coordinates, cap requests at 10 locators, and cap each excerpt at 240 characters plus 25 words.
+- New comparisons must fingerprint only text prefixes actually sent to comparison; old artifacts remain explicitly unverified, mutations fail closed, and JSON booleans never count as integer coordinates.
+- Optional CSL-JSON/RIS files must stay project-local, preserve unique CSL IDs, and appear as relative paths in comparison handoffs.
 
 ### Flow: MCP server import and tool registration
 
@@ -357,10 +363,13 @@ What it protects:
 - Requires claim locators to exist, belong to cited sources, and span at least two sources for agreement/difference claims.
 - Preserves creators and available DOI/arXiv/ISBN metadata in deterministic BibTeX, CSL-JSON, and RIS without inventing unknown fields or journal status for unclassified preprints.
 - Replays only requested project-local ranges, enforces request/excerpt bounds, preserves citation metadata, and returns structured errors for unknown locators, unsafe paths, malformed source paths, and stale coordinates.
+- Fingerprints each selected document prefix, verifies it before excerpt replay, reports old artifacts as unverified, and rejects content mismatches or malformed fingerprint coordinates.
+- Saves optional project-local CSL-JSON/RIS files with unique CSL IDs and relative handoff paths only when report saving is enabled.
 
 Additional test files:
 - `tests/test_research_compare_sources.py`
 - `tests/test_research_compare_locators.py`
+- `tests/test_research_compare_exports.py`
 - `tests/test_research_locator.py`
 
 ### BUG-0007: Malformed locator source path must stay in the error envelope
@@ -370,6 +379,14 @@ Test file:
 
 What it protects:
 - Rejects non-string `artifact_path` values during comparison indexing before they reach filesystem path functions and raise an uncaught `TypeError`.
+
+### BUG-0008: Boolean fingerprint indexes must not equal integer coordinates
+
+Test file:
+- `tests/test_research_locator.py`
+
+What it protects:
+- Requires fingerprint document indexes to be strict integers, preventing JSON `false` from matching document index `0` through Python numeric equality.
 
 ### xhs CLI auth status and friendly errors
 

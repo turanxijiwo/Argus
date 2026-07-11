@@ -3407,6 +3407,7 @@ async def research_compare_artifacts(
     save: bool = False,
     save_brief: bool = True,
     output_dir: str = "output/research/comparisons",
+    save_citations: bool = False,
 ) -> str:
     """
     比较 2–6 个已保存的研究 JSON artifact, 生成带来源编号和证据 locator 的对比报告。
@@ -3423,9 +3424,10 @@ async def research_compare_artifacts(
         save: 是否保存 JSON 比较 artifact。
         save_brief: save=True 时是否同时保存 Markdown 报告。
         output_dir: 项目内输出目录。
+        save_citations: save=True 时是否同时保存 CSL-JSON 与 RIS 引用包。
 
     Returns:
-        JSON: 来源表、DOI/arXiv/ISBN/BibTeX、artifact 字符区间 locator、结构化比较、Markdown 和 handoff。
+        JSON: 来源指纹、引用元数据/可选引用包、artifact locator、结构化比较、Markdown 和 handoff。
     """
     tools = _get_tools()
     result = await asyncio.to_thread(
@@ -3437,6 +3439,7 @@ async def research_compare_artifacts(
         save=save,
         save_brief=save_brief,
         output_dir=output_dir,
+        save_citations=save_citations,
     )
     return json.dumps(result, ensure_ascii=False, indent=2, default=str)
 

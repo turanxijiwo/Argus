@@ -6,11 +6,11 @@ import re
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from .research_io import resolve_project_path
+from .research_locator_evidence import MAX_EXCERPT_WORDS, resolve_locator_evidence
 
 
 MAX_LOCATOR_REQUESTS = 10
 MAX_EXCERPT_CHARS = 240
-MAX_EXCERPT_WORDS = 25
 LOCATOR_PATTERN = re.compile(r"^(S[1-9]\d*):L[1-9]\d*$")
 
 
@@ -64,7 +64,7 @@ class ResearchLocatorTools:
                 source_result["error"]["locator_id"] = locator_id
                 return source_result
             source_path, source_payload = source_result["data"]
-            evidence_result = _resolve_evidence(
+            evidence_result = resolve_locator_evidence(
                 source=source,
                 source_path=source_path,
                 source_payload=source_payload,
@@ -76,6 +76,15 @@ class ResearchLocatorTools:
             evidence.append(evidence_result["data"])
 
         relative_comparison_path = os.path.relpath(comparison_path, self.project_root)
+        integrity_verified_count = sum(
+            1 for item in evidence if item["integrity"]["status"] == "verified"
+        )
+        integrity_unverified_count = len(evidence) - integrity_verified_count
+        integrity_status = (
+            "verified" if not integrity_unverified_count
+            else "partial" if integrity_verified_count
+            else "unverified"
+        )
         return _ok(
             {
                 "comparison_artifact_path": relative_comparison_path,
@@ -85,11 +94,19 @@ class ResearchLocatorTools:
                     "max_excerpt_chars": selected_max_chars,
                     "max_excerpt_words": MAX_EXCERPT_WORDS,
                 },
+                "integrity": {
+                    "status": integrity_status,
+                    "verified_count": integrity_verified_count,
+                    "unverified_count": integrity_unverified_count,
+                },
                 "evidence": evidence,
             },
             locator_count=len(evidence),
             source_count=len({item["source_id"] for item in evidence}),
             truncated_count=sum(1 for item in evidence if item["excerpt_truncated"]),
+            integrity_status=integrity_status,
+            integrity_verified_count=integrity_verified_count,
+            integrity_unverified_count=integrity_unverified_count,
             max_excerpt_chars=selected_max_chars,
             max_excerpt_words=MAX_EXCERPT_WORDS,
         )
@@ -180,75 +197,6 @@ def _index_comparison_sources(comparison: Dict) -> Dict:
     return _ok(locator_index)
 
 
-def _resolve_evidence(
-    source: Dict,
-    source_path: str,
-    source_payload: Dict,
-    locator: Dict,
-    max_chars: int,
-) -> Dict:
-    locator_id = locator["locator_id"]
-    document_index = locator.get("document_index")
-    start_char = locator.get("start_char")
-    end_char = locator.get("end_char")
-    documents = source_payload.get("documents")
-    if (
-        not _is_int(document_index)
-        or not isinstance(documents, list)
-        or document_index < 0
-        or document_index >= len(documents)
-    ):
-        return _stale_locator(locator_id, "invalid_document_index")
-    document = documents[document_index]
-    text = document.get("text") if isinstance(document, dict) else None
-    if not isinstance(text, str):
-        return _stale_locator(locator_id, "missing_document_text")
-    if (
-        not _is_int(start_char)
-        or not _is_int(end_char)
-        or start_char < 0
-        or end_char <= start_char
-        or end_char > len(text)
-    ):
-        return _stale_locator(locator_id, "invalid_character_range")
-
-    excerpt, truncated = _bounded_excerpt(text[start_char:end_char], max_chars)
-    if not excerpt:
-        return _stale_locator(locator_id, "empty_evidence")
-    citation = source.get("citation") if isinstance(source.get("citation"), dict) else {}
-    return _ok(
-        {
-            "locator_id": locator_id,
-            "source_id": source["source_id"],
-            "title": source.get("title") or source["source_id"],
-            "artifact_path": source_path,
-            "document_index": document_index,
-            "paragraph_index": locator.get("paragraph_index"),
-            "section": locator.get("section"),
-            "page": locator.get("page"),
-            "kind": locator.get("kind") or "paragraph",
-            "start_char": start_char,
-            "end_char": end_char,
-            "excerpt": excerpt,
-            "excerpt_chars": len(excerpt),
-            "excerpt_words": len(excerpt.split()),
-            "excerpt_truncated": truncated,
-            "citation": citation,
-        }
-    )
-
-
-def _bounded_excerpt(text: str, max_chars: int) -> Tuple[str, bool]:
-    cleaned = re.sub(r"\s+", " ", text).strip()
-    words = cleaned.split()
-    bounded = " ".join(words[:MAX_EXCERPT_WORDS])
-    truncated = len(words) > MAX_EXCERPT_WORDS
-    if len(bounded) > max_chars:
-        bounded = bounded[:max_chars].rstrip()
-        truncated = True
-    return bounded, truncated
-
-
 def _normalize_locator_ids(locator_ids: Iterable[str]) -> List[str]:
     if isinstance(locator_ids, str):
         locator_ids = [locator_ids]
@@ -260,10 +208,6 @@ def _safe_int(value: Any, default: int, minimum: int, maximum: int) -> int:
         return max(minimum, min(int(value), maximum))
     except (TypeError, ValueError):
         return default
-
-
-def _is_int(value: Any) -> bool:
-    return isinstance(value, int) and not isinstance(value, bool)
 
 
 def _read_json_object(path: str, message: str, code: str, **extra: Any) -> Dict:
@@ -281,13 +225,6 @@ def _invalid_comparison(source_index: int, reason: str, **extra: Any) -> Dict:
     return _err(
         "Comparison artifact contains invalid source or locator metadata", "INVALID_COMPARISON_ARTIFACT",
         source_index=source_index, reason=reason, **extra,
-    )
-
-
-def _stale_locator(locator_id: str, reason: str) -> Dict:
-    return _err(
-        "Locator coordinates no longer resolve against the saved source artifact", "STALE_LOCATOR",
-        locator_id=locator_id, reason=reason,
     )
 
 

@@ -19,7 +19,7 @@ def save_research_json_artifact(
         return resolved_output
 
     timestamp = timestamp or utc_timestamp_for_filename()
-    filename = f"research-{_slugify_filename(query)}-{timestamp}.json"
+    filename = research_artifact_filename(query, timestamp, ".json")
     path = os.path.join(resolved_output["data"]["path"], filename)
     workflow["artifact"] = {
         "format": "json",
@@ -54,7 +54,7 @@ def save_research_brief_artifact(
         return _err("Research brief content is empty", code="EMPTY_BRIEF")
 
     timestamp = timestamp or utc_timestamp_for_filename()
-    filename = f"research-{_slugify_filename(query)}-{timestamp}.md"
+    filename = research_artifact_filename(query, timestamp, ".md")
     path = os.path.join(resolved_output["data"]["path"], filename)
     brief["artifact"] = {
         "format": "markdown",
@@ -102,6 +102,10 @@ def resolve_project_path(path: Optional[str], project_root: str) -> Optional[str
 
 def utc_timestamp_for_filename() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+
+def research_artifact_filename(query: str, timestamp: str, suffix: str) -> str:
+    return f"research-{_slugify_filename(query)}-{timestamp}{suffix}"
 
 
 def _slugify_filename(value: str) -> str:

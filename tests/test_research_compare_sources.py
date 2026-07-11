@@ -1,3 +1,4 @@
+import hashlib
 import unittest
 
 from argus_server.tools.research_compare_sources import (
@@ -44,6 +45,14 @@ class ResearchComparisonSourceTest(unittest.TestCase):
         self.assertTrue(source_result["success"])
         source = source_result["data"]
         self.assertEqual(source["authors"], ["Ada Lovelace", "Grace Hopper"])
+        fingerprint = source["content_fingerprint"]
+        self.assertEqual(fingerprint["algorithm"], "sha256")
+        self.assertEqual(fingerprint["scope"], "comparison_input_v1")
+        self.assertEqual(fingerprint["documents"][0]["text_chars"], len(text))
+        self.assertEqual(
+            fingerprint["documents"][0]["sha256"],
+            hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        )
         citation = source["citation"]
         self.assertEqual(citation["doi"], "10.1000/example")
         self.assertEqual(citation["doi_url"], "https://doi.org/10.1000/example")
@@ -78,6 +87,7 @@ class ResearchComparisonSourceTest(unittest.TestCase):
         public_source = public_comparison_source(source)
         self.assertNotIn("text", public_source)
         self.assertNotIn("text", public_source["locators"][0])
+        self.assertEqual(public_source["content_fingerprint"], fingerprint)
         self.assertEqual(public_source["locators"][0]["locator_id"], "S1:L1")
 
     def test_course_bibtex_uses_institution_without_inventing_year(self):
@@ -171,6 +181,31 @@ class ResearchComparisonSourceTest(unittest.TestCase):
 
         self.assertTrue(locators)
         self.assertTrue(all(locator["page"] is None for locator in locators))
+
+    def test_fingerprints_only_selected_text_for_each_document(self):
+        first_text = "A" * 20
+        second_text = "B" * 20
+        payload = {
+            "resource_type": "paper",
+            "resource": {"title": "Bounded Source"},
+            "documents": [
+                {"success": True, "text": first_text},
+                {"success": True, "text": second_text},
+            ],
+        }
+
+        source = build_comparison_source(payload, "source.json", "S1", 25)["data"]
+
+        documents = source["content_fingerprint"]["documents"]
+        self.assertEqual(
+            [(item["document_index"], item["text_chars"]) for item in documents],
+            [(0, 20), (1, 5)],
+        )
+        self.assertEqual(
+            documents[1]["sha256"],
+            hashlib.sha256(second_text[:5].encode("utf-8")).hexdigest(),
+        )
+        self.assertTrue(source["input_truncated"])
 
 
 if __name__ == "__main__":

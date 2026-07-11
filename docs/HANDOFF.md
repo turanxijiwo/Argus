@@ -13,7 +13,7 @@ storage, schema, auth, refactor, or bug-fix work.
 - Runtime: Python 3.12+ with `uv`.
 - MCP surface: 170 FastMCP tools and 8 resources.
 - Research Toolkit: 15 public MCP tools.
-- Verification baseline: 143 tests passing and `uv build` successful.
+- Verification baseline: 151 tests passing and `uv build` successful.
 - Current delivery report: `docs/RESEARCH_TOOLKIT_PHASE2_DELIVERY_AUDIT.md`.
 
 ## Primary Commands
@@ -52,14 +52,17 @@ For comparison and bounded evidence replay:
 ```text
 saved resource artifacts
   -> research_compare_artifacts
-  -> comparison JSON + source/locator registry + BibTeX/CSL-JSON/RIS
+  -> comparison JSON + SHA-256 source/locator registry
+  -> optional project-local CSL-JSON/RIS files (save_citations=True)
   -> research_resolve_locators(1-10 locator IDs)
-  -> excerpts capped at 240 characters and 25 words each
+  -> verified excerpts capped at 240 characters and 25 words each
 ```
 
 All saved paths must remain inside the Argus project. Handoff responses use
 project-relative paths and avoid replaying full crawled page text. Locator
 resolution is local and key-free; comparison generation itself uses Codex.
+Comparisons created before source fingerprints were introduced remain readable,
+but locator responses identify their integrity as unverified.
 
 ## Runtime Notes
 

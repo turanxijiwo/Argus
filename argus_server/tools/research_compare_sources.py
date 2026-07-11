@@ -4,6 +4,7 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 from .research_citation import build_citation_metadata
+from .research_integrity import build_content_fingerprint
 
 
 MAX_SOURCE_CHARS = 8000
@@ -54,7 +55,7 @@ def build_comparison_source(
     selected_authors = [_clean_text(author) for author in authors if _clean_text(author)]
 
     remaining = max(1, int(max_chars))
-    selected_texts = []
+    selected_documents = []
     locators = []
     input_chars = 0
     input_truncated = False
@@ -64,7 +65,7 @@ def build_comparison_source(
             input_truncated = True
             break
         selected_text = raw_text[:remaining]
-        selected_texts.append(selected_text)
+        selected_documents.append((document_index, selected_text))
         input_chars += len(selected_text)
         document_locators = build_evidence_locators(
             text=selected_text,
@@ -97,8 +98,9 @@ def build_comparison_source(
             "resource_type": resource_type,
             "authors": selected_authors,
             "citation": citation,
+            "content_fingerprint": build_content_fingerprint(selected_documents),
             "summary": _clean_text(summary_text),
-            "text": "\n\n".join(selected_texts),
+            "text": "\n\n".join(text for _, text in selected_documents),
             "locators": locators,
             "locator_count": len(locators),
             "input_chars": input_chars,

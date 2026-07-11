@@ -212,3 +212,28 @@ Validate nested path values as non-empty strings at the artifact contract bounda
 
 ### Related Bugs
 - BUG-0007
+
+## RC-0008: Python Boolean Equality Bypassed JSON Integer Validation
+
+Status: active
+Category: schema
+First observed: BUG-0008
+Recurring count: 1
+Severity trend: medium
+
+### Description
+JSON booleans deserialize to Python `bool`, which is an `int` subclass. Equality-only coordinate matching can therefore accept `false` as `0` and `true` as `1` unless type validation explicitly excludes booleans.
+
+### Typical Symptoms
+- Malformed boolean indexes pass document or range matching.
+- A structurally invalid artifact is reported as verified.
+
+### Common Triggers
+- Comparing deserialized JSON numbers before schema validation.
+- Using `isinstance(value, int)` without excluding `bool`.
+
+### Prevention Rule
+For JSON integer coordinates, validate with `isinstance(value, int) and not isinstance(value, bool)` before equality, indexing, or range operations.
+
+### Related Bugs
+- BUG-0008

@@ -31,6 +31,9 @@ class MCPRegistrationTest(unittest.IsolatedAsyncioTestCase):
             registered_tool = await mcp.get_tool(tool_name)
             self.assertEqual(registered_tool.name, tool_name)
 
+        comparison_tool = await mcp.get_tool("research_compare_artifacts")
+        self.assertIn("save_citations", comparison_tool.parameters["properties"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -101,7 +101,7 @@ Add an optional PDF-native extraction adapter that records page boundaries durin
 ## DEBT-0003: Locator Replay Does Not Bind Source Content
 
 Date: 2026-07-11
-Status: open
+Status: resolved
 Severity: medium
 Area: Research comparison evidence integrity
 Related bugs:
@@ -120,6 +120,9 @@ A source artifact edited after comparison could return different text for the sa
 
 ### Proposed Resolution
 Store deterministic document or selected-input SHA-256 fingerprints on new comparison sources and verify them during locator replay. Preserve read compatibility for older artifacts while clearly reporting that their content integrity is unverified.
+
+### Resolution
+Implemented `comparison_input_v1` SHA-256 fingerprints for each selected document prefix. Locator replay verifies matching fingerprints before returning excerpts, emits `SOURCE_CONTENT_MISMATCH` on mutation, and reports older fingerprint-free comparisons as unverified.
 
 ### Exit Criteria
 - New comparison artifacts include deterministic source-content fingerprints.

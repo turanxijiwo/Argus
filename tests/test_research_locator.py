@@ -3,6 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from argus_server.tools.research_integrity import build_content_fingerprint
 from argus_server.tools.research_locator import (
     MAX_EXCERPT_CHARS,
     MAX_EXCERPT_WORDS,
@@ -79,6 +80,8 @@ class ResearchLocatorToolsTest(unittest.TestCase):
         self.assertEqual(evidence["excerpt_words"], MAX_EXCERPT_WORDS)
         self.assertLessEqual(evidence["excerpt_chars"], MAX_EXCERPT_CHARS)
         self.assertTrue(evidence["excerpt_truncated"])
+        self.assertEqual(evidence["integrity"]["status"], "unverified")
+        self.assertEqual(result["data"]["integrity"]["status"], "unverified")
         self.assertEqual(evidence["citation"]["csl_json"]["id"], "example")
         self.assertNotIn("word39", json.dumps(result))
 
@@ -160,6 +163,66 @@ class ResearchLocatorToolsTest(unittest.TestCase):
         self.assertFalse(result["success"])
         self.assertEqual(result["error"]["code"], "INVALID_COMPARISON_ARTIFACT")
         self.assertEqual(result["error"]["reason"], "invalid_source_artifact_path")
+
+    def test_verifies_fingerprinted_source_content(self):
+        self._write_fingerprinted_comparison("fingerprinted.json")
+
+        result = self.tools.research_resolve_locators(
+            "fingerprinted.json",
+            ["S1:L1", "S1:L2"],
+        )
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["summary"]["integrity_status"], "verified")
+        self.assertEqual(result["summary"]["integrity_verified_count"], 2)
+        self.assertTrue(
+            all(item["integrity"]["status"] == "verified" for item in result["data"]["evidence"])
+        )
+
+    def test_rejects_in_place_source_content_mutation(self):
+        self._write_fingerprinted_comparison("fingerprinted.json")
+        mutated_text = "X" + self.english_text[1:]
+        self._write_json(
+            "source.json",
+            {
+                "documents": [
+                    {"success": True, "text": mutated_text},
+                    {"success": True, "text": self.cjk_text},
+                ]
+            },
+        )
+
+        result = self.tools.research_resolve_locators(
+            "fingerprinted.json",
+            ["S1:L1"],
+        )
+
+        self.assertFalse(result["success"])
+        self.assertEqual(result["error"]["code"], "SOURCE_CONTENT_MISMATCH")
+        self.assertEqual(result["error"]["locator_id"], "S1:L1")
+
+    def test_rejects_boolean_fingerprint_document_index(self):
+        comparison = json.loads(json.dumps(self.comparison))
+        fingerprint = build_content_fingerprint([(0, self.english_text)])
+        fingerprint["documents"][0]["document_index"] = False
+        comparison["sources"][0]["content_fingerprint"] = fingerprint
+        self._write_json("boolean-index.json", comparison)
+
+        result = self.tools.research_resolve_locators(
+            "boolean-index.json",
+            ["S1:L1"],
+        )
+
+        self.assertFalse(result["success"])
+        self.assertEqual(result["error"]["code"], "INVALID_CONTENT_FINGERPRINT")
+        self.assertEqual(result["error"]["reason"], "missing_or_duplicate_document")
+
+    def _write_fingerprinted_comparison(self, path: str) -> None:
+        comparison = json.loads(json.dumps(self.comparison))
+        comparison["sources"][0]["content_fingerprint"] = build_content_fingerprint(
+            [(0, self.english_text), (1, self.cjk_text)]
+        )
+        self._write_json(path, comparison)
 
     def _write_json(self, path: str, payload: dict) -> None:
         (self.project_root / path).write_text(

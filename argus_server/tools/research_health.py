@@ -38,7 +38,7 @@ def toolkit_health(
                 "research_runtime_probe": "explicit optional Crawl4AI/Codex runtime verification",
                 "find_research_resource": "access-aware book, paper, and official course discovery",
                 "research_resource_workflow": "public resource selection, reading, optional Codex summary, and artifact export",
-                "research_compare_artifacts": "saved-artifact comparison with source citations, evidence locators, and BibTeX/CSL-JSON/RIS metadata",
+                "research_compare_artifacts": "saved-artifact comparison with fingerprints, evidence locators, and optional BibTeX/CSL-JSON/RIS exports",
                 "research_resolve_locators": "bounded evidence replay from project-local comparison and source artifacts",
                 "download_gallery": "safe gallery-dl wrapper when installed",
             },
@@ -149,7 +149,7 @@ def toolkit_health(
                     missing=[] if codex_ready else ["openai-codex"],
                     setup_hint=None if codex_ready else "Install openai-codex and verify the local Codex runtime",
                     mode="saved_artifact_comparison",
-                    note="Uses only project-local artifacts and validates source plus locator IDs structurally; locators target saved artifact coordinates and are not independent fact verification.",
+                    note="Uses project-local artifacts, fingerprints compared text, and can save CSL-JSON/RIS bundles; structural traceability is not independent fact verification.",
                 ),
                 "research_resolve_locators": _capability(
                     can_use_now=True,

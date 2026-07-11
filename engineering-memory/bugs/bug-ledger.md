@@ -314,3 +314,40 @@ Nested JSON path metadata must be type-validated before reuse by helpers whose p
 
 ### Follow-up
 None.
+
+## BUG-0008: Boolean Fingerprint Index Matched Document Zero
+
+Date: 2026-07-11
+Severity: P2
+Status: verified
+Area: Research comparison content integrity
+Tags: json-types, fingerprint, validation
+
+### Symptom
+A fingerprint document entry with JSON `false` as `document_index` was accepted as the fingerprint for document `0`.
+
+### Reproduction / Trigger
+The regression test replaced a generated fingerprint's integer index with `False`; locator replay returned success instead of `INVALID_CONTENT_FINGERPRINT`.
+
+### Root Cause
+Fingerprint selection compared values with `==` before strict type validation. In Python, `bool` is an `int` subclass and `False == 0`.
+
+### Affected Chain
+Saved comparison fingerprint -> `verify_document_fingerprint` document selection -> locator integrity result.
+
+### Fix
+Fingerprint document selection now requires `_is_int(document_index)` before comparing it with the requested document index.
+
+### Tests Added / Updated
+- Test file: `tests/test_research_locator.py`
+- Test case: `test_rejects_boolean_fingerprint_document_index`
+
+### Prevention
+JSON numeric coordinates must use strict integer validation that explicitly excludes booleans before equality or range checks.
+
+### Related Files
+- `argus_server/tools/research_integrity.py`
+- `tests/test_research_locator.py`
+
+### Follow-up
+None.

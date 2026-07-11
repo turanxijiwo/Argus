@@ -5,6 +5,7 @@ import os
 from typing import Any, Callable, Dict, Iterable, List, Optional
 
 from .research_codex_summary import run_secure_codex_json
+from .research_citation_bundle import save_comparison_citation_bundle
 from .research_compare_brief import render_comparison_brief
 from .research_compare_contract import (
     COMPARISON_DEVELOPER_INSTRUCTIONS,
@@ -53,6 +54,7 @@ class ResearchComparisonTools:
         save: bool = False,
         save_brief: bool = True,
         output_dir: str = DEFAULT_COMPARISON_OUTPUT_DIR,
+        save_citations: bool = False,
     ) -> Dict:
         selected_paths = _normalize_paths(artifact_paths)
         if len(selected_paths) < MIN_COMPARISON_SOURCES:
@@ -64,6 +66,11 @@ class ResearchComparisonTools:
             return _err(
                 f"No more than {MAX_COMPARISON_SOURCES} artifacts can be compared",
                 "TOO_MANY_ARTIFACTS",
+            )
+        if save_citations and not save:
+            return _err(
+                "save_citations requires save=True",
+                "CITATION_SAVE_REQUIRES_REPORT_SAVE",
             )
 
         selected_output_dir = output_dir or DEFAULT_COMPARISON_OUTPUT_DIR
@@ -119,11 +126,23 @@ class ResearchComparisonTools:
             "comparison": comparison,
             "artifact": None,
             "brief": None,
+            "citation_artifacts": None,
         }
         report["brief"] = render_comparison_brief(report)
 
         if save:
             timestamp = utc_timestamp_for_filename()
+            if save_citations:
+                citation_result = save_comparison_citation_bundle(
+                    project_root=self.project_root,
+                    sources=report["sources"],
+                    output_dir=selected_output_dir,
+                    query=f"comparison-{selected_focus}",
+                    timestamp=timestamp,
+                )
+                if not citation_result.get("success"):
+                    return citation_result
+                report["citation_artifacts"] = citation_result["data"]
             if save_brief:
                 brief_result = save_research_brief_artifact(
                     project_root=self.project_root,
@@ -157,6 +176,7 @@ class ResearchComparisonTools:
             citation_count=comparison["citation_count"],
             locator_count=comparison["locator_count"],
             saved=bool(report.get("artifact")),
+            citations_saved=bool(report.get("citation_artifacts")),
             handoff_schema=report["handoff"]["schema"],
         )
 
