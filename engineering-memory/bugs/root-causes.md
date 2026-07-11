@@ -111,3 +111,54 @@ For standard Argus envelopes, mutate normalized content only through `result["da
 
 ### Related Bugs
 - BUG-0003
+
+## RC-0004: Lexical Containment Checked Before Symlink Resolution
+
+Status: active
+Category: architecture boundary
+First observed: BUG-0004
+Recurring count: 1
+Severity trend: high
+
+### Description
+Project-local path guards used absolute lexical paths for containment checks. A symlink inside the project could therefore point at an external target while the unresolvable-looking input still shared the project prefix.
+
+### Typical Symptoms
+- A supposedly project-local artifact read succeeds through a symlink to an external directory.
+- Output validation approves a path whose actual write target is outside the project.
+- Handoff code publishes an external target as if it were a project-relative path.
+
+### Common Triggers
+- Existing symlink components in artifact or output directories.
+- Reusing lexical `abspath`/`commonpath` helpers for security decisions.
+
+### Prevention Rule
+Resolve both project root and candidate with `realpath` before `commonpath`, reuse one canonical boundary helper across server call chains, and preserve standalone script behavior when sharing code would add a new import requirement.
+
+### Related Bugs
+- BUG-0004
+
+## RC-0005: Derived Health Metric Maintained Separately From Source Records
+
+Status: active
+Category: state
+First observed: BUG-0005
+Recurring count: 1
+Severity trend: low
+
+### Description
+The capability matrix and its ready-count summary had separate sources of truth. New capabilities updated the matrix but could be omitted from the manual count tuple.
+
+### Typical Symptoms
+- A health summary count disagrees with the detailed records returned in the same response.
+- Adding a capability requires edits in two distant blocks.
+
+### Common Triggers
+- Public capability registration grows over time.
+- Aggregate metrics are encoded as hand-maintained parallel lists.
+
+### Prevention Rule
+Compute aggregate counts directly from the returned capability dictionary and assert that relationship in tests.
+
+### Related Bugs
+- BUG-0005

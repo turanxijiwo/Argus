@@ -4,6 +4,8 @@ import json
 import os
 from typing import Any, Dict, List, Optional
 
+from .research_io import resolve_project_path
+
 
 MIN_BRIEF_CHARS = 200
 MIN_EVIDENCE_TEXT_CHARS = 500
@@ -20,7 +22,7 @@ def review_research_artifact(
         path = _handoff_artifact_path(handoff, artifact_index)
         if not path:
             return _err("handoff does not contain a selected artifact path", "INVALID_HANDOFF")
-    resolved = _resolve_project_path(path, project_root)
+    resolved = resolve_project_path(path, project_root)
     if not resolved:
         return _err("artifact_path must point inside the Argus project", "UNSAFE_ARTIFACT_PATH")
     try:
@@ -106,20 +108,8 @@ def _status(score: int, warnings: List[str]) -> str:
     return "needs_attention"
 
 
-def _resolve_project_path(path: str, project_root: str) -> Optional[str]:
-    if not path:
-        return None
-    absolute = os.path.abspath(path if os.path.isabs(path) else os.path.join(project_root, path))
-    try:
-        if os.path.commonpath([os.path.abspath(project_root), absolute]) != os.path.abspath(project_root):
-            return None
-    except ValueError:
-        return None
-    return absolute
-
-
 def _relative_path(path: str, project_root: str) -> str:
-    return os.path.relpath(path, os.path.abspath(project_root))
+    return os.path.relpath(path, os.path.realpath(os.path.abspath(project_root)))
 
 
 def _handoff_artifact_path(handoff: Dict[str, Any], artifact_index: int) -> Optional[str]:

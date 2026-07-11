@@ -3,9 +3,9 @@
 ## 当前任务
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
-- Current product focus remains the Argus agent-native research and intelligence toolkit: 168 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest milestone: added `research_resource_workflow` for selecting one discovered book, paper, or course, reading verified public content, optionally summarizing with the local Codex SDK, and saving JSON/Markdown artifacts; the MCP surface is now 168 tools.
-- Next candidate stage: add multi-resource comparison and citation/evidence extraction on top of the saved resource artifacts, without changing access-control boundaries.
+- Current product focus remains the Argus agent-native research and intelligence toolkit: 169 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
+- Latest milestone: added `research_compare_artifacts` for comparing 2–6 saved research artifacts with structurally validated source IDs, Markdown/JSON export, and a reusable comparison handoff; the MCP surface is now 169 tools.
+- Next candidate stage: add paragraph/page/section locators plus DOI/BibTeX metadata so source-level comparison citations can become publication-ready references.
 
 ## 已知问题
 
@@ -14,6 +14,9 @@
 - `find_research_resource` uses Open Library plus Project Gutenberg OPDS for books, arXiv / Semantic Scholar / OpenReview / Crossref for papers, and the Codex source for official course pages; it labels open download/read, borrow, preview, metadata-only, and unverified results without bypassing access controls.
 - `research_resource_workflow` reads verified public PDF/HTML/TXT links through Jina Reader, optionally summarizes with the local Codex SDK, and can save project-local JSON/Markdown artifacts; unverified links require explicit opt-in, while borrow/preview/metadata-only results remain blocked.
 - Books that expose only EPUB/Kindle files currently fall back to reading the public resource landing page; the workflow does not claim that this is full-book text.
+- `research_compare_artifacts` validates that each comparison claim cites known `S1...Sn` sources, but this is structural source-level traceability rather than independent fact verification or paragraph/page-level citation.
+- Comparison input is capped at 40,000 characters total and 8,000 per source; reports return compact source registries rather than replaying artifact document text.
+- Research artifact reads, writes, report paths, and handoff paths now resolve symlinks before enforcing the project-root boundary.
 - Semantic Scholar anonymous paper search can be rate-limited; the unified resource response preserves that source error while retaining results from other academic sources.
 - Course discovery requires a working Codex runtime and can fail inside a restricted sandbox that cannot write `~/.codex`; the approved real runtime smoke returns official MIT OpenCourseWare results.
 - OpenAlex is intentionally not part of the unified no-key paper path because its current official API policy requires a free API key for stable use.
@@ -48,6 +51,11 @@
 
 ## 最近变更记录
 
+- Added `research_compare_artifacts` with 2–6 project-local artifact inputs, secure Codex comparison, strict source-ID validation, compact source registries, Markdown/JSON export, and `argus.research.comparison.handoff.v1`.
+- Verified a real comparison between the arXiv Transformer paper and MIT OpenCourseWare algorithms material: 9 claims, 16 valid `S1/S2` citations, ready saved handoff, and no source-text replay.
+- Fixed project-boundary checks to use canonical paths, preventing symlink-based artifact reads, output writes, report paths, and handoff paths from escaping the repository.
+- Preserved standalone `research_artifact_review.py` and `research_artifact_smoke.py --help` execution while applying the canonical-path guard.
+- Fixed `research_toolkit_health.summary.ready_capabilities` to derive directly from the capability matrix; the current runtime now reports 15 ready capabilities instead of the stale manual count of 13.
 - Added `research_resource_workflow` with public-access selection, Jina content reading, optional local Codex summaries, Markdown brief rendering, project-local artifact export, and reusable workflow handoff.
 - Added normal, failure, and safety regressions for PDF selection, summary parsing, read failures, unverified access, result indexes, and pre-network output-path validation.
 - Verified real arXiv PDF reading, a `gpt-5.4` Chinese Codex summary, and an official MIT OpenCourseWare page read; fixed summary runner/model metadata to live in the normalized data payload.

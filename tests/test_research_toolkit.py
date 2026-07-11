@@ -133,6 +133,10 @@ class ResearchToolkitToolsTest(unittest.TestCase):
 
         self.assertTrue(result["success"])
         capabilities = result["data"]["capabilities"]
+        self.assertEqual(
+            result["summary"]["ready_capabilities"],
+            sum(1 for capability in capabilities.values() if capability["can_use_now"]),
+        )
         self.assertTrue(capabilities["crawl_url"]["can_use_now"])
         self.assertFalse(capabilities["crawl_url_render_js"]["can_use_now"])
         self.assertEqual(capabilities["crawl_url_render_js"]["missing"], ["crawl4ai"])
@@ -148,6 +152,11 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertEqual(
             capabilities["research_resource_workflow"]["summary"],
             "optional_needs_codex_runtime",
+        )
+        self.assertFalse(capabilities["research_compare_artifacts"]["can_use_now"])
+        self.assertEqual(
+            capabilities["research_compare_artifacts"]["missing"],
+            ["openai-codex"],
         )
         self.assertEqual(
             capabilities["find_research_resource"]["resource_types"]["paper"],
@@ -185,6 +194,7 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertTrue(result["data"]["capabilities"]["research_topic_codex"]["can_use_now"])
         self.assertEqual(result["data"]["capabilities"]["research_topic_codex"]["status"], "ready")
+        self.assertTrue(result["data"]["capabilities"]["research_compare_artifacts"]["can_use_now"])
         self.assertTrue(result["data"]["adapters"]["codex_runner_attached"])
 
     def test_default_workflow_sources_prefer_configured_web_then_codex_then_public_sources(self):
@@ -495,8 +505,9 @@ class ResearchToolkitToolsTest(unittest.TestCase):
             self.assertNotIn(tmpdir, json.dumps(handoff))
             artifact_path = result["data"]["artifact"]["path"]
             brief_path = result["data"]["brief"]["artifact"]["path"]
-            self.assertTrue(artifact_path.startswith(tmpdir))
-            self.assertTrue(brief_path.startswith(tmpdir))
+            canonical_root = os.path.realpath(tmpdir)
+            self.assertTrue(artifact_path.startswith(canonical_root))
+            self.assertTrue(brief_path.startswith(canonical_root))
             self.assertTrue(os.path.exists(artifact_path))
             self.assertTrue(os.path.exists(brief_path))
             with open(artifact_path, "r", encoding="utf-8") as handle:

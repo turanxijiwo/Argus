@@ -16,6 +16,48 @@ SUMMARY_DEVELOPER_INSTRUCTIONS = (
 )
 
 
+def run_secure_codex_json(prompt: str, developer_instructions: str) -> Dict:
+    if importlib.util.find_spec("openai_codex") is None:
+        return _err(
+            "OpenAI Codex SDK is not installed",
+            "NOT_INSTALLED",
+            install_hint="uv pip install openai-codex",
+        )
+    try:
+        from openai_codex import ApprovalMode, Codex, Sandbox
+    except ImportError as ex:
+        return _err(f"OpenAI Codex SDK import failed: {ex}", "IMPORT_ERROR")
+
+    model = os.environ.get("ARGUS_CODEX_MODEL") or "gpt-5.4"
+    try:
+        with tempfile.TemporaryDirectory(prefix="argus-codex-json-") as codex_cwd:
+            with Codex() as codex:
+                thread = codex.thread_start(
+                    model=model,
+                    sandbox=Sandbox.read_only,
+                    approval_mode=ApprovalMode.deny_all,
+                    cwd=codex_cwd,
+                    ephemeral=True,
+                    developer_instructions=developer_instructions,
+                )
+                run_result = thread.run(prompt)
+    except Exception as ex:
+        return _codex_runtime_error(ex)
+
+    payload = getattr(run_result, "final_response", run_result)
+    if isinstance(payload, str):
+        parsed = parse_codex_json_payload(payload)
+        if parsed is None:
+            return _err(
+                "Codex response did not contain valid JSON",
+                "PARSE_ERROR",
+                raw_excerpt=payload[:500],
+            )
+    else:
+        parsed = payload
+    return _ok(parsed, runner="openai_codex", model=model)
+
+
 def run_codex_summary(
     text: str,
     title: str,
@@ -49,18 +91,6 @@ def run_codex_summary(
             result["data"]["runner"] = "injected"
         return result
 
-    if importlib.util.find_spec("openai_codex") is None:
-        return _err(
-            "OpenAI Codex SDK is not installed",
-            "NOT_INSTALLED",
-            install_hint="uv pip install openai-codex",
-        )
-    try:
-        from openai_codex import ApprovalMode, Codex, Sandbox
-    except ImportError as ex:
-        return _err(f"OpenAI Codex SDK import failed: {ex}", "IMPORT_ERROR")
-
-    model = os.environ.get("ARGUS_CODEX_MODEL") or "gpt-5.4"
     prompt = _summary_prompt(
         text=selected_text,
         title=title,
@@ -68,29 +98,23 @@ def run_codex_summary(
         max_points=max_points,
         input_truncated=len(text) > len(selected_text),
     )
-    try:
-        with tempfile.TemporaryDirectory(prefix="argus-codex-summary-") as summary_cwd:
-            with Codex() as codex:
-                thread = codex.thread_start(
-                    model=model,
-                    sandbox=Sandbox.read_only,
-                    approval_mode=ApprovalMode.deny_all,
-                    cwd=summary_cwd,
-                    ephemeral=True,
-                    developer_instructions=SUMMARY_DEVELOPER_INSTRUCTIONS,
-                )
-                run_result = thread.run(prompt)
-    except Exception as ex:
-        return _codex_runtime_error(ex)
+    runtime_result = run_secure_codex_json(prompt, SUMMARY_DEVELOPER_INSTRUCTIONS)
+    if not runtime_result.get("success"):
+        return runtime_result
 
     result = normalize_codex_summary_payload(
-        getattr(run_result, "final_response", run_result),
+        runtime_result.get("data"),
         target_language=target_language,
         max_points=max_points,
         input_truncated=len(text) > len(selected_text),
     )
     if result.get("success"):
-        result["data"].update({"runner": "openai_codex", "model": model})
+        result["data"].update(
+            {
+                "runner": runtime_result["summary"]["runner"],
+                "model": runtime_result["summary"]["model"],
+            }
+        )
     return result
 
 
@@ -102,7 +126,7 @@ def normalize_codex_summary_payload(
 ) -> Dict:
     parsed = payload
     if isinstance(payload, str):
-        parsed = _extract_json_payload(payload)
+        parsed = parse_codex_json_payload(payload)
         if parsed is None:
             return _err(
                 "Codex summary response did not contain valid JSON",
@@ -154,7 +178,7 @@ def _summary_prompt(
     )
 
 
-def _extract_json_payload(value: str) -> Optional[Any]:
+def parse_codex_json_payload(value: str) -> Optional[Any]:
     candidate = str(value or "").strip()
     if candidate.startswith("```"):
         candidate = re.sub(r"^```(?:json)?\s*", "", candidate)

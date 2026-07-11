@@ -184,20 +184,31 @@ def _load_text_file(path: Optional[str]) -> tuple:
 
 
 def _path_inside_project(path: Optional[str], project_root: str) -> bool:
-    if not path:
-        return False
-    try:
-        return os.path.commonpath([os.path.abspath(project_root), os.path.abspath(path)]) == os.path.abspath(project_root)
-    except ValueError:
-        return False
+    return _resolve_project_path(path, project_root) is not None
 
 
 def _relative_path(path: Optional[str], project_root: str) -> Optional[str]:
+    resolved = _resolve_project_path(path, project_root)
+    if not resolved:
+        return None
+    return os.path.relpath(
+        resolved,
+        os.path.realpath(os.path.abspath(project_root)),
+    )
+
+
+def _resolve_project_path(path: Optional[str], project_root: str) -> Optional[str]:
     if not path:
         return None
-    if not _path_inside_project(path, project_root):
+    root = os.path.realpath(os.path.abspath(project_root))
+    candidate = path if os.path.isabs(path) else os.path.join(root, path)
+    resolved = os.path.realpath(os.path.abspath(candidate))
+    try:
+        if os.path.commonpath([root, resolved]) != root:
+            return None
+    except ValueError:
         return None
-    return os.path.relpath(path, project_root)
+    return resolved
 
 
 def build_parser() -> argparse.ArgumentParser:

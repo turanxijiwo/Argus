@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 import pathlib
 import tempfile
 import unittest
@@ -134,6 +135,19 @@ class ResearchArtifactReviewTest(unittest.TestCase):
     def test_write_report_rejects_paths_outside_project(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             result = research_artifact_review.write_report("report", "/tmp/outside-review.md", tmpdir)
+
+            self.assertFalse(result["success"])
+            self.assertEqual(result["error"]["code"], "UNSAFE_OUTPUT_PATH")
+
+    def test_write_report_rejects_symlink_escape(self):
+        with tempfile.TemporaryDirectory() as project_root, tempfile.TemporaryDirectory() as outside:
+            os.symlink(outside, os.path.join(project_root, "linked"))
+
+            result = research_artifact_review.write_report(
+                "report",
+                "linked/review.md",
+                project_root,
+            )
 
             self.assertFalse(result["success"])
             self.assertEqual(result["error"]["code"], "UNSAFE_OUTPUT_PATH")

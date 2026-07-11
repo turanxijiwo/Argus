@@ -36,6 +36,7 @@ from .tools.social_ops import SocialOpsTools
 from .tools.router import RouterTools
 from .tools.daily_brief import DailyBriefTools
 from .tools.research_toolkit import ResearchToolkitTools
+from .tools.research_compare import ResearchComparisonTools
 from .tools.research_resources import ResearchResourceTools
 from .tools.research_resource_workflow import ResearchResourceWorkflowTools
 from .utils.date_parser import DateParser
@@ -111,6 +112,7 @@ def _get_tools(project_root: Optional[str] = None):
             resource_search=_tools_instances['research_resources'].find_research_resource,
             article_reader=_tools_instances['article'],
         )
+        _tools_instances['research_compare'] = ResearchComparisonTools(project_root)
         # 确保 telemetry store 启动 (单例)
         TelemetryStore.instance(project_root)
     return _tools_instances
@@ -3135,7 +3137,7 @@ async def research_toolkit_health() -> str:
     检查研究工具包能力与可选开源 CLI 安装状态。
 
     覆盖:
-      - 内置无依赖能力: crawl_url / discover_page_images / research_images / research_topic / find_research_resource / research_resource_workflow / research_pack / research_workflow / research_batch_workflow / download_gallery
+      - 研究能力: crawl_url / discover_page_images / research_images / research_topic / find_research_resource / research_resource_workflow / research_compare_artifacts / research_pack / research_workflow / research_batch_workflow / download_gallery
       - 可选高质量 CLI/SDK: gallery-dl / yt-dlp / scrapy / crawl4ai / openai-codex
 
     Returns:
@@ -3387,6 +3389,49 @@ async def research_resource_workflow(
         summary_points=summary_points,
         allow_unverified=allow_unverified,
         include_brief=include_brief,
+        save=save,
+        save_brief=save_brief,
+        output_dir=output_dir,
+    )
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+
+@mcp.tool
+async def research_compare_artifacts(
+    artifact_paths: List[str],
+    focus: Optional[str] = None,
+    target_language: str = "zh-CN",
+    max_claims: int = 5,
+    save: bool = False,
+    save_brief: bool = True,
+    output_dir: str = "output/research/comparisons",
+) -> str:
+    """
+    比较 2–6 个已保存的研究 JSON artifact, 生成带来源编号的共识、差异和证据报告。
+
+    本工具不重新联网抓取; 只读取 Argus 项目内的 artifact。每条可核验陈述
+    必须引用已知 `S1...Sn` 来源, 空引用或未知引用会返回契约错误。Codex 只在
+    临时、只读、deny-all 线程中处理有限长度的 artifact 正文。
+
+    Args:
+        artifact_paths: 2–6 个项目内 JSON artifact 路径, 可直接使用 batch handoff 的 artifact_paths。
+        focus: 可选比较重点或研究问题。
+        target_language: 报告语言, 默认 zh-CN。
+        max_claims: 每个报告分区最多条目, 1–10。
+        save: 是否保存 JSON 比较 artifact。
+        save_brief: save=True 时是否同时保存 Markdown 报告。
+        output_dir: 项目内输出目录。
+
+    Returns:
+        JSON: 来源表、结构化比较、引用校验、Markdown、artifact 和 comparison handoff。
+    """
+    tools = _get_tools()
+    result = await asyncio.to_thread(
+        tools['research_compare'].research_compare_artifacts,
+        artifact_paths=artifact_paths,
+        focus=focus,
+        target_language=target_language,
+        max_claims=max_claims,
         save=save,
         save_brief=save_brief,
         output_dir=output_dir,

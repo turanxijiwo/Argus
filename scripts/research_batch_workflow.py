@@ -9,6 +9,7 @@ import sys
 from typing import Any, Dict, Iterable, List, Optional
 
 from argus_server.tools.research_handoff import build_batch_handoff
+from argus_server.tools.research_io import resolve_project_path
 
 
 DEFAULT_QUERIES = ["OpenAI"]
@@ -224,20 +225,17 @@ def load_review_module():
 
 
 def _path_inside_project(path: Optional[str], project_root: str) -> bool:
-    if not path:
-        return False
-    try:
-        return os.path.commonpath([os.path.abspath(project_root), os.path.abspath(path)]) == os.path.abspath(project_root)
-    except ValueError:
-        return False
+    return resolve_project_path(path, project_root) is not None
 
 
 def _relative_path(path: Optional[str], project_root: str) -> Optional[str]:
-    if not path:
+    resolved = resolve_project_path(path, project_root)
+    if not resolved:
         return None
-    if not _path_inside_project(path, project_root):
-        return None
-    return os.path.relpath(os.path.abspath(path), project_root)
+    return os.path.relpath(
+        resolved,
+        os.path.realpath(os.path.abspath(project_root)),
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:

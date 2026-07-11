@@ -4,6 +4,7 @@ import os
 from typing import Any, Callable, Dict, Iterable, List, Optional
 
 from .research_handoff import build_batch_handoff
+from .research_io import resolve_project_path
 from .research_web import clean_text
 
 ResearchWorkflowFn = Callable[..., Dict]
@@ -266,27 +267,20 @@ def _batch_error(runs: List[Dict[str, Any]], report_artifact: Dict[str, Any]) ->
 
 
 def _resolve_project_file(path: str, project_root: str) -> Dict:
-    output_path = path
-    if not os.path.isabs(output_path):
-        output_path = os.path.join(project_root, output_path)
-    output_path = os.path.abspath(output_path)
-    project_root = os.path.abspath(project_root)
-    if os.path.commonpath([project_root, output_path]) != project_root:
+    output_path = resolve_project_path(path, project_root)
+    if not output_path:
         return _err("report_path must stay inside the Argus project directory", code="UNSAFE_REPORT_PATH")
     return _ok({"path": output_path})
 
 
 def _relative_path(path: Optional[str], project_root: str) -> Optional[str]:
-    if not path:
+    absolute_path = resolve_project_path(path, project_root)
+    if not absolute_path:
         return None
-    absolute_path = os.path.abspath(path)
-    project_root = os.path.abspath(project_root)
-    try:
-        if os.path.commonpath([project_root, absolute_path]) != project_root:
-            return None
-    except ValueError:
-        return None
-    return os.path.relpath(absolute_path, project_root)
+    return os.path.relpath(
+        absolute_path,
+        os.path.realpath(os.path.abspath(project_root)),
+    )
 
 
 def _ok(data: Any, **summary) -> Dict:

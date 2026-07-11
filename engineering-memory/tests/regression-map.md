@@ -52,6 +52,10 @@ Related modules:
 - `argus_server/tools/research_web.py`
 - `argus_server/tools/research_brief.py`
 - `argus_server/tools/research_io.py`
+- `argus_server/tools/research_review.py`
+- `argus_server/tools/research_compare.py`
+- `argus_server/tools/research_compare_contract.py`
+- `argus_server/tools/research_compare_brief.py`
 - `argus_server/server.py`
 
 Tests to run:
@@ -65,6 +69,8 @@ Tests to run:
 - `uv run python -m unittest tests.test_research_batch_handoff_smoke`
 - `uv run python -m unittest tests.test_research_probe`
 - `uv run python -m unittest tests.test_research_runtime_probe_smoke`
+- `uv run python -m unittest tests.test_research_compare`
+- `uv run python -m unittest tests.test_research_path_safety`
 - `uv run python -m unittest tests.test_mcp_registration`
 - `uv run python -m unittest discover -s tests`
 
@@ -101,6 +107,8 @@ Known historical bugs:
 - Phase 3 runtime-probe smoke must return exit code 2 for recognized configuration/permission/install blocks and exit code 3 for unexpected runtime failures.
 - Saved Codex smoke must require a ready review handoff whose artifact path matches the saved Codex workflow handoff.
 - Resource discovery must preserve book access metadata, merge Project Gutenberg acquisition files, isolate partial academic-source failures, and rank exact paper titles before access-status tie-breakers.
+- Project-local research paths must be checked after symlink resolution before reading, writing, or publishing handoff paths.
+- Saved-artifact comparisons must reject empty/unknown source IDs, avoid replaying source text, and distinguish source-level traceability from fact verification.
 
 ### Flow: MCP server import and tool registration
 
@@ -285,6 +293,7 @@ Test file:
 
 What it protects:
 - Keeps `research_toolkit_health` useful for MCP clients by reporting immediate readiness, missing optional setup, configured web providers, and attached adapters.
+- Keeps `summary.ready_capabilities` derived from the returned capability matrix instead of a separately maintained manual list.
 
 ### Research toolkit MCP registration surface
 
@@ -292,7 +301,7 @@ Test file:
 - `tests/test_mcp_registration.py`
 
 What it protects:
-- Keeps all thirteen Research Toolkit tools registered on the FastMCP server and catches accidental changes to the expected 168-tool public surface.
+- Keeps all fourteen Research Toolkit tools registered on the FastMCP server and catches accidental changes to the expected 169-tool public surface.
 
 ### Research resource relevance and partial failure
 
@@ -316,6 +325,27 @@ What it protects:
 - Preserves readable documents when Codex summary parsing fails, keeps runner/model attribution in the normalized summary payload, and avoids calling Codex after a read failure.
 - Keeps Codex summaries in an ephemeral, deny-all, read-only thread with an empty temporary working directory and explicit untrusted-content instructions.
 - Saves paired JSON/Markdown artifacts and emits the shared workflow handoff with project-relative paths.
+
+### Research artifact canonical path boundary
+
+Test file:
+- `tests/test_research_path_safety.py`
+- `tests/test_research_artifact_review.py`
+
+What it protects:
+- Rejects project-local lexical paths whose symlink-resolved targets escape the project root.
+- Applies the same canonical boundary to artifact reads, output directories, report writes, and handoff paths.
+- Preserves normal canonical project paths and standalone artifact script execution.
+
+### Research saved-artifact comparison and citations
+
+Test file:
+- `tests/test_research_compare.py`
+
+What it protects:
+- Requires 2–6 unique project-local artifacts with readable evidence and caps Codex input per source and in total.
+- Enforces known `S1...Sn` citations, requires cited evidence, rejects invalid output, and sanitizes runner failures.
+- Keeps source text out of MCP output while preserving compact source metadata, Markdown/JSON artifacts, and comparison handoff readiness.
 
 ### xhs CLI auth status and friendly errors
 

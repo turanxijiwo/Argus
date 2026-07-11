@@ -76,18 +76,28 @@ def save_research_brief_artifact(
 def resolve_output_dir(project_root: str, output_dir: str) -> Dict:
     if not output_dir:
         output_dir = "output/research"
-    path = output_dir
-    if not os.path.isabs(path):
-        path = os.path.join(project_root, path)
-    path = os.path.abspath(path)
-    project_root = os.path.abspath(project_root)
-    if os.path.commonpath([project_root, path]) != project_root:
+    path = resolve_project_path(output_dir, project_root)
+    if not path:
         return _err(
             "output_dir must stay inside the Argus project directory",
             code="UNSAFE_OUTPUT_DIR",
-            project_root=project_root,
+            project_root=os.path.realpath(os.path.abspath(project_root)),
         )
     return _ok({"path": path})
+
+
+def resolve_project_path(path: Optional[str], project_root: str) -> Optional[str]:
+    if not path:
+        return None
+    root = os.path.realpath(os.path.abspath(project_root))
+    candidate = path if os.path.isabs(path) else os.path.join(root, path)
+    resolved = os.path.realpath(os.path.abspath(candidate))
+    try:
+        if os.path.commonpath([root, resolved]) != root:
+            return None
+    except ValueError:
+        return None
+    return resolved
 
 
 def utc_timestamp_for_filename() -> str:

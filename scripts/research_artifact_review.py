@@ -277,10 +277,8 @@ def render_markdown_report(report: Dict[str, Any]) -> str:
 
 def write_report(content: str, path: str, project_root: str) -> Dict[str, Any]:
     output_path = path or DEFAULT_REPORT_PATH
-    if not os.path.isabs(output_path):
-        output_path = os.path.join(project_root, output_path)
-    output_path = os.path.abspath(output_path)
-    if not _path_inside_project(output_path, project_root):
+    output_path = _resolve_project_path(output_path, project_root)
+    if not output_path:
         return {"success": False, "error": {"code": "UNSAFE_OUTPUT_PATH", "message": "Report path must stay inside project"}}
     try:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -344,21 +342,28 @@ def _artifact_paths(payload: Dict[str, Any], project_root: str) -> Dict[str, Opt
 
 
 def _path_inside_project(path: Optional[str], project_root: str) -> bool:
-    if not path:
-        return False
-    try:
-        return os.path.commonpath([os.path.abspath(project_root), os.path.abspath(path)]) == os.path.abspath(project_root)
-    except ValueError:
-        return False
+    return _resolve_project_path(path, project_root) is not None
 
 
 def _relative_path(path: Optional[str], project_root: str) -> Optional[str]:
+    abs_path = _resolve_project_path(path, project_root)
+    if not abs_path:
+        return None
+    return os.path.relpath(abs_path, os.path.realpath(os.path.abspath(project_root)))
+
+
+def _resolve_project_path(path: Optional[str], project_root: str) -> Optional[str]:
     if not path:
         return None
-    abs_path = os.path.abspath(path)
-    if not _path_inside_project(abs_path, project_root):
+    root = os.path.realpath(os.path.abspath(project_root))
+    candidate = path if os.path.isabs(path) else os.path.join(root, path)
+    resolved = os.path.realpath(os.path.abspath(candidate))
+    try:
+        if os.path.commonpath([root, resolved]) != root:
+            return None
+    except ValueError:
         return None
-    return os.path.relpath(abs_path, project_root)
+    return resolved
 
 
 def _clip(value: Any, max_chars: int) -> str:

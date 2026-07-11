@@ -156,3 +156,84 @@ When a helper returns the standard Argus envelope, inspect and test the distinct
 
 ### Follow-up
 None.
+
+## BUG-0004: Research Artifact Paths Allowed Symlink Escapes
+
+Date: 2026-07-11
+Severity: P1
+Status: verified
+Area: Research Toolkit artifact safety
+Tags: path-validation, symlink, artifact, handoff
+
+### Symptom
+A path that appeared to be inside the project could read or write outside it when an intermediate project directory was a symlink to an external directory.
+
+### Reproduction / Trigger
+A temporary project containing `linked -> external-directory` allowed `review_research_artifact("linked/artifact.json")` to read the external JSON and allowed `resolve_output_dir(..., "linked/output")` to approve an external write target.
+
+### Root Cause
+Research path guards compared lexical `abspath` values with `commonpath` but did not canonicalize symlinks with `realpath` before enforcing the project-root boundary.
+
+### Affected Chain
+Artifact review / workflow save / batch report / handoff path / artifact smoke scripts -> lexical containment helper -> file read, write, or published relative path.
+
+### Fix
+Added one canonical project-path resolver for server modules, applied it to artifact reads, output directories, batch reports, and handoffs, and updated standalone script helpers to perform the same `realpath` containment check without losing direct script execution.
+
+### Tests Added / Updated
+- Test file: `tests/test_research_path_safety.py`
+- Test cases: symlink output rejection, artifact read rejection, handoff suppression, and normal canonical path acceptance
+- Test file: `tests/test_research_artifact_review.py`
+- Test case: `test_write_report_rejects_symlink_escape`
+
+### Prevention
+Any project-local read or write boundary must compare canonical root and target paths after symlink resolution; lexical path normalization alone is insufficient.
+
+### Related Files
+- `argus_server/tools/research_io.py`
+- `argus_server/tools/research_review.py`
+- `argus_server/tools/research_handoff.py`
+- `argus_server/tools/research_batch.py`
+- `scripts/research_artifact_review.py`
+- `scripts/research_artifact_smoke.py`
+- `scripts/research_batch_workflow.py`
+
+### Follow-up
+None.
+
+## BUG-0005: Research Health Ready Count Drifted From Capability Matrix
+
+Date: 2026-07-11
+Severity: P2
+Status: verified
+Area: Research Toolkit health
+Tags: derived-state, capability-matrix, health
+
+### Symptom
+`research_toolkit_health` reported 13 ready capabilities while 15 returned capability entries had `can_use_now == true`.
+
+### Reproduction / Trigger
+Comparing `summary.ready_capabilities` with a count over `data.capabilities.values()` exposed a difference of two after resource discovery and resource workflow capabilities were added.
+
+### Root Cause
+The summary count used a separately maintained tuple of booleans that omitted two capability entries, so the derived value drifted as the public matrix grew.
+
+### Affected Chain
+`research_toolkit_health` -> capability matrix construction -> manual ready tuple -> summary count.
+
+### Fix
+The ready count is now computed directly from the returned capability dictionary.
+
+### Tests Added / Updated
+- Test file: `tests/test_research_toolkit.py`
+- Test case: `test_toolkit_health_reports_missing_optional_capabilities`
+
+### Prevention
+Derived health metrics must be calculated from their owning capability records, not from a duplicate manually ordered list.
+
+### Related Files
+- `argus_server/tools/research_health.py`
+- `tests/test_research_toolkit.py`
+
+### Follow-up
+None.

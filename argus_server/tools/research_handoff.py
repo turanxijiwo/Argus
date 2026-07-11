@@ -3,8 +3,11 @@
 import os
 from typing import Any, Dict, Iterable, List, Optional
 
+from .research_io import resolve_project_path
+
 
 BATCH_HANDOFF_SCHEMA = "argus.research.batch.handoff.v1"
+COMPARISON_HANDOFF_SCHEMA = "argus.research.comparison.handoff.v1"
 WORKFLOW_HANDOFF_SCHEMA = "argus.research.workflow.handoff.v1"
 
 
@@ -86,6 +89,45 @@ def build_batch_handoff(
     }
 
 
+def build_comparison_handoff(
+    report: Dict[str, Any],
+    project_root: str,
+    output_dir: str = "",
+    entrypoint: str = "mcp",
+) -> Dict[str, Any]:
+    comparison = report.get("comparison") or {}
+    artifact_path = _project_relative_path(
+        (report.get("artifact") or {}).get("path"), project_root
+    )
+    brief_path = _project_relative_path(
+        ((report.get("brief") or {}).get("artifact") or {}).get("path"), project_root
+    )
+    source_count = len(report.get("sources") or [])
+    citations_valid = bool(
+        (comparison.get("citation_validation") or {}).get("valid")
+    )
+    ready = bool(
+        artifact_path
+        and source_count >= 2
+        and comparison.get("claim_count")
+        and citations_valid
+    )
+    return {
+        "schema": COMPARISON_HANDOFF_SCHEMA,
+        "entrypoint": entrypoint,
+        "ready": ready,
+        "status": "ready" if ready else "partial" if comparison else "needs_attention",
+        "query": report.get("query", ""),
+        "artifact_path": artifact_path,
+        "brief_path": brief_path,
+        "source_count": source_count,
+        "claim_count": comparison.get("claim_count") or 0,
+        "citation_count": comparison.get("citation_count") or 0,
+        "citations_valid": citations_valid,
+        "output_dir": _relative_hint(output_dir),
+    }
+
+
 def _run_paths(runs: List[Dict[str, Any]], key: str) -> List[str]:
     return [run[key] for run in runs if run.get(key)]
 
@@ -105,12 +147,10 @@ def _relative_hint(path: str) -> Optional[str]:
 
 
 def _project_relative_path(path: Optional[str], project_root: str) -> Optional[str]:
-    if not path:
+    absolute_path = resolve_project_path(path, project_root)
+    if not absolute_path:
         return None
-    root = os.path.abspath(project_root)
-    absolute_path = os.path.abspath(path)
-    if os.path.commonpath([root, absolute_path]) != root:
-        return None
+    root = os.path.realpath(os.path.abspath(project_root))
     return os.path.relpath(absolute_path, root)
 
 

@@ -25,8 +25,7 @@ def toolkit_health(
     codex_ready = bool(codex_runner or status["openai-codex"]["installed"])
     topic_source_ready = bool(search_tools or external_api or web_search_ready or codex_ready)
 
-    return _ok(
-        {
+    data = {
             "built_in": {
                 "crawl_url": "HTTP HTML fetch + text/link/image extraction, optional Crawl4AI rendering when render_js=True",
                 "discover_page_images": "image candidate extraction from HTML",
@@ -39,6 +38,7 @@ def toolkit_health(
                 "research_runtime_probe": "explicit optional Crawl4AI/Codex runtime verification",
                 "find_research_resource": "access-aware book, paper, and official course discovery",
                 "research_resource_workflow": "public resource selection, reading, optional Codex summary, and artifact export",
+                "research_compare_artifacts": "saved-artifact comparison with structurally validated source citations",
                 "download_gallery": "safe gallery-dl wrapper when installed",
             },
             "web_search_sources": ["web", "web:tavily", "web:exa", "web:perplexity", "web:brave"],
@@ -142,6 +142,14 @@ def toolkit_health(
                     summary="ready" if codex_ready else "optional_needs_codex_runtime",
                     note="Reads verified public URLs; unverified URLs require explicit opt-in and access controls are never bypassed.",
                 ),
+                "research_compare_artifacts": _capability(
+                    can_use_now=codex_ready,
+                    status="ready" if codex_ready else "needs_setup",
+                    missing=[] if codex_ready else ["openai-codex"],
+                    setup_hint=None if codex_ready else "Install openai-codex and verify the local Codex runtime",
+                    mode="saved_artifact_comparison",
+                    note="Uses only project-local artifacts and validates source IDs structurally; citations remain source-level traceability, not independent fact verification.",
+                ),
                 "download_gallery": _capability(
                     can_use_now=gallery_ready,
                     status="ready" if gallery_ready else "needs_setup",
@@ -157,24 +165,14 @@ def toolkit_health(
                 "ai_search_attached": bool(ai_search),
                 "codex_runner_attached": bool(codex_runner),
             },
-        },
+        }
+    return _ok(
+        data,
         optional_count=len(status),
         ready_capabilities=sum(
-            1 for item in (
-                True,
-                crawl4ai_ready,
-                True,
-                topic_source_ready,
-                web_search_ready,
-                codex_ready,
-                topic_source_ready,
-                topic_source_ready,
-                topic_source_ready,
-                topic_source_ready,
-                True,
-                True,
-                gallery_ready,
-            ) if item
+            1
+            for capability in data["capabilities"].values()
+            if capability["can_use_now"]
         ),
     )
 
