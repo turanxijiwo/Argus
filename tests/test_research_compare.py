@@ -134,6 +134,12 @@ class ResearchComparisonToolsTest(unittest.TestCase):
                 report["handoff"]["schema"],
                 "argus.research.comparison.handoff.v1",
             )
+            self.assertFalse(report["handoff"]["integrity_audit_ready"])
+            self.assertEqual(
+                report["handoff"]["integrity_audit_tool"],
+                "research_audit_comparison",
+            )
+            self.assertTrue(report["handoff"]["integrity_fingerprints_present"])
             self.assertIn("PAPER_PRIVATE_EVIDENCE", runner.calls[0]["sources"][0]["text"])
             self.assertNotIn("PAPER_PRIVATE_EVIDENCE", json.dumps(report))
 
@@ -154,6 +160,8 @@ class ResearchComparisonToolsTest(unittest.TestCase):
             handoff = result["data"]["handoff"]
             self.assertTrue(handoff["ready"])
             self.assertTrue(handoff["locators_valid"])
+            self.assertTrue(handoff["integrity_audit_ready"])
+            self.assertTrue(handoff["integrity_fingerprints_present"])
             self.assertEqual(handoff["locator_count"], 6)
             self.assertTrue(os.path.isfile(os.path.join(project_root, handoff["artifact_path"])))
             self.assertTrue(os.path.isfile(os.path.join(project_root, handoff["brief_path"])))

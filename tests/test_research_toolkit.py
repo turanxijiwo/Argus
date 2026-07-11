@@ -158,6 +158,11 @@ class ResearchToolkitToolsTest(unittest.TestCase):
             capabilities["research_compare_artifacts"]["missing"],
             ["openai-codex"],
         )
+        self.assertTrue(capabilities["research_audit_comparison"]["can_use_now"])
+        self.assertEqual(
+            capabilities["research_audit_comparison"]["mode"],
+            "project_local_no_text_integrity_audit",
+        )
         self.assertTrue(capabilities["research_resolve_locators"]["can_use_now"])
         self.assertEqual(
             capabilities["research_resolve_locators"]["mode"],

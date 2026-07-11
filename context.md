@@ -3,9 +3,9 @@
 ## 当前任务
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
-- Current product focus remains the Argus agent-native research and intelligence toolkit: 170 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest milestone: new comparisons now fingerprint compared document prefixes with SHA-256, locator replay verifies them, and `save_citations=True` writes project-local CSL-JSON/RIS bundles; the MCP surface remains 170 tools.
-- Next candidate stage: add a compact comparison audit that verifies every used source/locator fingerprint without returning evidence text, then surface audit readiness in the comparison handoff.
+- Current product focus remains the Argus agent-native research and intelligence toolkit: 171 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
+- Latest milestone: `research_audit_comparison` now verifies every unique locator actually used by saved comparison claims without returning excerpts or source text; comparison handoffs expose integrity-audit readiness and the public surface is 171 tools.
+- Next candidate stage: audit live search/crawl source coverage and choose one no-key expansion, prioritizing a SearXNG metasearch adapter or dedicated image-search backend only after license, runtime, and result-quality evidence.
 
 ## 已知问题
 
@@ -15,6 +15,7 @@
 - `research_resource_workflow` reads verified public PDF/HTML/TXT links through Jina Reader, optionally summarizes with the local Codex SDK, and can save project-local JSON/Markdown artifacts; unverified links require explicit opt-in, while borrow/preview/metadata-only results remain blocked.
 - Books that expose only EPUB/Kindle files currently fall back to reading the public resource landing page; the workflow does not claim that this is full-book text.
 - `research_compare_artifacts` validates known `S1...Sn` sources and `S1:L1` locators, while `research_resolve_locators` replays at most 10 project-local ranges with excerpts capped at 240 characters and 25 words; this remains structural traceability rather than independent fact verification.
+- `research_audit_comparison` is local and key-free, checks every unique locator used by comparison claims, and never returns evidence text. A completed audit uses `success=true`; detected integrity failures are represented by `data.status == "failed"` plus compact issues.
 - Page values are emitted only when extracted text contains an explicit current-page marker. Jina PDF markdown may expose section headings and total page count without per-page boundaries, so Argus falls back to section/paragraph/character locators instead of guessing pages.
 - DOI, arXiv, and ISBN fields are preserved only when present in normalized metadata; BibTeX, CSL-JSON, and RIS omit unknown fields rather than inventing publication data.
 - New comparison artifacts bind each actually compared document prefix to SHA-256 and locator replay rejects mismatches. Older comparison artifacts remain readable for compatibility but report `integrity.status == "unverified"` because they have no fingerprint.
@@ -55,6 +56,11 @@
 
 ## 最近变更记录
 
+- Added `research_audit_comparison`, a no-text, no-key audit of every unique locator used by saved comparison claims, with verified/unverified/failed aggregation and compact per-source issues.
+- Extracted shared project-local comparison loading, source caching, and source/locator indexing so bounded replay and full audit enforce one artifact boundary.
+- Fixed locator validation to reject ranges outside the SHA-256-covered comparison prefix even when they remain inside the current full source text; replay and full audit share the regression guard.
+- Extended `argus.research.comparison.handoff.v1` with `integrity_audit_ready`, `integrity_audit_tool`, and `integrity_fingerprints_present`; the MCP surface is now 171 tools.
+- Verified a real Codex comparison with 2 sources and 9 claims, then audited 26 unique locators as verified with zero issues; 160 tests and `uv build` pass.
 - Added `comparison_input_v1` SHA-256 fingerprints for each document prefix actually passed to comparison, including bounded multi-document inputs.
 - Extended locator replay with verified/partial/unverified integrity summaries and `SOURCE_CONTENT_MISMATCH`; malformed boolean document indexes are rejected instead of being treated as zero.
 - Added optional project-local `.csl.json` and `.ris` comparison exports with unique CSL IDs and handoff paths, while preserving the 170-tool MCP surface.

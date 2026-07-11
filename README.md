@@ -2,7 +2,7 @@
 
 > 个人情报中枢 · 基于 [sansan0/TrendRadar](https://github.com/sansan0/TrendRadar) 的二次开发扩展
 >
-> 在原项目热榜聚合能力之上,新增 **170 个 MCP 工具** · 跨平台叙事追踪 · 本地 BM25 语义搜索 · 研究工具包 · 定时任务编排 · 飞书机器人反向通道 · Obsidian 导出。
+> 在原项目热榜聚合能力之上,新增 **171 个 MCP 工具** · 跨平台叙事追踪 · 本地 BM25 语义搜索 · 研究工具包 · 定时任务编排 · 飞书机器人反向通道 · Obsidian 导出。
 >
 > 协议:**GPL-3.0**(继承上游)· 完整归属见 [NOTICE.md](NOTICE.md)
 
@@ -10,7 +10,7 @@
 
 ## 🧭 这是什么
 
-你每天要扫 10+ 个热榜,刷 5 个社媒,查几个 RSS 源,还想在一堆信息里做去重、找突发话题、看跨平台情感差异 —— Argus 把这些操作沉淀成 **170 个 MCP 工具 + 5 个 launchd 定时任务 + 1 个飞书机器人**,让 AI agent(Claude Code / Cherry Studio / 任何 MCP client)替你跑。
+你每天要扫 10+ 个热榜,刷 5 个社媒,查几个 RSS 源,还想在一堆信息里做去重、找突发话题、看跨平台情感差异 —— Argus 把这些操作沉淀成 **171 个 MCP 工具 + 5 个 launchd 定时任务 + 1 个飞书机器人**,让 AI agent(Claude Code / Cherry Studio / 任何 MCP client)替你跑。
 
 ---
 
@@ -18,13 +18,13 @@
 
 | 模块 | 路径 | 作用 |
 |---|---|---|
-| **MCP Server** | `argus_server/` | 170 个工具,覆盖数据查询 / 分析 / 搜索 / 通知 / 自动化 |
+| **MCP Server** | `argus_server/` | 171 个工具,覆盖数据查询 / 分析 / 搜索 / 通知 / 自动化 |
 | **跨平台叙事追踪** | `tools/cross_platform.py` | 对比同话题在 news/hn/reddit/xhs/bili/twitter 上的情感走向 |
 | **本地语义搜索** | `tools/semantic_search.py` | BM25 + jieba 中文分词,跨天全文检索,<50ms 查询 |
 | **Alert 规则引擎** | `tools/alerts.py` | keyword_count / anomaly / semantic_hit 三类规则 |
 | **定时任务编排** | `tools/scheduler.py` + `scheduler_runner.py` | macOS launchd workflow DSL |
 | **MCP client 反向挂载** | `tools/mcp_proxy.py` | 把外部 MCP server 的工具挂到本服务下 |
-| **研究工具包** | `tools/research_toolkit.py` + `research_resources.py` / `research_resource_normalize.py` / `research_resource_workflow.py` / `research_resource_content.py` / `research_codex_summary.py` / `research_compare.py` / `research_compare_contract.py` / `research_compare_sources.py` / `research_compare_brief.py` / `research_citation.py` / `research_citation_bundle.py` / `research_integrity.py` / `research_locator.py` / `research_locator_evidence.py` / `research_runtime.py` / `research_handoff.py` / `research_page.py` / `research_health.py` / `research_crawl.py` / `research_sources.py` / `research_source_ai.py` / `research_topic.py` / `research_images.py` / `research_pack.py` / `research_workflow.py` / `research_batch.py` / `research_gallery.py` / `research_render.py` / `research_web.py` / `research_brief.py` / `research_io.py` | 统一网页抓取、图书/论文/课程资源发现与公开内容读取、Codex 摘要、带内容指纹、BibTeX/CSL-JSON/RIS 引用包和可限量回放 locator 的多 artifact 比较、图片发现、gallery-dl 安全封装、跨源研究聚合 |
+| **研究工具包** | `tools/research_toolkit.py` + `research_resources.py` / `research_resource_normalize.py` / `research_resource_workflow.py` / `research_resource_content.py` / `research_codex_summary.py` / `research_compare.py` / `research_compare_contract.py` / `research_compare_sources.py` / `research_compare_brief.py` / `research_compare_audit.py` / `research_comparison_artifact.py` / `research_citation.py` / `research_citation_bundle.py` / `research_integrity.py` / `research_locator.py` / `research_locator_evidence.py` / `research_runtime.py` / `research_handoff.py` / `research_page.py` / `research_health.py` / `research_crawl.py` / `research_sources.py` / `research_source_ai.py` / `research_topic.py` / `research_images.py` / `research_pack.py` / `research_workflow.py` / `research_batch.py` / `research_gallery.py` / `research_render.py` / `research_web.py` / `research_brief.py` / `research_io.py` | 统一网页抓取、图书/论文/课程资源发现与公开内容读取、Codex 摘要、带内容指纹、无正文完整性审计、BibTeX/CSL-JSON/RIS 引用包和可限量回放 locator 的多 artifact 比较、图片发现、gallery-dl 安全封装、跨源研究聚合 |
 | **多账号通知路由** | `tools/router.py` | 按关键词分流到多个飞书/钉钉/Bark 群 |
 | **飞书机器人反向通道** | `feishu_bot.py` | 群里 @ 机器人触发命令 → 调用 MCP → 回复 |
 | **Obsidian 导出** | `tools/exporter.py` | 每日简报 / 查询报告 / 异常报告自动落 vault |
@@ -102,7 +102,7 @@ Claude Code / Cherry Studio / 任何 MCP client 配置:
 
 ---
 
-## 🧩 170 个 MCP 工具速览
+## 🧩 171 个 MCP 工具速览
 
 工具分类(详见 `argus_server/tools/` 各模块):
 
@@ -122,7 +122,7 @@ Claude Code / Cherry Studio / 任何 MCP client 配置:
 - **路由 (5)**:`route_add/list/remove/test/dispatch`
 - **微信公众号 RSS (4)**:`wechat_*`
 - **每日早报 (2)**:`push_daily_brief` / `render_daily_brief`
-- **研究工具包 (15)**:`research_toolkit_health` / `research_runtime_probe` / `crawl_url` / `discover_page_images` / `research_images` / `find_research_resource` / `research_resource_workflow` / `research_compare_artifacts` / `research_resolve_locators` / `research_pack` / `research_workflow` / `research_batch_workflow` / `research_review_artifact` / `download_gallery` / `research_topic`(含可选 `codex` 和 `web:tavily/exa/perplexity/brave` 源)
+- **研究工具包 (16)**:`research_toolkit_health` / `research_runtime_probe` / `crawl_url` / `discover_page_images` / `research_images` / `find_research_resource` / `research_resource_workflow` / `research_compare_artifacts` / `research_audit_comparison` / `research_resolve_locators` / `research_pack` / `research_workflow` / `research_batch_workflow` / `research_review_artifact` / `download_gallery` / `research_topic`(含可选 `codex` 和 `web:tavily/exa/perplexity/brave` 源)
 
 研究工具包第一版不新增依赖,默认提供网页抓取、图片候选发现、主题驱动图片研究、跨源情报搜索、证据包生成、研究流水线、批量保存型研究流水线、单 artifact 质量审查、显式可选 runtime probe 和 `gallery-dl` 安全 dry-run 封装; `research_toolkit_health` 会返回包/CLI/配置准备状态,而 `research_runtime_probe` 会按明确请求验证 Crawl4AI 或 Codex SDK 是否真的可运行; `crawl_url(render_js=True)` 可在本地安装 Crawl4AI 后启用动态渲染,`research_topic` 可复用已配置的 Tavily / Exa / Perplexity / Brave 作为 `web:<provider>` 搜索源,也可在本地安装 `openai-codex` 后使用 `codex` 源控制本地 Codex SDK 做个人研究检索,`ARGUS_CODEX_MODEL` 可覆盖默认模型; `research_pack` 会先找页面再抓取正文,保留 source/page 错误和可继续交给 AI 总结的结构化证据; `research_images` 会先找相关页面再抽取图片候选并保留来源页上下文; `research_workflow` 会自动选择可用搜索源,一次完成主题搜索、页面抓取、图片候选抽取、可重试错误记录、Markdown 研究简报生成,并可选保存 JSON + Markdown 文件; `research_batch_workflow` 会为多个查询批量生成 JSON/Markdown 产物和一份项目内 Markdown 审查报告,`research_review_artifact` 可直接审查单个已保存 JSON 并返回分数、状态、警告和计数,响应只返回计数、相对路径和质量摘要。后续按活跃度、License、CLI/API 稳定性、结构化输出、速率限制能力逐个接入 Crawl4AI / gallery-dl / yt-dlp / Scrapy / SearXNG 等开源工具。
 
@@ -132,7 +132,9 @@ Claude Code / Cherry Studio / 任何 MCP client 配置:
 
 `research_compare_artifacts` 消费 2–6 个已保存 JSON artifact,不重新联网抓取,用本机 Codex 生成共识、差异、证据陈述与开放问题,并可选保存 comparison JSON/Markdown 及 `argus.research.comparison.handoff.v1`。每条可核验陈述必须同时引用已知 `S1...Sn` 和 `S1:L1` 形式 locator; locator 记录原 artifact 的 document index、section/page(若原文明确提供)、paragraph 与字符区间。新 comparison 会为实际参与比较的每个 document 文本前缀记录 SHA-256;来源表同时导出 DOI、arXiv、ISBN、BibTeX、CSL-JSON 和 RIS。设置 `save=True, save_citations=True` 时还会写出项目内 `.csl.json` 与 `.ris` 文件并把相对路径放入 handoff。这仍是结构追溯,不等于独立事实核验。
 
-`research_resolve_locators` 从一个已保存 comparison artifact 回放 1–10 个 locator,只读取 comparison 引用的项目内来源 artifact,并重新校验 source 归属、document index、字符范围与 SHA-256。每段摘录最多 240 个字符且不超过 25 个词;工具不会联网、调用 Codex 或返回整篇来源正文。旧 comparison 没有内容指纹时仍可读取,但响应会明确标记 `unverified`。
+`research_audit_comparison` 不需要 API key、Codex 或联网,会检查已保存 comparison 中所有 claim 实际使用的唯一 locator、来源坐标和 SHA-256,并要求坐标留在指纹覆盖的 comparison 输入前缀内;响应只返回紧凑计数、逐来源状态和 issues,不返回摘录或来源正文。新 comparison 可得到 `verified`;旧 artifact 缺少指纹时返回 `unverified`;内容漂移、失效坐标或未知 locator 汇总为 `failed`。comparison handoff 通过 `integrity_audit_ready`、`integrity_audit_tool` 和 `integrity_fingerprints_present` 告诉后续 agent 是否可直接执行审计。
+
+`research_resolve_locators` 从一个已保存 comparison artifact 回放 1–10 个 locator,只读取 comparison 引用的项目内来源 artifact,并重新校验 source 归属、document index、字符范围、SHA-256 及指纹前缀范围。每段摘录最多 240 个字符且不超过 25 个词;工具不会联网、调用 Codex 或返回整篇来源正文。旧 comparison 没有内容指纹时仍可读取,但响应会明确标记 `unverified`。
 
 小红书 `xhs_*` 细化工具会先检查 `xhs_auth_status`, 未安装、未登录或 cookie 存储不可用时直接返回明确的人工处理提示; 评论、发帖、删除仍需 `confirm=True`。
 

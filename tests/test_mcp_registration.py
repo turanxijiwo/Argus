@@ -19,12 +19,13 @@ class MCPRegistrationTest(unittest.IsolatedAsyncioTestCase):
             "find_research_resource",
             "research_resource_workflow",
             "research_compare_artifacts",
+            "research_audit_comparison",
             "research_resolve_locators",
             "download_gallery",
             "research_topic",
         }
 
-        self.assertEqual(len(tools), 170)
+        self.assertEqual(len(tools), 171)
         self.assertTrue(expected_research_tools.issubset(tools))
 
         for tool_name in expected_research_tools:
@@ -33,6 +34,11 @@ class MCPRegistrationTest(unittest.IsolatedAsyncioTestCase):
 
         comparison_tool = await mcp.get_tool("research_compare_artifacts")
         self.assertIn("save_citations", comparison_tool.parameters["properties"])
+        audit_tool = await mcp.get_tool("research_audit_comparison")
+        self.assertEqual(
+            set(audit_tool.parameters["properties"]),
+            {"comparison_artifact_path"},
+        )
 
 
 if __name__ == "__main__":

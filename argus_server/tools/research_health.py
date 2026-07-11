@@ -39,6 +39,7 @@ def toolkit_health(
                 "find_research_resource": "access-aware book, paper, and official course discovery",
                 "research_resource_workflow": "public resource selection, reading, optional Codex summary, and artifact export",
                 "research_compare_artifacts": "saved-artifact comparison with fingerprints, evidence locators, and optional BibTeX/CSL-JSON/RIS exports",
+                "research_audit_comparison": "full used-locator integrity audit without source text replay",
                 "research_resolve_locators": "bounded evidence replay from project-local comparison and source artifacts",
                 "download_gallery": "safe gallery-dl wrapper when installed",
             },
@@ -150,6 +151,12 @@ def toolkit_health(
                     setup_hint=None if codex_ready else "Install openai-codex and verify the local Codex runtime",
                     mode="saved_artifact_comparison",
                     note="Uses project-local artifacts, fingerprints compared text, and can save CSL-JSON/RIS bundles; structural traceability is not independent fact verification.",
+                ),
+                "research_audit_comparison": _capability(
+                    can_use_now=True,
+                    status="ready",
+                    mode="project_local_no_text_integrity_audit",
+                    note="Audits every locator used by saved comparison claims without returning excerpts or source document text.",
                 ),
                 "research_resolve_locators": _capability(
                     can_use_now=True,

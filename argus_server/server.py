@@ -37,6 +37,7 @@ from .tools.router import RouterTools
 from .tools.daily_brief import DailyBriefTools
 from .tools.research_toolkit import ResearchToolkitTools
 from .tools.research_compare import ResearchComparisonTools
+from .tools.research_compare_audit import ResearchComparisonAuditTools
 from .tools.research_locator import ResearchLocatorTools
 from .tools.research_resources import ResearchResourceTools
 from .tools.research_resource_workflow import ResearchResourceWorkflowTools
@@ -114,6 +115,7 @@ def _get_tools(project_root: Optional[str] = None):
             article_reader=_tools_instances['article'],
         )
         _tools_instances['research_compare'] = ResearchComparisonTools(project_root)
+        _tools_instances['research_compare_audit'] = ResearchComparisonAuditTools(project_root)
         _tools_instances['research_locator'] = ResearchLocatorTools(project_root)
         # 确保 telemetry store 启动 (单例)
         TelemetryStore.instance(project_root)
@@ -3440,6 +3442,31 @@ async def research_compare_artifacts(
         save_brief=save_brief,
         output_dir=output_dir,
         save_citations=save_citations,
+    )
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+
+@mcp.tool
+async def research_audit_comparison(
+    comparison_artifact_path: str,
+) -> str:
+    """
+    审计已保存 comparison 实际使用的全部 locator, 不返回证据摘录或来源正文。
+
+    本工具只读取 Argus 项目内的 comparison 与来源 artifact, 无需 API key 或
+    Codex。它会重新校验每个被 claim 引用的 locator 坐标及 comparison 输入
+    SHA-256; 旧 artifact 缺少指纹时会标记为 unverified, 篡改或失效则汇总为 failed。
+
+    Args:
+        comparison_artifact_path: 项目内已保存 comparison JSON artifact 路径。
+
+    Returns:
+        JSON: 紧凑审计状态、计数、逐来源状态和问题列表, 不包含正文。
+    """
+    tools = _get_tools()
+    result = await asyncio.to_thread(
+        tools['research_compare_audit'].research_audit_comparison,
+        comparison_artifact_path=comparison_artifact_path,
     )
     return json.dumps(result, ensure_ascii=False, indent=2, default=str)
 

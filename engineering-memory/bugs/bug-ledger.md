@@ -351,3 +351,44 @@ JSON numeric coordinates must use strict integer validation that explicitly excl
 
 ### Follow-up
 None.
+
+## BUG-0009: Locator Escaped Fingerprinted Comparison Prefix
+
+Date: 2026-07-11
+Severity: P1
+Status: verified
+Area: Research comparison content integrity
+Tags: fingerprint-scope, locator, evidence-boundary
+
+### Symptom
+A tampered locator could point beyond the text prefix used and fingerprinted for comparison while still being accepted as verified and replayable from the longer current source document.
+
+### Reproduction / Trigger
+A source fingerprint covered characters `0:13`, while a locator referenced characters `14:31` in the same document. The source prefix hash matched, and both locator validation and the full comparison audit returned verified.
+
+### Root Cause
+Fingerprint verification returned the covered `text_chars`, but locator validation checked coordinates only against the full current source length and never constrained `end_char` to the verified fingerprint scope.
+
+### Affected Chain
+Saved comparison locator -> shared locator evidence validation -> bounded replay and full no-text comparison audit.
+
+### Fix
+The shared locator validator now rejects verified locator ranges whose `end_char` exceeds the fingerprint's `text_chars`, returning `STALE_LOCATOR` with `outside_fingerprint_scope`. Legacy artifacts without fingerprints remain explicitly unverified and compatible.
+
+### Tests Added / Updated
+- Test file: `tests/test_research_locator.py`
+- Test case: `test_rejects_locator_outside_fingerprinted_prefix`
+- Test file: `tests/test_research_compare_audit.py`
+- Test case: `test_reports_locator_outside_fingerprinted_prefix`
+
+### Prevention
+Coordinate validation must use the same bounded text domain as the integrity proof; validating against a larger current document can authorize content the fingerprint never covered.
+
+### Related Files
+- `argus_server/tools/research_integrity.py`
+- `argus_server/tools/research_locator_evidence.py`
+- `argus_server/tools/research_locator.py`
+- `argus_server/tools/research_compare_audit.py`
+
+### Follow-up
+None.

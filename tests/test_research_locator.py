@@ -201,6 +201,25 @@ class ResearchLocatorToolsTest(unittest.TestCase):
         self.assertEqual(result["error"]["code"], "SOURCE_CONTENT_MISMATCH")
         self.assertEqual(result["error"]["locator_id"], "S1:L1")
 
+    def test_rejects_locator_outside_fingerprinted_prefix(self):
+        comparison = json.loads(json.dumps(self.comparison))
+        fingerprint_chars = 20
+        comparison["sources"][0]["content_fingerprint"] = build_content_fingerprint(
+            [(0, self.english_text[:fingerprint_chars])]
+        )
+        comparison["sources"][0]["locators"][0]["start_char"] = fingerprint_chars + 1
+        comparison["sources"][0]["locators"][0]["end_char"] = fingerprint_chars + 12
+        self._write_json("outside-fingerprint.json", comparison)
+
+        result = self.tools.research_resolve_locators(
+            "outside-fingerprint.json",
+            ["S1:L1"],
+        )
+
+        self.assertFalse(result["success"])
+        self.assertEqual(result["error"]["code"], "STALE_LOCATOR")
+        self.assertEqual(result["error"]["reason"], "outside_fingerprint_scope")
+
     def test_rejects_boolean_fingerprint_document_index(self):
         comparison = json.loads(json.dumps(self.comparison))
         fingerprint = build_content_fingerprint([(0, self.english_text)])

@@ -109,9 +109,15 @@ def build_comparison_handoff(
     ris_path = _project_relative_path(
         (citation_artifacts.get("ris") or {}).get("path"), project_root
     )
-    source_count = len(report.get("sources") or [])
+    sources = report.get("sources") or []
+    source_count = len(sources)
     citations_valid = bool(
         (comparison.get("citation_validation") or {}).get("valid")
+    )
+    integrity_fingerprints_present = bool(sources) and all(
+        isinstance(source, dict)
+        and isinstance(source.get("content_fingerprint"), dict)
+        for source in sources
     )
     ready = bool(
         artifact_path
@@ -135,6 +141,11 @@ def build_comparison_handoff(
         "locator_count": comparison.get("locator_count") or 0,
         "citations_valid": citations_valid,
         "locators_valid": citations_valid,
+        "integrity_audit_ready": bool(
+            artifact_path and source_count >= 2 and citations_valid
+        ),
+        "integrity_audit_tool": "research_audit_comparison",
+        "integrity_fingerprints_present": integrity_fingerprints_present,
         "output_dir": _relative_hint(output_dir),
     }
 

@@ -237,3 +237,30 @@ For JSON integer coordinates, validate with `isinstance(value, int) and not isin
 
 ### Related Bugs
 - BUG-0008
+
+## RC-0009: Coordinate Domain Exceeded Integrity Domain
+
+Status: active
+Category: integrity boundary
+First observed: BUG-0009
+Recurring count: 1
+Severity trend: high
+
+### Description
+A content fingerprint proved only a bounded comparison-input prefix, while locator coordinates were validated against the larger current source document. The coordinate authority therefore exceeded the domain covered by the integrity proof.
+
+### Typical Symptoms
+- A locator beyond `fingerprint.text_chars` is reported as verified.
+- Bounded replay can expose text that was not supplied to the comparison.
+- A full audit reports no issue even though a claim references unverified source content.
+
+### Common Triggers
+- Source documents are longer than the per-source comparison input cap.
+- Saved locator metadata is corrupted or intentionally modified after comparison generation.
+- Integrity checks and coordinate checks use different length boundaries.
+
+### Prevention Rule
+Whenever integrity covers a bounded prefix or slice, every coordinate derived from that proof must be constrained to the same domain before content is replayed or reported as verified.
+
+### Related Bugs
+- BUG-0009
