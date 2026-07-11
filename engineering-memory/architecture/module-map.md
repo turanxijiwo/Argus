@@ -223,13 +223,16 @@ Path:
 - `argus_server/tools/research_probe.py`
 - `argus_server/tools/research_resources.py`
 - `argus_server/tools/research_resource_normalize.py`
+- `argus_server/tools/research_resource_workflow.py`
+- `argus_server/tools/research_resource_content.py`
+- `argus_server/tools/research_codex_summary.py`
 - `argus_server/tools/external_apis.py`
 - `argus_server/tools/cli_tools.py`
 - `argus_server/tools/social_ops.py`
 - `docs/RESEARCH_TOOLKIT_BOUNDARIES.md`
 
 Responsibility:
-- Provide dependency-free page crawling/image discovery entrypoints, access-aware book/paper/course resource discovery, runtime defaults/session setup, compact handoff summaries, explicit optional runtime probes, HTTP crawl orchestration, cross-source topic aggregation, topic-driven image research, full research workflow orchestration, batch saved-workflow orchestration, saved-artifact quality review, capability health matrix reporting, optional Crawl4AI render runtime, source adapter normalization, optional AI-backed web/Codex source adapters, evidence packet construction, workflow document/image scoring helpers, safe gallery-dl wrapping, HTML/URL parsing, research brief rendering, safe project-local research artifact writing, public external API lookup, and optional social CLI wrappers.
+- Provide dependency-free page crawling/image discovery entrypoints, access-aware book/paper/course resource discovery, verified-public resource reading and optional Codex summaries, runtime defaults/session setup, compact handoff summaries, explicit optional runtime probes, HTTP crawl orchestration, cross-source topic aggregation, topic-driven image research, full research workflow orchestration, batch saved-workflow orchestration, saved-artifact quality review, capability health matrix reporting, optional Crawl4AI render runtime, source adapter normalization, optional AI-backed web/Codex source adapters, evidence packet construction, workflow document/image scoring helpers, safe gallery-dl wrapping, HTML/URL parsing, research brief rendering, safe project-local research artifact writing, public external API lookup, and optional social CLI wrappers.
 
 Depends on:
 - `requests`, optional local CLIs (`gallery-dl`, bili/xhs/twitter/tg/discord), optional local Codex SDK (`openai-codex`), external API availability.
@@ -245,6 +248,8 @@ Common failure modes:
 - URL validation gaps
 - Optional CLI missing/auth failures
 - Optional Codex SDK missing, unavailable, or returning non-JSON output
+- Response-envelope metadata written to the wrong `summary`/`data` layer
+- Prompt injection in untrusted public resource text passed to an agent runtime
 - External API format drift
 - Network timeouts
 - Partial packet failures must remain visible without failing successful documents
@@ -252,6 +257,7 @@ Common failure modes:
 Required tests:
 - Unit: `tests/test_research_toolkit.py`
 - Unit: `tests/test_research_resources.py`
+- Unit: `tests/test_research_resource_workflow.py`
 - Regression: `tests/test_research_resource_relevance.py`
 - Integration: optional CLI dry-run smoke tests when installed
 - Regression: invalid URL rejection, output path safety, normalized merged-source shape

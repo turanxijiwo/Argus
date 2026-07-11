@@ -144,6 +144,11 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertFalse(capabilities["research_workflow"]["can_use_now"])
         self.assertFalse(capabilities["research_batch_workflow"]["can_use_now"])
         self.assertTrue(capabilities["find_research_resource"]["can_use_now"])
+        self.assertTrue(capabilities["research_resource_workflow"]["can_use_now"])
+        self.assertEqual(
+            capabilities["research_resource_workflow"]["summary"],
+            "optional_needs_codex_runtime",
+        )
         self.assertEqual(
             capabilities["find_research_resource"]["resource_types"]["paper"],
             "needs_external_adapter",

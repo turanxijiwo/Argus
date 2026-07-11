@@ -119,3 +119,40 @@ Resource discovery must rank query relevance before convenience attributes such 
 
 ### Follow-up
 None.
+
+## BUG-0003: Codex Summary Attribution Stored In Envelope Statistics
+
+Date: 2026-07-11
+Severity: P2
+Status: verified
+Area: Research Resource Workflow
+Tags: response-envelope, codex, summary
+
+### Symptom
+The resource workflow returned valid summary text but omitted the injected runner or real Codex model attribution from `data.summary`.
+
+### Reproduction / Trigger
+The successful PDF workflow test expected `data.summary.runner == "injected"` and raised `KeyError` even though summary generation succeeded.
+
+### Root Cause
+`normalize_codex_summary_payload` returns envelope statistics under top-level `summary` and the normalized content under `data`. The attribution code confused those layers and wrote `runner`/`model` into the envelope statistics.
+
+### Affected Chain
+`research_resource_workflow` -> `run_codex_summary` -> `normalize_codex_summary_payload` -> workflow `summary` payload.
+
+### Fix
+Both injected-runner and real-SDK paths now write `runner` and `model` into the normalized `data` payload.
+
+### Tests Added / Updated
+- Test file: `tests/test_research_resource_workflow.py`
+- Test case: `test_reads_public_pdf_and_generates_codex_summary`
+
+### Prevention
+When a helper returns the standard Argus envelope, inspect and test the distinction between top-level operational statistics and the normalized `data` contract before adding metadata.
+
+### Related Files
+- `argus_server/tools/research_codex_summary.py`
+- `tests/test_research_resource_workflow.py`
+
+### Follow-up
+None.

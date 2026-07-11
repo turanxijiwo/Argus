@@ -38,6 +38,7 @@ def toolkit_health(
                 "research_review_artifact": "compact quality review for one saved JSON research artifact",
                 "research_runtime_probe": "explicit optional Crawl4AI/Codex runtime verification",
                 "find_research_resource": "access-aware book, paper, and official course discovery",
+                "research_resource_workflow": "public resource selection, reading, optional Codex summary, and artifact export",
                 "download_gallery": "safe gallery-dl wrapper when installed",
             },
             "web_search_sources": ["web", "web:tavily", "web:exa", "web:perplexity", "web:brave"],
@@ -134,6 +135,13 @@ def toolkit_health(
                     },
                     note="Returns official/open/borrow/preview/metadata links and never bypasses access controls.",
                 ),
+                "research_resource_workflow": _capability(
+                    can_use_now=True,
+                    status="ready",
+                    mode="public_resource_read",
+                    summary="ready" if codex_ready else "optional_needs_codex_runtime",
+                    note="Reads verified public URLs; unverified URLs require explicit opt-in and access controls are never bypassed.",
+                ),
                 "download_gallery": _capability(
                     can_use_now=gallery_ready,
                     status="ready" if gallery_ready else "needs_setup",
@@ -163,6 +171,7 @@ def toolkit_health(
                 topic_source_ready,
                 topic_source_ready,
                 topic_source_ready,
+                True,
                 True,
                 gallery_ready,
             ) if item

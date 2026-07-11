@@ -292,7 +292,7 @@ Test file:
 - `tests/test_mcp_registration.py`
 
 What it protects:
-- Keeps all twelve Research Toolkit tools registered on the FastMCP server and catches accidental changes to the expected 167-tool public surface.
+- Keeps all thirteen Research Toolkit tools registered on the FastMCP server and catches accidental changes to the expected 168-tool public surface.
 
 ### Research resource relevance and partial failure
 
@@ -304,6 +304,18 @@ What it protects:
 - Keeps book, paper, and course results in one access-aware schema without bypassing access controls.
 - Preserves successful academic results when one source is rate-limited.
 - Prevents downloadable but unrelated papers from outranking an exact requested title.
+
+### Research resource read, summary, and artifact workflow
+
+Test file:
+- `tests/test_research_resource_workflow.py`
+
+What it protects:
+- Selects readable public PDF/HTML/TXT links before resource landing pages and normalizes Jina Reader output into the shared workflow document shape.
+- Keeps verified-public access as the default boundary, rejects unverified links without explicit opt-in, and validates project-local output paths before network work.
+- Preserves readable documents when Codex summary parsing fails, keeps runner/model attribution in the normalized summary payload, and avoids calling Codex after a read failure.
+- Keeps Codex summaries in an ephemeral, deny-all, read-only thread with an empty temporary working directory and explicit untrusted-content instructions.
+- Saves paired JSON/Markdown artifacts and emits the shared workflow handoff with project-relative paths.
 
 ### xhs CLI auth status and friendly errors
 

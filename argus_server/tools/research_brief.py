@@ -12,6 +12,7 @@ def render_research_brief(workflow: Dict) -> Dict:
     documents = workflow.get("documents") or []
     images = workflow.get("images") or []
     source_errors = workflow.get("source_errors") or []
+    summary = workflow.get("summary") or {}
     successful_documents = [document for document in documents if document.get("success")]
     failed_documents = [document for document in documents if not document.get("success")]
     generated_at = _utc_iso_timestamp()
@@ -41,6 +42,15 @@ def render_research_brief(workflow: Dict) -> Dict:
             message = error.get("message") or ""
             lines.append(f"- `{error.get('source')}`: `{code}` {message}".rstrip())
         lines.append("")
+
+    if summary.get("summary"):
+        lines.extend(["## Summary", ""])
+        lines.append(_clip_markdown_text(summary.get("summary"), 4000))
+        lines.append("")
+        for point in (summary.get("key_points") or [])[:10]:
+            lines.append(f"- {_clip_markdown_text(point, 600)}")
+        if summary.get("key_points"):
+            lines.append("")
 
     if successful_documents:
         lines.extend(["## Key Sources", ""])

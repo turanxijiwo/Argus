@@ -37,6 +37,7 @@ from .tools.router import RouterTools
 from .tools.daily_brief import DailyBriefTools
 from .tools.research_toolkit import ResearchToolkitTools
 from .tools.research_resources import ResearchResourceTools
+from .tools.research_resource_workflow import ResearchResourceWorkflowTools
 from .utils.date_parser import DateParser
 from .utils.errors import MCPError
 
@@ -104,6 +105,11 @@ def _get_tools(project_root: Optional[str] = None):
             project_root,
             external_api=_tools_instances['external'],
             topic_search=_tools_instances['research'].research_topic,
+        )
+        _tools_instances['research_resource_workflow'] = ResearchResourceWorkflowTools(
+            project_root,
+            resource_search=_tools_instances['research_resources'].find_research_resource,
+            article_reader=_tools_instances['article'],
         )
         # 确保 telemetry store 启动 (单例)
         TelemetryStore.instance(project_root)
@@ -3129,7 +3135,7 @@ async def research_toolkit_health() -> str:
     检查研究工具包能力与可选开源 CLI 安装状态。
 
     覆盖:
-      - 内置无依赖能力: crawl_url / discover_page_images / research_images / research_topic / find_research_resource / research_pack / research_workflow / research_batch_workflow / download_gallery
+      - 内置无依赖能力: crawl_url / discover_page_images / research_images / research_topic / find_research_resource / research_resource_workflow / research_pack / research_workflow / research_batch_workflow / download_gallery
       - 可选高质量 CLI/SDK: gallery-dl / yt-dlp / scrapy / crawl4ai / openai-codex
 
     Returns:
@@ -3312,6 +3318,78 @@ async def find_research_resource(
         access=access,
         limit=limit,
         timeout=timeout,
+    )
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+
+@mcp.tool
+async def research_resource_workflow(
+    query: str,
+    resource_type: str,
+    resource_index: int = 0,
+    institution: Optional[str] = None,
+    language: Optional[str] = None,
+    access: str = "open",
+    limit: int = 5,
+    timeout: int = 30,
+    max_chars: int = 30000,
+    summarize: bool = True,
+    target_language: str = "zh-CN",
+    summary_points: int = 5,
+    allow_unverified: bool = False,
+    include_brief: bool = True,
+    save: bool = False,
+    save_brief: bool = True,
+    output_dir: str = "output/research/resources",
+) -> str:
+    """
+    选择一个图书、论文或课程搜索结果, 读取其公开内容并可选用 Codex 生成摘要。
+
+    默认只读取已验证的公开 URL; 不处理借阅、预览、付费墙、登录、DRM 或校园权限绕过。
+    未验证链接只在 allow_unverified=True 时读取。
+
+    Args:
+        query: 书名、论文题名/主题或课程/专业名称。
+        resource_type: book / paper / course。
+        resource_index: 选择归一化结果的索引, 默认 0。
+        institution: 可选高校名称。
+        language: 可选资源语言。
+        access: 资源发现过滤, 默认 open。
+        limit: 候选资源数量, 最多 25。
+        timeout: 发现与读取超时秒数。
+        max_chars: 保留正文最大字符数。
+        summarize: 是否调用本地 Codex SDK 摘要。
+        target_language: 摘要语言, 默认 zh-CN。
+        summary_points: 摘要要点上限。
+        allow_unverified: 是否明确允许读取未验证公开 URL。
+        include_brief: 是否在返回中生成 Markdown 简报。
+        save: 是否保存 JSON 产物。
+        save_brief: save=True 时是否同时保存 Markdown 简报。
+        output_dir: 项目目录内的输出目录。
+
+    Returns:
+        JSON: 所选资源、读取文档、可选摘要、简报、产物与 handoff。
+    """
+    tools = _get_tools()
+    result = await asyncio.to_thread(
+        tools['research_resource_workflow'].research_resource_workflow,
+        query=query,
+        resource_type=resource_type,
+        resource_index=resource_index,
+        institution=institution,
+        language=language,
+        access=access,
+        limit=limit,
+        timeout=timeout,
+        max_chars=max_chars,
+        summarize=summarize,
+        target_language=target_language,
+        summary_points=summary_points,
+        allow_unverified=allow_unverified,
+        include_brief=include_brief,
+        save=save,
+        save_brief=save_brief,
+        output_dir=output_dir,
     )
     return json.dumps(result, ensure_ascii=False, indent=2, default=str)
 

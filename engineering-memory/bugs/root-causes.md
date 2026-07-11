@@ -85,3 +85,29 @@ Cross-source resource search must compute local query relevance before truncatio
 
 ### Related Bugs
 - BUG-0002
+
+## RC-0003: Semantic Name Collision Across Response Envelope Layers
+
+Status: active
+Category: API contract
+First observed: BUG-0003
+Recurring count: 1
+Severity trend: low
+
+### Description
+The standard response envelope uses `summary` for operation statistics while the normalized resource payload can also contain summary text under `data.summary`. Code that reasons from field names instead of the envelope contract can write metadata to the wrong layer.
+
+### Typical Symptoms
+- Content generation succeeds but runner/model attribution is missing from the consumer payload.
+- Metadata appears in top-level operational statistics where downstream workflows do not read it.
+- Tests pass for summary text but fail when asserting provenance fields.
+
+### Common Triggers
+- A payload domain also uses the word `summary`.
+- Metadata is added after a normalization helper has already wrapped the payload.
+
+### Prevention Rule
+For standard Argus envelopes, mutate normalized content only through `result["data"]`; reserve top-level `result["summary"]` for operation counts and status statistics, and assert both layers in contract tests.
+
+### Related Bugs
+- BUG-0003

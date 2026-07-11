@@ -3,14 +3,17 @@
 ## 当前任务
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
-- Current product focus remains the Argus agent-native research and intelligence toolkit: 167 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest milestone: added `find_research_resource` for access-aware book, paper, and official university course discovery, bringing the MCP surface to 167 tools.
+- Current product focus remains the Argus agent-native research and intelligence toolkit: 168 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
+- Latest milestone: added `research_resource_workflow` for selecting one discovered book, paper, or course, reading verified public content, optionally summarizing with the local Codex SDK, and saving JSON/Markdown artifacts; the MCP surface is now 168 tools.
+- Next candidate stage: add multi-resource comparison and citation/evidence extraction on top of the saved resource artifacts, without changing access-control boundaries.
 
 ## 已知问题
 
 - JavaScript rendering now has an optional Crawl4AI runtime adapter through `crawl_url(render_js=True)`, but it requires Crawl4AI and browser dependencies to be installed locally.
 - Broad web search can now reuse configured Tavily / Exa / Perplexity / Brave providers through `research_topic` sources such as `web:tavily`; optional local Codex SDK research is available through the `codex` source when `openai-codex` is installed; `research_images` provides page-derived image candidates, while a dedicated image-search backend remains a future adapter.
 - `find_research_resource` uses Open Library plus Project Gutenberg OPDS for books, arXiv / Semantic Scholar / OpenReview / Crossref for papers, and the Codex source for official course pages; it labels open download/read, borrow, preview, metadata-only, and unverified results without bypassing access controls.
+- `research_resource_workflow` reads verified public PDF/HTML/TXT links through Jina Reader, optionally summarizes with the local Codex SDK, and can save project-local JSON/Markdown artifacts; unverified links require explicit opt-in, while borrow/preview/metadata-only results remain blocked.
+- Books that expose only EPUB/Kindle files currently fall back to reading the public resource landing page; the workflow does not claim that this is full-book text.
 - Semantic Scholar anonymous paper search can be rate-limited; the unified resource response preserves that source error while retaining results from other academic sources.
 - Course discovery requires a working Codex runtime and can fail inside a restricted sandbox that cannot write `~/.codex`; the approved real runtime smoke returns official MIT OpenCourseWare results.
 - OpenAlex is intentionally not part of the unified no-key paper path because its current official API policy requires a free API key for stable use.
@@ -45,6 +48,9 @@
 
 ## 最近变更记录
 
+- Added `research_resource_workflow` with public-access selection, Jina content reading, optional local Codex summaries, Markdown brief rendering, project-local artifact export, and reusable workflow handoff.
+- Added normal, failure, and safety regressions for PDF selection, summary parsing, read failures, unverified access, result indexes, and pre-network output-path validation.
+- Verified real arXiv PDF reading, a `gpt-5.4` Chinese Codex summary, and an official MIT OpenCourseWare page read; fixed summary runner/model metadata to live in the normalized data payload.
 - Added `find_research_resource` with normalized access states and source-specific metadata for books, papers, and university courses.
 - Extended Open Library results with ebook access, full-text, public-scan, Internet Archive, and availability fields; added Project Gutenberg OPDS acquisition-file parsing.
 - Added query-relevance ranking and arXiv title search after a real smoke showed that access-only ordering could place unrelated recent PDFs ahead of an exact paper title.
