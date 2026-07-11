@@ -277,3 +277,40 @@ Primary contract violations must take precedence over dependent validation error
 
 ### Follow-up
 None.
+
+## BUG-0007: Malformed Locator Source Path Escaped Error Envelope
+
+Date: 2026-07-11
+Severity: P2
+Status: verified
+Area: Research locator resolver
+Tags: path-validation, type-safety, error-envelope
+
+### Symptom
+A comparison source whose non-empty `artifact_path` was a JSON list caused `research_resolve_locators` to raise `TypeError` instead of returning an Argus error envelope.
+
+### Reproduction / Trigger
+A project-local comparison artifact with `artifact_path: ["source.json"]` passed the presence check and reached `os.path.isabs` through `resolve_project_path`.
+
+### Root Cause
+The new comparison index validated path truthiness but not its string type before handing nested artifact metadata to the shared filesystem boundary.
+
+### Affected Chain
+`research_resolve_locators` -> comparison source index -> source artifact load -> `resolve_project_path` -> uncaught `TypeError`.
+
+### Fix
+Comparison indexing now requires canonical `S1...Sn` source IDs and non-empty string artifact paths before any filesystem call.
+
+### Tests Added / Updated
+- Test file: `tests/test_research_locator.py`
+- Test case: `test_rejects_non_string_source_artifact_path`
+
+### Prevention
+Nested JSON path metadata must be type-validated before reuse by helpers whose public callers are normally type-checked.
+
+### Related Files
+- `argus_server/tools/research_locator.py`
+- `tests/test_research_locator.py`
+
+### Follow-up
+None.

@@ -51,6 +51,22 @@ class ResearchComparisonSourceTest(unittest.TestCase):
         self.assertEqual(citation["entry_type"], "article")
         self.assertIn("author = {Ada Lovelace and Grace Hopper}", citation["bibtex"])
         self.assertIn("title = {Models \\& Evidence}", citation["bibtex"])
+        self.assertEqual(citation["csl_json"]["type"], "article")
+        self.assertEqual(
+            citation["csl_json"]["author"],
+            [
+                {"family": "Lovelace", "given": "Ada"},
+                {"family": "Hopper", "given": "Grace"},
+            ],
+        )
+        self.assertEqual(citation["csl_json"]["issued"], {"date-parts": [[2020]]})
+        self.assertEqual(citation["csl_json"]["DOI"], "10.1000/example")
+        self.assertEqual(citation["csl_json"]["archive"], "arXiv")
+        self.assertIn("TY  - JOUR", citation["ris"])
+        self.assertIn("AU  - Ada Lovelace", citation["ris"])
+        self.assertIn("DO  - 10.1000/example", citation["ris"])
+        self.assertIn("AN  - 2001.00001v2", citation["ris"])
+        self.assertTrue(citation["ris"].endswith("ER  -"))
         self.assertEqual(source["locators"][0]["section"], "Abstract")
         self.assertEqual(source["locators"][1]["page"], 2)
         for locator in source["locators"]:
@@ -85,6 +101,10 @@ class ResearchComparisonSourceTest(unittest.TestCase):
         self.assertEqual(citation["institution"], "MIT")
         self.assertNotIn("year", citation)
         self.assertIn("organization = {MIT}", citation["bibtex"])
+        self.assertEqual(citation["csl_json"]["type"], "webpage")
+        self.assertNotIn("issued", citation["csl_json"])
+        self.assertIn("TY  - ELEC", citation["ris"])
+        self.assertNotIn("PY  -", citation["ris"])
 
     def test_book_bibtex_uses_first_isbn(self):
         payload = {
@@ -105,6 +125,31 @@ class ResearchComparisonSourceTest(unittest.TestCase):
         self.assertEqual(citation["entry_type"], "book")
         self.assertEqual(citation["isbn"], "9780000000001")
         self.assertIn("isbn = {9780000000001}", citation["bibtex"])
+        self.assertEqual(citation["csl_json"]["type"], "book")
+        self.assertEqual(citation["csl_json"]["ISBN"], "9780000000001")
+        self.assertIn("TY  - BOOK", citation["ris"])
+        self.assertIn("SN  - 9780000000001", citation["ris"])
+
+    def test_preprint_ris_does_not_invent_journal_publication(self):
+        payload = {
+            "resource_type": "paper",
+            "resource": {
+                "resource_type": "paper",
+                "title": "Example Preprint",
+                "creators": ["Research Author"],
+                "year": 2024,
+                "identifiers": {"arxiv": "2401.00001"},
+            },
+            "selection": {"url": "https://arxiv.org/abs/2401.00001"},
+            "documents": [{"success": True, "text": "Preprint evidence."}],
+        }
+
+        citation = build_comparison_source(payload, "paper.json", "S1", 8000)["data"]["citation"]
+
+        self.assertEqual(citation["csl_json"]["type"], "article")
+        self.assertIn("TY  - GEN", citation["ris"])
+        self.assertNotIn("TY  - JOUR", citation["ris"])
+        self.assertNotIn("ID  -", citation["ris"])
 
     def test_long_paragraph_locators_preserve_bounded_character_ranges(self):
         text = "word " * 400

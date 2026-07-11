@@ -38,7 +38,8 @@ def toolkit_health(
                 "research_runtime_probe": "explicit optional Crawl4AI/Codex runtime verification",
                 "find_research_resource": "access-aware book, paper, and official course discovery",
                 "research_resource_workflow": "public resource selection, reading, optional Codex summary, and artifact export",
-                "research_compare_artifacts": "saved-artifact comparison with source citations, evidence locators, and BibTeX metadata",
+                "research_compare_artifacts": "saved-artifact comparison with source citations, evidence locators, and BibTeX/CSL-JSON/RIS metadata",
+                "research_resolve_locators": "bounded evidence replay from project-local comparison and source artifacts",
                 "download_gallery": "safe gallery-dl wrapper when installed",
             },
             "web_search_sources": ["web", "web:tavily", "web:exa", "web:perplexity", "web:brave"],
@@ -149,6 +150,12 @@ def toolkit_health(
                     setup_hint=None if codex_ready else "Install openai-codex and verify the local Codex runtime",
                     mode="saved_artifact_comparison",
                     note="Uses only project-local artifacts and validates source plus locator IDs structurally; locators target saved artifact coordinates and are not independent fact verification.",
+                ),
+                "research_resolve_locators": _capability(
+                    can_use_now=True,
+                    status="ready",
+                    mode="project_local_bounded_evidence_replay",
+                    note="Resolves at most 10 locators with excerpts capped at 240 characters and 25 words each.",
                 ),
                 "download_gallery": _capability(
                     can_use_now=gallery_ready,

@@ -3,9 +3,9 @@
 ## 当前任务
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
-- Current product focus remains the Argus agent-native research and intelligence toolkit: 169 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest milestone: enhanced `research_compare_artifacts` with artifact-backed evidence locators, DOI/arXiv/ISBN citation metadata, BibTeX references, and strict source-locator validation; the MCP surface remains 169 tools.
-- Next candidate stage: add a bounded locator resolver plus CSL-JSON/RIS export so agents can inspect cited evidence and move references into external writing tools without replaying full artifacts.
+- Current product focus remains the Argus agent-native research and intelligence toolkit: 170 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
+- Latest milestone: added `research_resolve_locators` for bounded project-local evidence replay and extended comparison citations with CSL-JSON/RIS; the MCP surface is now 170 tools.
+- Next candidate stage: bind new comparison sources to content fingerprints and optionally save CSL-JSON/RIS citation bundles so locator replay can detect in-place artifact mutation and references can move directly into writing tools.
 
 ## 已知问题
 
@@ -14,9 +14,10 @@
 - `find_research_resource` uses Open Library plus Project Gutenberg OPDS for books, arXiv / Semantic Scholar / OpenReview / Crossref for papers, and the Codex source for official course pages; it labels open download/read, borrow, preview, metadata-only, and unverified results without bypassing access controls.
 - `research_resource_workflow` reads verified public PDF/HTML/TXT links through Jina Reader, optionally summarizes with the local Codex SDK, and can save project-local JSON/Markdown artifacts; unverified links require explicit opt-in, while borrow/preview/metadata-only results remain blocked.
 - Books that expose only EPUB/Kindle files currently fall back to reading the public resource landing page; the workflow does not claim that this is full-book text.
-- `research_compare_artifacts` validates known `S1...Sn` sources and `S1:L1` locators, with each locator resolving to a saved artifact document and character range; this remains structural traceability rather than independent fact verification.
+- `research_compare_artifacts` validates known `S1...Sn` sources and `S1:L1` locators, while `research_resolve_locators` replays at most 10 project-local ranges with excerpts capped at 240 characters and 25 words; this remains structural traceability rather than independent fact verification.
 - Page values are emitted only when extracted text contains an explicit current-page marker. Jina PDF markdown may expose section headings and total page count without per-page boundaries, so Argus falls back to section/paragraph/character locators instead of guessing pages.
-- DOI, arXiv, and ISBN fields are preserved only when present in normalized metadata; BibTeX omits unknown fields rather than inventing publication data.
+- DOI, arXiv, and ISBN fields are preserved only when present in normalized metadata; BibTeX, CSL-JSON, and RIS omit unknown fields rather than inventing publication data.
+- Locator replay detects missing documents and invalid character ranges, but existing comparison artifacts do not bind source text with a content digest, so an in-place source edit that leaves coordinates valid is not yet detectable.
 - Comparison input is capped at 40,000 characters total and 8,000 per source; reports return compact source registries rather than replaying artifact document text.
 - Research artifact reads, writes, report paths, and handoff paths now resolve symlinks before enforcing the project-root boundary.
 - Semantic Scholar anonymous paper search can be rate-limited; the unified resource response preserves that source error while retaining results from other academic sources.
@@ -53,6 +54,10 @@
 
 ## 最近变更记录
 
+- Added `research_resolve_locators` with project-local comparison/source path enforcement, a 10-locator request cap, 240-character and 25-word excerpt caps, and stale-coordinate errors.
+- Added deterministic CSL-JSON and RIS alongside existing BibTeX citation metadata; real arXiv and MIT OCW sources produce article/generic and webpage/electronic records without inventing publication fields.
+- Verified 10 real locators from the Transformer-versus-MIT comparison across two sources; every excerpt resolved, the largest was 184 characters and 25 words, and seven were intentionally truncated.
+- Fixed malformed comparison source paths to return `INVALID_COMPARISON_ARTIFACT` instead of leaking a `TypeError`; the public MCP surface is now 170 tools and the full suite passes 143 tests.
 - Added deterministic evidence locators with document index, section/page when explicit, paragraph index, and source-text character ranges; comparison claims now require matching source and locator IDs.
 - Added DOI/arXiv/ISBN citation extraction and deterministic BibTeX generation using normalized resource `creators`, year, institution, identifiers, and canonical URL.
 - Added Markdown Locator Index and BibTeX References sections while keeping locator text private at the MCP/report boundary.

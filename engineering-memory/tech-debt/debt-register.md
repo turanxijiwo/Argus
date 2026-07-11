@@ -97,3 +97,31 @@ Add an optional PDF-native extraction adapter that records page boundaries durin
 - PDF artifacts retain page-boundary metadata during ingestion.
 - Every emitted page locator is reproducible against the original PDF.
 - Section/paragraph/character fallback remains available for HTML and page-less text.
+
+## DEBT-0003: Locator Replay Does Not Bind Source Content
+
+Date: 2026-07-11
+Status: open
+Severity: medium
+Area: Research comparison evidence integrity
+Related bugs:
+- None
+Related patterns:
+- Evidence traceability
+
+### Problem
+Comparison locators store source artifact paths plus document and character coordinates, but no source-content digest. The resolver detects missing text and invalid ranges, yet cannot detect an in-place source edit when the coordinates remain valid.
+
+### Why Not Fixed Now
+Adding fingerprints changes the comparison artifact contract and needs a compatibility policy for existing saved comparisons. The bounded replay tool can be useful safely without mixing that schema migration into its first release.
+
+### Risk
+A source artifact edited after comparison could return different text for the same locator while still passing coordinate validation.
+
+### Proposed Resolution
+Store deterministic document or selected-input SHA-256 fingerprints on new comparison sources and verify them during locator replay. Preserve read compatibility for older artifacts while clearly reporting that their content integrity is unverified.
+
+### Exit Criteria
+- New comparison artifacts include deterministic source-content fingerprints.
+- Locator replay rejects fingerprint mismatches with a stable structured error.
+- Existing comparison artifacts remain readable and explicitly report missing integrity metadata.

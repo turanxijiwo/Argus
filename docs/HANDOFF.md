@@ -1,6 +1,6 @@
 # Argus Project Handoff
 
-Last updated: 2026-07-10
+Last updated: 2026-07-11
 
 This is the durable project handoff. Start new engineering sessions by reading
 `AGENTS.md`, then `context.md`, then only the source and tests relevant to the
@@ -11,9 +11,9 @@ storage, schema, auth, refactor, or bug-fix work.
 
 - Branch: `feature/intelligence-toolkit`.
 - Runtime: Python 3.12+ with `uv`.
-- MCP surface: 166 FastMCP tools and 8 resources.
-- Research Toolkit: 11 public MCP tools.
-- Verification baseline: 87 tests passing and `uv build` successful.
+- MCP surface: 170 FastMCP tools and 8 resources.
+- Research Toolkit: 15 public MCP tools.
+- Verification baseline: 143 tests passing and `uv build` successful.
 - Current delivery report: `docs/RESEARCH_TOOLKIT_PHASE2_DELIVERY_AUDIT.md`.
 
 ## Primary Commands
@@ -47,8 +47,19 @@ research_batch_workflow
   -> research_review_artifact(artifact_index=N)
 ```
 
+For comparison and bounded evidence replay:
+
+```text
+saved resource artifacts
+  -> research_compare_artifacts
+  -> comparison JSON + source/locator registry + BibTeX/CSL-JSON/RIS
+  -> research_resolve_locators(1-10 locator IDs)
+  -> excerpts capped at 240 characters and 25 words each
+```
+
 All saved paths must remain inside the Argus project. Handoff responses use
-project-relative paths and avoid replaying full crawled page text.
+project-relative paths and avoid replaying full crawled page text. Locator
+resolution is local and key-free; comparison generation itself uses Codex.
 
 ## Runtime Notes
 

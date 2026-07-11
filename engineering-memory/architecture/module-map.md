@@ -76,7 +76,7 @@ Path:
 - `argus_server/utils/`
 
 Responsibility:
-- Register 169 MCP tools and 8 MCP resources, create shared tool adapters, normalize tool responses, and provide the `argus-mcp` console script.
+- Register 170 MCP tools and 8 MCP resources, create shared tool adapters, normalize tool responses, and provide the `argus-mcp` console script.
 
 Depends on:
 - `fastmcp`, Argus core/storage modules, all `argus_server.tools` adapters
@@ -231,13 +231,14 @@ Path:
 - `argus_server/tools/research_compare_sources.py`
 - `argus_server/tools/research_compare_brief.py`
 - `argus_server/tools/research_citation.py`
+- `argus_server/tools/research_locator.py`
 - `argus_server/tools/external_apis.py`
 - `argus_server/tools/cli_tools.py`
 - `argus_server/tools/social_ops.py`
 - `docs/RESEARCH_TOOLKIT_BOUNDARIES.md`
 
 Responsibility:
-- Provide dependency-free page crawling/image discovery entrypoints, access-aware book/paper/course resource discovery, verified-public resource reading and optional Codex summaries, saved-artifact comparison with source/locator validation and DOI/BibTeX metadata, canonical project-path enforcement, runtime defaults/session setup, compact handoff summaries, explicit optional runtime probes, HTTP crawl orchestration, cross-source topic aggregation, topic-driven image research, full research workflow orchestration, batch saved-workflow orchestration, saved-artifact quality review, capability health matrix reporting, optional Crawl4AI render runtime, source adapter normalization, optional AI-backed web/Codex source adapters, evidence packet construction, workflow document/image scoring helpers, safe gallery-dl wrapping, HTML/URL parsing, research brief rendering, safe project-local research artifact writing, public external API lookup, and optional social CLI wrappers.
+- Provide dependency-free page crawling/image discovery entrypoints, access-aware book/paper/course resource discovery, verified-public resource reading and optional Codex summaries, saved-artifact comparison with source/locator validation and BibTeX/CSL-JSON/RIS metadata, bounded project-local locator replay, canonical project-path enforcement, runtime defaults/session setup, compact handoff summaries, explicit optional runtime probes, HTTP crawl orchestration, cross-source topic aggregation, topic-driven image research, full research workflow orchestration, batch saved-workflow orchestration, saved-artifact quality review, capability health matrix reporting, optional Crawl4AI render runtime, source adapter normalization, optional AI-backed web/Codex source adapters, evidence packet construction, workflow document/image scoring helpers, safe gallery-dl wrapping, HTML/URL parsing, research brief rendering, safe project-local research artifact writing, public external API lookup, and optional social CLI wrappers.
 
 Depends on:
 - `requests`, optional local CLIs (`gallery-dl`, bili/xhs/twitter/tg/discord), optional local Codex SDK (`openai-codex`), external API availability.
@@ -258,6 +259,7 @@ Common failure modes:
 - Lexical path checks allowing symlink-based project-root escapes
 - Missing or invented source IDs in model-generated comparisons
 - Locator IDs that do not resolve or do not belong to the cited source
+- Malformed nested artifact paths bypassing structured resolver errors
 - Citation metadata inventing unavailable DOI, year, or page values
 - Health-summary counts drifting from the capability matrix
 - External API format drift
@@ -271,6 +273,7 @@ Required tests:
 - Unit: `tests/test_research_compare.py`
 - Unit: `tests/test_research_compare_sources.py`
 - Unit: `tests/test_research_compare_locators.py`
+- Unit: `tests/test_research_locator.py`
 - Security regression: `tests/test_research_path_safety.py`
 - Regression: `tests/test_research_resource_relevance.py`
 - Integration: optional CLI dry-run smoke tests when installed

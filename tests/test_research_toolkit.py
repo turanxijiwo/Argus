@@ -158,6 +158,11 @@ class ResearchToolkitToolsTest(unittest.TestCase):
             capabilities["research_compare_artifacts"]["missing"],
             ["openai-codex"],
         )
+        self.assertTrue(capabilities["research_resolve_locators"]["can_use_now"])
+        self.assertEqual(
+            capabilities["research_resolve_locators"]["mode"],
+            "project_local_bounded_evidence_replay",
+        )
         self.assertEqual(
             capabilities["find_research_resource"]["resource_types"]["paper"],
             "needs_external_adapter",

@@ -19,11 +19,12 @@ class MCPRegistrationTest(unittest.IsolatedAsyncioTestCase):
             "find_research_resource",
             "research_resource_workflow",
             "research_compare_artifacts",
+            "research_resolve_locators",
             "download_gallery",
             "research_topic",
         }
 
-        self.assertEqual(len(tools), 169)
+        self.assertEqual(len(tools), 170)
         self.assertTrue(expected_research_tools.issubset(tools))
 
         for tool_name in expected_research_tools:

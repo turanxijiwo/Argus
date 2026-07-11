@@ -37,6 +37,7 @@ from .tools.router import RouterTools
 from .tools.daily_brief import DailyBriefTools
 from .tools.research_toolkit import ResearchToolkitTools
 from .tools.research_compare import ResearchComparisonTools
+from .tools.research_locator import ResearchLocatorTools
 from .tools.research_resources import ResearchResourceTools
 from .tools.research_resource_workflow import ResearchResourceWorkflowTools
 from .utils.date_parser import DateParser
@@ -113,6 +114,7 @@ def _get_tools(project_root: Optional[str] = None):
             article_reader=_tools_instances['article'],
         )
         _tools_instances['research_compare'] = ResearchComparisonTools(project_root)
+        _tools_instances['research_locator'] = ResearchLocatorTools(project_root)
         # 确保 telemetry store 启动 (单例)
         TelemetryStore.instance(project_root)
     return _tools_instances
@@ -3137,7 +3139,7 @@ async def research_toolkit_health() -> str:
     检查研究工具包能力与可选开源 CLI 安装状态。
 
     覆盖:
-      - 研究能力: crawl_url / discover_page_images / research_images / research_topic / find_research_resource / research_resource_workflow / research_compare_artifacts / research_pack / research_workflow / research_batch_workflow / download_gallery
+      - 研究能力: crawl_url / discover_page_images / research_images / research_topic / find_research_resource / research_resource_workflow / research_compare_artifacts / research_resolve_locators / research_pack / research_workflow / research_batch_workflow / download_gallery
       - 可选高质量 CLI/SDK: gallery-dl / yt-dlp / scrapy / crawl4ai / openai-codex
 
     Returns:
@@ -3435,6 +3437,37 @@ async def research_compare_artifacts(
         save=save,
         save_brief=save_brief,
         output_dir=output_dir,
+    )
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+
+@mcp.tool
+async def research_resolve_locators(
+    comparison_artifact_path: str,
+    locator_ids: List[str],
+    max_chars: int = 240,
+) -> str:
+    """
+    从已保存的 comparison artifact 回放少量证据 locator, 不返回整篇来源正文。
+
+    只读取 Argus 项目内的 comparison 及其引用的来源 artifact。每次最多解析 10 个
+    locator; 每段摘录最多 240 个字符且不超过 25 个词。工具会重新校验 locator 的
+    来源归属、document index 和字符范围, artifact 内容漂移或路径越界会返回结构化错误。
+
+    Args:
+        comparison_artifact_path: 项目内已保存 comparison JSON artifact 路径。
+        locator_ids: 1–10 个 `S1:L1` 形式 locator ID。
+        max_chars: 每段摘录字符上限, 会限制在 1–240。
+
+    Returns:
+        JSON: 受限证据摘录、来源坐标、引用元数据和实际应用的回放限制。
+    """
+    tools = _get_tools()
+    result = await asyncio.to_thread(
+        tools['research_locator'].research_resolve_locators,
+        comparison_artifact_path=comparison_artifact_path,
+        locator_ids=locator_ids,
+        max_chars=max_chars,
     )
     return json.dumps(result, ensure_ascii=False, indent=2, default=str)
 

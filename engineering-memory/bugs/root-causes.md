@@ -187,3 +187,28 @@ Classify errors by primary contract layer and emit a specialized downstream code
 
 ### Related Bugs
 - BUG-0006
+
+## RC-0007: Nested Path Presence Was Mistaken For Type Safety
+
+Status: active
+Category: API contract
+First observed: BUG-0007
+Recurring count: 1
+Severity trend: medium
+
+### Description
+A nested path read from saved JSON was checked only for truthiness. Shared path helpers were designed for typed public arguments, so a truthy list reached `os.path` and escaped the standard error envelope.
+
+### Typical Symptoms
+- A malformed project-local artifact causes an uncaught `TypeError` in path normalization.
+- Public parameter tests pass while equivalent nested metadata fails before a structured error can be returned.
+
+### Common Triggers
+- Reusing typed API helpers with data loaded from JSON.
+- Presence checks such as `if path` standing in for schema validation.
+
+### Prevention Rule
+Validate nested path values as non-empty strings at the artifact contract boundary before canonical path resolution; cover malformed JSON types in the owning workflow test.
+
+### Related Bugs
+- BUG-0007
