@@ -3,13 +3,17 @@
 ## 当前任务
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
-- Current product focus remains the Argus agent-native research and intelligence toolkit: 166 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest milestone: Phase 3 added an explicit optional runtime probe that separates installed-package readiness from verified Crawl4AI/Codex execution without changing user settings.
+- Current product focus remains the Argus agent-native research and intelligence toolkit: 167 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
+- Latest milestone: added `find_research_resource` for access-aware book, paper, and official university course discovery, bringing the MCP surface to 167 tools.
 
 ## 已知问题
 
 - JavaScript rendering now has an optional Crawl4AI runtime adapter through `crawl_url(render_js=True)`, but it requires Crawl4AI and browser dependencies to be installed locally.
 - Broad web search can now reuse configured Tavily / Exa / Perplexity / Brave providers through `research_topic` sources such as `web:tavily`; optional local Codex SDK research is available through the `codex` source when `openai-codex` is installed; `research_images` provides page-derived image candidates, while a dedicated image-search backend remains a future adapter.
+- `find_research_resource` uses Open Library plus Project Gutenberg OPDS for books, arXiv / Semantic Scholar / OpenReview / Crossref for papers, and the Codex source for official course pages; it labels open download/read, borrow, preview, metadata-only, and unverified results without bypassing access controls.
+- Semantic Scholar anonymous paper search can be rate-limited; the unified resource response preserves that source error while retaining results from other academic sources.
+- Course discovery requires a working Codex runtime and can fail inside a restricted sandbox that cannot write `~/.codex`; the approved real runtime smoke returns official MIT OpenCourseWare results.
+- OpenAlex is intentionally not part of the unified no-key paper path because its current official API policy requires a free API key for stable use.
 - `research_pack` uses `research_topic` page candidates and built-in `crawl_url`; source/page failures are preserved in the response instead of failing the whole packet.
 - `research_workflow` can save JSON and Markdown research artifacts under a project-local output directory; unsafe output paths are rejected before search/crawl work starts.
 - `web:<provider>` answer summaries are useful in `research_topic.merged`, but page-crawling workflows must build candidates from both merged results and source raw items because answers can have no URL.
@@ -41,6 +45,10 @@
 
 ## 最近变更记录
 
+- Added `find_research_resource` with normalized access states and source-specific metadata for books, papers, and university courses.
+- Extended Open Library results with ebook access, full-text, public-scan, Internet Archive, and availability fields; added Project Gutenberg OPDS acquisition-file parsing.
+- Added query-relevance ranking and arXiv title search after a real smoke showed that access-only ordering could place unrelated recent PDFs ahead of an exact paper title.
+- Added Research Resource unit, partial-failure, registration, health, and relevance-regression coverage; verified real open-book, paper-PDF, and Codex-backed MIT course searches.
 - Added `research_runtime_probe` for explicit optional Crawl4AI/Codex runtime verification and sanitized configuration/permission failure reporting.
 - Verified the Codex runtime after updating the user-authorized global reasoning-effort setting from `ultra` to `xhigh` with a preserved backup.
 - Added a runtime-probe smoke command with stable exit codes for future Codex configuration validation.

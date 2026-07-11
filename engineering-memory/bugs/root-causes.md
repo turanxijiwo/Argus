@@ -58,3 +58,30 @@ For page-crawling flows, build the candidate pool from both merged results and s
 
 ### Related Bugs
 - BUG-0001
+
+## RC-0002: Availability-Only Ranking Replaced Query Relevance
+
+Status: active
+Category: API contract
+First observed: BUG-0002
+Recurring count: 1
+Severity trend: medium
+
+### Description
+Aggregated resource candidates came from sources with different default ordering, but the unified layer ranked only by access status. Downloadable but irrelevant results could therefore outrank an exact requested title.
+
+### Typical Symptoms
+- A resource search returns valid files that do not match the requested title.
+- A partial source outage changes which source dominates the first page.
+- Low result limits hide an exact match that exists further down a source response.
+
+### Common Triggers
+- One relevance-oriented source is rate-limited or unavailable.
+- Another source defaults to publication-date ordering.
+- All surviving candidates share the same access status.
+
+### Prevention Rule
+Cross-source resource search must compute local query relevance before truncation and use access status only as a filter or tie-breaker.
+
+### Related Bugs
+- BUG-0002

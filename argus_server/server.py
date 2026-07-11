@@ -36,6 +36,7 @@ from .tools.social_ops import SocialOpsTools
 from .tools.router import RouterTools
 from .tools.daily_brief import DailyBriefTools
 from .tools.research_toolkit import ResearchToolkitTools
+from .tools.research_resources import ResearchResourceTools
 from .utils.date_parser import DateParser
 from .utils.errors import MCPError
 
@@ -98,6 +99,11 @@ def _get_tools(project_root: Optional[str] = None):
             search_tools=_tools_instances['search'],
             article_reader=_tools_instances['article'],
             ai_search=_tools_instances['ai'],
+        )
+        _tools_instances['research_resources'] = ResearchResourceTools(
+            project_root,
+            external_api=_tools_instances['external'],
+            topic_search=_tools_instances['research'].research_topic,
         )
         # 确保 telemetry store 启动 (单例)
         TelemetryStore.instance(project_root)
@@ -3123,7 +3129,7 @@ async def research_toolkit_health() -> str:
     检查研究工具包能力与可选开源 CLI 安装状态。
 
     覆盖:
-      - 内置无依赖能力: crawl_url / discover_page_images / research_images / research_topic / research_pack / research_workflow / research_batch_workflow / download_gallery
+      - 内置无依赖能力: crawl_url / discover_page_images / research_images / research_topic / find_research_resource / research_pack / research_workflow / research_batch_workflow / download_gallery
       - 可选高质量 CLI/SDK: gallery-dl / yt-dlp / scrapy / crawl4ai / openai-codex
 
     Returns:
@@ -3263,6 +3269,49 @@ async def research_topic(
         query=query,
         sources=sources,
         limit=limit,
+    )
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+
+@mcp.tool
+async def find_research_resource(
+    query: str,
+    resource_type: str,
+    institution: Optional[str] = None,
+    language: Optional[str] = None,
+    access: str = "any",
+    limit: int = 10,
+    timeout: int = 20,
+) -> str:
+    """
+    搜索图书、论文或高校课程资源, 并明确标记公开下载、在线阅读、借阅、预览或仅元数据。
+
+    图书使用 Open Library 和 Project Gutenberg; 论文复用 arXiv、Semantic Scholar、
+    OpenReview 和 Crossref; 课程使用本地 Codex 搜索官方高校与开放课程页面。
+    本工具不接入影子库, 不绕过登录、付费墙、DRM 或校园权限。
+
+    Args:
+        query: 书名、论文题名/主题或课程/专业名称。
+        resource_type: book / paper / course。
+        institution: 可选高校名称, 主要用于 course。
+        language: 可选语言代码或名称, 例如 zh / en。
+        access: any / open / borrowable。
+        limit: 最多返回 25 条。
+        timeout: Project Gutenberg 请求超时秒数。
+
+    Returns:
+        JSON: 统一 resources、访问状态、文件链接、来源错误和访问策略。
+    """
+    tools = _get_tools()
+    result = await asyncio.to_thread(
+        tools['research_resources'].find_research_resource,
+        query=query,
+        resource_type=resource_type,
+        institution=institution,
+        language=language,
+        access=access,
+        limit=limit,
+        timeout=timeout,
     )
     return json.dumps(result, ensure_ascii=False, indent=2, default=str)
 

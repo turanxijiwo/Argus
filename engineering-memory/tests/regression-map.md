@@ -100,6 +100,7 @@ Known historical bugs:
 - Phase 3 optional runtime probe must distinguish installed packages from explicit runtime verification and sanitize Codex configuration or permission failures.
 - Phase 3 runtime-probe smoke must return exit code 2 for recognized configuration/permission/install blocks and exit code 3 for unexpected runtime failures.
 - Saved Codex smoke must require a ready review handoff whose artifact path matches the saved Codex workflow handoff.
+- Resource discovery must preserve book access metadata, merge Project Gutenberg acquisition files, isolate partial academic-source failures, and rank exact paper titles before access-status tie-breakers.
 
 ### Flow: MCP server import and tool registration
 
@@ -291,7 +292,18 @@ Test file:
 - `tests/test_mcp_registration.py`
 
 What it protects:
-- Keeps all eleven Research Toolkit tools registered on the FastMCP server and catches accidental changes to the expected 166-tool public surface.
+- Keeps all twelve Research Toolkit tools registered on the FastMCP server and catches accidental changes to the expected 167-tool public surface.
+
+### Research resource relevance and partial failure
+
+Test file:
+- `tests/test_research_resources.py`
+- `tests/test_research_resource_relevance.py`
+
+What it protects:
+- Keeps book, paper, and course results in one access-aware schema without bypassing access controls.
+- Preserves successful academic results when one source is rate-limited.
+- Prevents downloadable but unrelated papers from outranking an exact requested title.
 
 ### xhs CLI auth status and friendly errors
 

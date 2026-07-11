@@ -81,3 +81,41 @@ When a downstream flow requires URL-bearing pages, build candidates from the ful
 
 ### Follow-up
 None.
+
+## BUG-0002: Open PDF Availability Outranked Exact Paper Title
+
+Date: 2026-07-11
+Severity: P1
+Status: verified
+Area: Research Resource Discovery
+Tags: ranking, academic-search, partial-failure
+
+### Symptom
+An exact search for `Attention Is All You Need` returned unrelated recent arXiv papers ahead of the requested paper when Semantic Scholar was rate-limited.
+
+### Reproduction / Trigger
+The real `find_research_resource(..., resource_type="paper", access="open")` smoke returned three downloadable PDFs, but none was the requested title.
+
+### Root Cause
+The arXiv adapter used its default submitted-date ordering with a broad raw query, while the unified layer ranked only by access status. Once all candidates were downloadable, source order decided the result.
+
+### Affected Chain
+`find_research_resource` -> `_search_papers` -> `search_arxiv` -> normalized resources -> access-only sort -> truncated response.
+
+### Fix
+The paper path now sends an arXiv title query with relevance sorting, and the shared resource ranker scores normalized titles against the user query before applying access as a tie-breaker.
+
+### Tests Added / Updated
+- Test file: `tests/test_research_resource_relevance.py`
+- Test case: `test_exact_paper_title_is_ranked_first_and_sent_as_title_query`
+
+### Prevention
+Resource discovery must rank query relevance before convenience attributes such as download availability, while preserving access filters as explicit user intent.
+
+### Related Files
+- `argus_server/tools/research_resources.py`
+- `argus_server/tools/research_resource_normalize.py`
+- `tests/test_research_resource_relevance.py`
+
+### Follow-up
+None.

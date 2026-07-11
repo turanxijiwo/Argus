@@ -2165,7 +2165,10 @@ class ExternalAPITools:
         self,
         query: str,
         limit: int = 20,
-        fields: str = "key,title,author_name,first_publish_year,subject,isbn,language",
+        fields: str = (
+            "key,title,author_name,first_publish_year,subject,isbn,language,"
+            "ebook_access,has_fulltext,public_scan_b,ia,availability"
+        ),
     ) -> Dict:
         """Open Library 图书搜索 (Internet Archive 维护, 4000 万+ 书目, 免费)"""
         try:
@@ -2191,6 +2194,11 @@ class ExternalAPITools:
                         "subjects": (d.get("subject") or [])[:10],
                         "isbn": (d.get("isbn") or [])[:3],
                         "languages": d.get("language", []),
+                        "ebook_access": d.get("ebook_access") or "no_ebook",
+                        "has_fulltext": bool(d.get("has_fulltext")),
+                        "public_scan": bool(d.get("public_scan_b")),
+                        "internet_archive_ids": (d.get("ia") or [])[:5],
+                        "availability": d.get("availability") or {},
                         "url": f"https://openlibrary.org{key}" if key else "",
                     }
                 )

@@ -37,6 +37,7 @@ def toolkit_health(
                 "research_batch_workflow": "multi-query saved research workflows plus compact artifact review report",
                 "research_review_artifact": "compact quality review for one saved JSON research artifact",
                 "research_runtime_probe": "explicit optional Crawl4AI/Codex runtime verification",
+                "find_research_resource": "access-aware book, paper, and official course discovery",
                 "download_gallery": "safe gallery-dl wrapper when installed",
             },
             "web_search_sources": ["web", "web:tavily", "web:exa", "web:perplexity", "web:brave"],
@@ -122,6 +123,17 @@ def toolkit_health(
                     mode="explicit_opt_in_runtime_probe",
                     note="Package detection does not prove runtime compatibility; call research_runtime_probe to verify.",
                 ),
+                "find_research_resource": _capability(
+                    can_use_now=True,
+                    status="ready",
+                    mode="access_aware_resource_discovery",
+                    resource_types={
+                        "book": "ready",
+                        "paper": "ready" if external_api else "needs_external_adapter",
+                        "course": "ready" if codex_ready else "needs_codex_runtime",
+                    },
+                    note="Returns official/open/borrow/preview/metadata links and never bypasses access controls.",
+                ),
                 "download_gallery": _capability(
                     can_use_now=gallery_ready,
                     status="ready" if gallery_ready else "needs_setup",
@@ -151,6 +163,7 @@ def toolkit_health(
                 topic_source_ready,
                 topic_source_ready,
                 topic_source_ready,
+                True,
                 gallery_ready,
             ) if item
         ),

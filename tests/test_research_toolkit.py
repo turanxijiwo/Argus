@@ -143,6 +143,15 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertFalse(capabilities["research_pack"]["can_use_now"])
         self.assertFalse(capabilities["research_workflow"]["can_use_now"])
         self.assertFalse(capabilities["research_batch_workflow"]["can_use_now"])
+        self.assertTrue(capabilities["find_research_resource"]["can_use_now"])
+        self.assertEqual(
+            capabilities["find_research_resource"]["resource_types"]["paper"],
+            "needs_external_adapter",
+        )
+        self.assertEqual(
+            capabilities["find_research_resource"]["resource_types"]["course"],
+            "needs_codex_runtime",
+        )
         self.assertFalse(result["data"]["optional_cli"]["gallery-dl"]["installed"])
         self.assertFalse(result["data"]["optional_cli"]["openai-codex"]["installed"])
 
