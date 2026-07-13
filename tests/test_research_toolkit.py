@@ -570,6 +570,142 @@ class ResearchToolkitToolsTest(unittest.TestCase):
             self.assertIn("AI browser field report", brief)
             self.assertIn("Image Candidates", brief)
 
+    def test_research_workflow_saves_opted_in_openverse_images(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tool = ResearchToolkitTools(project_root=tmpdir, ai_search=FakeAIWebSearch())
+            shared_image_url = "https://images.example.com/campus.jpg"
+            tool.crawl_url = lambda url, render_js, timeout, max_chars: {
+                "success": True,
+                "data": {
+                    "url": url,
+                    "final_url": url,
+                    "status_code": 200,
+                    "content_type": "text/html",
+                    "title": "Tsinghua University field report",
+                    "description": "Campus research page",
+                    "text": "Evidence text about Tsinghua University.",
+                    "text_truncated": False,
+                    "links": [],
+                    "images": [{"url": shared_image_url, "alt": "Duplicate campus image"}],
+                },
+            }
+            openverse_result = {
+                "success": True,
+                "summary": {"count": 1},
+                "data": {
+                    "images": [
+                        {
+                            "query": "Tsinghua University",
+                            "image_url": shared_image_url,
+                            "thumbnail_url": "https://images.example.com/campus-thumb.jpg",
+                            "alt": "Tsinghua University campus",
+                            "source": "image:openverse",
+                            "source_page_url": "https://commons.wikimedia.org/wiki/File:Campus.jpg",
+                            "source_page_title": "Tsinghua University campus",
+                            "confidence": None,
+                            "creator": "Example Creator",
+                            "provider": "wikimedia",
+                            "license": "by-sa",
+                            "license_version": "4.0",
+                            "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+                            "attribution": "Campus by Example Creator, CC BY-SA 4.0",
+                            "mature": False,
+                            "license_verification_required": True,
+                        }
+                    ],
+                    "provider_notice": "Made using Openverse.",
+                    "license_notice": "Independently verify usage rights.",
+                    "rate_limit": {"anonymous_sustained_limit": "200/day"},
+                },
+            }
+
+            with patch(
+                "argus_server.tools.research_workflow.search_openverse_images",
+                return_value=openverse_result,
+            ) as openverse_search:
+                result = tool.research_workflow(
+                    "Tsinghua University",
+                    sources=["web:tavily", "image:openverse"],
+                    limit=2,
+                    save=True,
+                )
+
+            self.assertTrue(result["success"])
+            self.assertEqual(result["summary"]["source_count"], 2)
+            self.assertEqual(result["summary"]["image_count"], 1)
+            self.assertEqual(result["data"]["images"][0]["source"], "image:openverse")
+            self.assertEqual(result["data"]["images"][0]["license"], "by-sa")
+            self.assertNotIn("images", result["data"]["sources"]["image:openverse"]["data"])
+            self.assertIn("by-sa 4.0", result["data"]["brief"]["content"])
+            self.assertIn("Campus by Example Creator", result["data"]["brief"]["content"])
+            self.assertIn("Verify license metadata", result["data"]["brief"]["content"])
+            openverse_search.assert_called_once_with(
+                query="Tsinghua University",
+                limit=2,
+                timeout=20,
+            )
+
+            with open(result["data"]["artifact"]["path"], "r", encoding="utf-8") as handle:
+                saved = json.load(handle)
+            self.assertEqual(
+                saved["images"][0]["license_url"],
+                openverse_result["data"]["images"][0]["license_url"],
+            )
+            self.assertEqual(saved["source_errors"], [])
+
+    def test_research_workflow_preserves_openverse_rate_limit_in_saved_artifact(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tool = ResearchToolkitTools(project_root=tmpdir, ai_search=FakeAIWebSearch())
+            tool.crawl_url = lambda url, render_js, timeout, max_chars: {
+                "success": True,
+                "data": {
+                    "url": url,
+                    "final_url": url,
+                    "status_code": 200,
+                    "content_type": "text/html",
+                    "title": "AI browser field report",
+                    "description": "",
+                    "text": "Evidence text.",
+                    "text_truncated": False,
+                    "links": [],
+                    "images": [],
+                },
+            }
+            rate_limited = {
+                "success": False,
+                "error": {
+                    "code": "RATE_LIMITED",
+                    "message": "Openverse anonymous rate limit exceeded",
+                    "rate_limit": {"retry_after": "60"},
+                },
+            }
+
+            with patch(
+                "argus_server.tools.research_workflow.search_openverse_images",
+                return_value=rate_limited,
+            ):
+                result = tool.research_workflow(
+                    "AI browser",
+                    sources=["web:tavily", "image:openverse"],
+                    save=True,
+                    save_brief=False,
+                    include_brief=False,
+                )
+
+            self.assertTrue(result["success"])
+            self.assertEqual(result["summary"]["document_count"], 1)
+            self.assertEqual(result["summary"]["source_error_count"], 1)
+            self.assertEqual(result["data"]["source_errors"][0]["code"], "RATE_LIMITED")
+            self.assertEqual(result["data"]["handoff"]["status"], "partial")
+
+            with open(result["data"]["artifact"]["path"], "r", encoding="utf-8") as handle:
+                saved = json.load(handle)
+            self.assertEqual(saved["source_errors"][0]["code"], "RATE_LIMITED")
+            self.assertEqual(
+                saved["sources"]["image:openverse"]["error"]["rate_limit"]["retry_after"],
+                "60",
+            )
+
     def test_research_workflow_can_skip_brief_payload(self):
         tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())
         tool.crawl_url = lambda url, render_js, timeout, max_chars: {
@@ -789,14 +925,39 @@ class ResearchToolkitToolsTest(unittest.TestCase):
                     ],
                 },
             }
+            openverse_result = {
+                "success": True,
+                "data": {
+                    "images": [
+                        {
+                            "image_url": "https://images.example.com/licensed.jpg",
+                            "source_page_url": "https://example.com/licensed-image",
+                            "source_page_title": "Licensed image",
+                            "source": "image:openverse",
+                            "license": "by",
+                            "license_version": "4.0",
+                            "license_url": "https://creativecommons.org/licenses/by/4.0/",
+                            "attribution": "Licensed image by Example Creator, CC BY 4.0",
+                            "license_verification_required": True,
+                        }
+                    ],
+                    "provider_notice": "Made using Openverse.",
+                    "license_notice": "Independently verify usage rights.",
+                    "rate_limit": {"anonymous_sustained_limit": "200/day"},
+                },
+            }
 
-            result = tool.research_batch_workflow(
-                ["AI browser", "AI browser", "AI safety"],
-                sources=["web:tavily"],
-                limit=1,
-                output_dir="output/research/batch",
-                report_path="output/research/artifact-reviews/batch-review.md",
-            )
+            with patch(
+                "argus_server.tools.research_workflow.search_openverse_images",
+                return_value=openverse_result,
+            ) as openverse_search:
+                result = tool.research_batch_workflow(
+                    ["AI browser", "AI browser", "AI safety"],
+                    sources=["web:tavily", "image:openverse"],
+                    limit=1,
+                    output_dir="output/research/batch",
+                    report_path="output/research/artifact-reviews/batch-review.md",
+                )
 
             self.assertTrue(result["success"])
             self.assertEqual(result["summary"]["query_count"], 2)
@@ -816,10 +977,16 @@ class ResearchToolkitToolsTest(unittest.TestCase):
             self.assertIsNone(handoff["exit_code"])
             self.assertEqual(handoff["artifact_paths"], result["data"]["artifact_paths"])
             self.assertEqual(handoff["review_report"], "output/research/artifact-reviews/batch-review.md")
+            self.assertEqual(openverse_search.call_count, 2)
             for run in result["data"]["runs"]:
                 self.assertTrue(run["artifact_path"].startswith("output/research/batch/"))
                 self.assertTrue(run["brief_path"].startswith("output/research/batch/"))
                 self.assertEqual(run["quality_status"], "ready")
+                artifact_path = os.path.join(tmpdir, run["artifact_path"])
+                with open(artifact_path, "r", encoding="utf-8") as handle:
+                    saved = json.load(handle)
+                self.assertEqual(saved["images"][0]["source"], "image:openverse")
+                self.assertEqual(saved["images"][0]["license"], "by")
             serialized = json.dumps(result, ensure_ascii=False)
             self.assertNotIn(tmpdir, serialized)
             self.assertTrue(os.path.exists(os.path.join(tmpdir, "output/research/artifact-reviews/batch-review.md")))

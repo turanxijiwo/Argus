@@ -3598,7 +3598,7 @@ async def research_workflow(
 
     Args:
         query: 查询主题。
-        sources: 用于找页面的信息源列表; 不传时自动选择可用源。
+        sources: 用于找页面的信息源列表; 加入 image:openverse 可额外保存带许可元数据的直接图片候选; 不传时自动选择可用页面源。
         limit: 最多抓取多少个页面。
         timeout: 单页面抓取超时秒数。
         max_chars_per_page: 每页正文最大字符数。
@@ -3653,7 +3653,7 @@ async def research_batch_workflow(
 
     Args:
         queries: 查询主题列表, 会去重并忽略空字符串, 最多 25 条。
-        sources: 用于找页面的信息源列表; 不传时自动选择可用源。
+        sources: 用于找页面的信息源列表; 加入 image:openverse 可为每条保存型 workflow 增加带许可元数据的直接图片候选; 不传时自动选择可用页面源。
         limit: 每条查询最多抓取多少个页面。
         timeout: 单页面抓取超时秒数。
         max_chars_per_page: 每页正文最大字符数。

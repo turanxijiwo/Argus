@@ -87,11 +87,28 @@ def render_research_brief(workflow: Dict) -> Dict:
         for image in images[:10]:
             label = image.get("alt") or image.get("image_url") or "image"
             page_title = image.get("source_page_title") or image.get("source_page_url") or "source page"
-            lines.append(
-                f"- {_markdown_link(label, image.get('image_url'))} "
-                f"from {_markdown_link(page_title, image.get('source_page_url'))} "
-                f"(confidence {image.get('confidence')})"
-            )
+            if image.get("license"):
+                license_label = " ".join(
+                    part for part in [image.get("license"), image.get("license_version")] if part
+                )
+                details = [f"license {_markdown_link(license_label, image.get('license_url'))}"]
+                if image.get("provider"):
+                    details.append(f"provider `{image.get('provider')}`")
+                lines.append(
+                    f"- {_markdown_link(label, image.get('image_url'))} "
+                    f"from {_markdown_link(page_title, image.get('source_page_url'))} "
+                    f"({' · '.join(details)})"
+                )
+                if image.get("attribution"):
+                    lines.append(f"  - Attribution: {_clip_markdown_text(image.get('attribution'), 300)}")
+                if image.get("license_verification_required"):
+                    lines.append("  - Verify license metadata and attribution requirements before use.")
+            else:
+                lines.append(
+                    f"- {_markdown_link(label, image.get('image_url'))} "
+                    f"from {_markdown_link(page_title, image.get('source_page_url'))} "
+                    f"(confidence {image.get('confidence')})"
+                )
         lines.append("")
 
     if failed_documents:

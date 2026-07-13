@@ -4,12 +4,12 @@
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
 - Current product focus remains the Argus agent-native research and intelligence toolkit: 171 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest milestone: `scripts/research_openverse_smoke.py` now provides a repeatable no-key quality gate for the default `image:openverse` source without downloading media.
-- Next candidate stage: decide whether saved `research_workflow` artifacts should opt into licensed direct-image candidates; defer SearXNG until a maintained self-host endpoint is available.
+- Latest milestone: saved single and batch `research_workflow` calls can now opt into licensed direct-image candidates by including `image:openverse` in `sources`; default source selection and no-download behavior remain unchanged.
+- Next candidate stage: teach artifact review/handoff summaries to distinguish licensed Openverse images from page-derived candidates and surface license-verification warnings; defer SearXNG until a maintained self-host endpoint is available.
 
 ## 已知问题
 
-- `tests/test_research_toolkit.py` has reached 1,149 lines; split it by Research Toolkit capability in a dedicated test-organization task rather than mixing that refactor into feature work.
+- `tests/test_research_toolkit.py` has reached 1,316 lines; split it by Research Toolkit capability in a dedicated test-organization task rather than mixing that refactor into feature work.
 - JavaScript rendering now has an optional Crawl4AI runtime adapter through `crawl_url(render_js=True)`, but it requires Crawl4AI and browser dependencies to be installed locally.
 - Broad web search can reuse configured Tavily / Exa / Perplexity / Brave providers through `research_topic` sources such as `web:tavily`; optional local Codex SDK research is available through the `codex` source when `openai-codex` is installed. `research_images` now uses anonymous Openverse by default and can mix `image:openverse` with page-derived sources, but anonymous calls are rate-limited and Openverse license metadata must be independently verified.
 - `find_research_resource` uses Open Library plus Project Gutenberg OPDS for books, arXiv / Semantic Scholar / OpenReview / Crossref for papers, and the Codex source for official course pages; it labels open download/read, borrow, preview, metadata-only, and unverified results without bypassing access controls.
@@ -27,7 +27,7 @@
 - Course discovery requires a working Codex runtime and can fail inside a restricted sandbox that cannot write `~/.codex`; the approved real runtime smoke returns official MIT OpenCourseWare results.
 - OpenAlex is intentionally not part of the unified no-key paper path because its current official API policy requires a free API key for stable use.
 - `research_pack` uses `research_topic` page candidates and built-in `crawl_url`; source/page failures are preserved in the response instead of failing the whole packet.
-- `research_workflow` can save JSON and Markdown research artifacts under a project-local output directory; unsafe output paths are rejected before search/crawl work starts.
+- `research_workflow` can save JSON and Markdown research artifacts under a project-local output directory; unsafe output paths are rejected before search/crawl work starts. Adding `image:openverse` to `sources` opts into direct licensed-image metadata, while Openverse failures remain source-scoped and make the saved handoff partial.
 - `web:<provider>` answer summaries are useful in `research_topic.merged`, but page-crawling workflows must build candidates from both merged results and source raw items because answers can have no URL.
 - xhs CLI access still requires normal manual Xiaohongshu login; Argus reports expired/unavailable auth clearly, preflights `xhs_*` tools before business commands, and does not attempt to bypass login or auto-refresh cookies.
 - Codex SDK responses must return JSON for `research_topic(sources=["codex"])`; invalid JSON returns `PARSE_ERROR`, and missing SDK returns `NOT_INSTALLED`.
@@ -58,6 +58,9 @@
 
 ## 最近变更记录
 
+- Added explicit `sources=[..., "image:openverse"]` opt-in for saved single and batch workflows, preserving direct-image license, attribution, provider, source-page, and rate-limit metadata without changing defaults or downloading media.
+- Added cross-source image deduplication, license-aware Markdown rendering, and saved-artifact regressions for successful Openverse results and anonymous rate limiting.
+- Verified 55 related tests, 171 full tests, package build, and a real saved Wikipedia + Openverse workflow with one successful document, two image candidates, zero source errors, persisted `by-sa` metadata, and a ready handoff.
 - Added a repeatable anonymous Openverse quality smoke covering unique HTTP image/source URLs, non-mature results, license/attribution metadata, notices, rate-limit metadata, source errors, and no-download behavior.
 - Verified 45 related tests, 169 full tests, package build, and the real `Tsinghua University` smoke with three unique `by-sa` Flickr/Wikimedia images and exit code 0.
 - Added the no-key `image:openverse` source as the `research_images` default while preserving explicit page-first sources and cross-source URL deduplication.

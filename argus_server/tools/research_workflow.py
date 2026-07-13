@@ -12,6 +12,11 @@ from .research_io import (
     utc_timestamp_for_filename,
 )
 from .research_handoff import build_workflow_handoff
+from .research_images import (
+    OPENVERSE_SOURCE,
+    _compact_source_result,
+    search_openverse_images,
+)
 from .research_sources import (
     page_candidate_items,
     page_candidates,
@@ -60,25 +65,40 @@ def build_research_workflow(
     images_per_page = _safe_int(images_per_page, 5, 0, 30)
     retries = _safe_int(retries, 1, 0, 3)
     selected_sources = sources or []
+    page_sources = [source for source in selected_sources if source != OPENVERSE_SOURCE]
     selected_output_dir = output_dir or "output/research"
     if save:
         resolved_output = resolve_output_dir(project_root, selected_output_dir)
         if not resolved_output.get("success"):
             return resolved_output
 
-    topic_result = research_topic(query=query, sources=selected_sources, limit=limit)
-    if not topic_result.get("success"):
-        return topic_result
-
-    topic_data = topic_result.get("data") or {}
+    topic_data = {}
+    if page_sources:
+        topic_result = research_topic(query=query, sources=page_sources, limit=limit)
+        if not topic_result.get("success"):
+            return topic_result
+        topic_data = topic_result.get("data") or {}
     merged_items = topic_data.get("merged") or []
     candidate_pages = page_candidates(page_candidate_items(topic_data, merged_items), limit)
-    errors_by_source = source_errors(topic_data.get("sources") or {})
+    source_results = dict(topic_data.get("sources") or {})
     documents = []
     images = []
+    page_images = []
     seen_images = set()
     crawl_cache = {}
 
+    if OPENVERSE_SOURCE in selected_sources:
+        openverse_result = search_openverse_images(query=query, limit=limit, timeout=timeout)
+        source_results[OPENVERSE_SOURCE] = _compact_source_result(openverse_result)
+        if openverse_result.get("success"):
+            for image in (openverse_result.get("data") or {}).get("images") or []:
+                image_url = image.get("image_url")
+                if not image_url or image_url in seen_images:
+                    continue
+                seen_images.add(image_url)
+                images.append(image)
+
+    errors_by_source = source_errors(source_results)
     for page in candidate_pages:
         page_url = page["url"]
         if page_url not in crawl_cache:
@@ -107,7 +127,7 @@ def build_research_workflow(
             if not image_url or image_url in seen_images:
                 continue
             seen_images.add(image_url)
-            images.append(
+            page_images.append(
                 {
                     "query": query,
                     "image_url": image_url,
@@ -122,12 +142,13 @@ def build_research_workflow(
                 }
             )
 
-    images.sort(key=lambda item: item.get("confidence", 0), reverse=True)
+    page_images.sort(key=lambda item: item.get("confidence", 0), reverse=True)
+    images.extend(page_images)
     crawl_error_count = sum(1 for item in documents if not item.get("success"))
     skipped_item_count = max(0, len(merged_items) - len(candidate_pages))
     workflow = {
         "query": query,
-        "sources": topic_data.get("sources") or {},
+        "sources": source_results,
         "merged": merged_items,
         "source_errors": errors_by_source,
         "documents": documents,

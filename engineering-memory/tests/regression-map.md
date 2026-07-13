@@ -106,6 +106,7 @@ Known historical bugs:
 - Phase 2B web-provider smoke must skip clearly when no provider key is configured and must validate `research_topic`, `research_pack`, and `research_workflow` when a provider is available.
 - Phase 2B public crawl quality smoke must validate fixed public page fixtures, image discovery shape, and a key-free Wikipedia `research_workflow` before treating crawl quality as ready.
 - Openverse quality smoke must validate anonymous direct-image URLs, source pages, non-mature filtering, license/attribution metadata, notices, rate-limit metadata, source errors, and no-download behavior with stable exit codes.
+- Saved workflows must treat `image:openverse` as an explicit direct-image source, preserve license metadata in JSON/Markdown artifacts, dedupe against page images, and keep Openverse failures source-scoped without changing default sources.
 - Phase 2C artifact smoke must verify saved JSON and Markdown outputs are parseable, project-local, structurally readable, and tied to successful workflow documents.
 - Phase 2C artifact review must summarize saved research quality without full page-text replay, classify ready/partial/needs-attention artifacts, and preserve warnings for source/page/brief risks.
 - Phase 2C batch workflow must run multiple saved workflows, collect project-relative artifact paths, and generate a review report without requiring provider keys or replaying full page text.
@@ -296,6 +297,14 @@ Test file:
 
 What it protects:
 - Keeps `research_images` tied to topic search results, preserves source page context, dedupes repeated image URLs across pages, and reports source errors without failing the whole response.
+
+### Research workflow Openverse image opt-in
+
+Test file:
+- `tests/test_research_toolkit.py`
+
+What it protects:
+- Keeps `image:openverse` opt-in additive for saved single and batch workflows, writes license and attribution metadata to JSON/Markdown artifacts, gives direct licensed candidates dedupe priority, and preserves page evidence plus a partial handoff when Openverse is rate-limited.
 
 ### Research toolkit evidence pack generation
 
