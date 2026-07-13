@@ -85,6 +85,61 @@ class ResearchArtifactReviewTest(unittest.TestCase):
             self.assertIn("source_errors_present", review["warnings"])
             self.assertEqual(review["page_errors"][0]["code"], "NETWORK_ERROR")
 
+    def test_review_artifact_summarizes_openverse_license_metadata(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = pathlib.Path(tmpdir) / "research-openverse.json"
+            payload = ready_payload(str(path))
+            payload["images"].append(
+                {
+                    "image_url": "https://example.com/openverse.png",
+                    "source": "image:openverse",
+                    "license": "by-sa",
+                    "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+                    "attribution": "Image by Example Creator, CC BY-SA 4.0",
+                    "license_verification_required": True,
+                }
+            )
+            write_artifact(tmpdir, "research-openverse.json", payload)
+
+            review = research_artifact_review.review_artifact(str(path), tmpdir)
+
+            self.assertEqual(review["quality_status"], "ready")
+            self.assertEqual(review["warnings"], [])
+            self.assertEqual(review["counts"]["openverse_images"], 1)
+            self.assertEqual(review["counts"]["page_images"], 1)
+            self.assertEqual(review["counts"]["openverse_license_complete"], 1)
+            self.assertEqual(review["counts"]["license_verification_required_images"], 1)
+            self.assertEqual(
+                review["license_warnings"],
+                ["openverse_license_verification_required"],
+            )
+
+    def test_review_artifact_warns_on_incomplete_openverse_license_metadata(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = pathlib.Path(tmpdir) / "research-incomplete-license.json"
+            payload = ready_payload(str(path))
+            payload["images"] = [
+                {
+                    "image_url": "https://example.com/openverse.png",
+                    "source": "image:openverse",
+                    "license": "by-sa",
+                    "license_verification_required": True,
+                }
+            ]
+            write_artifact(tmpdir, "research-incomplete-license.json", payload)
+
+            review = research_artifact_review.review_artifact(str(path), tmpdir)
+
+            self.assertEqual(review["quality_status"], "ready")
+            self.assertEqual(review["counts"]["openverse_license_complete"], 0)
+            self.assertEqual(
+                review["license_warnings"],
+                [
+                    "openverse_license_metadata_incomplete",
+                    "openverse_license_verification_required",
+                ],
+            )
+
     def test_review_artifact_reports_unreadable_json(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = pathlib.Path(tmpdir) / "broken.json"
@@ -120,6 +175,7 @@ class ResearchArtifactReviewTest(unittest.TestCase):
             self.assertIn("Status: `ready`", markdown)
             self.assertIn("Key documents:", markdown)
             self.assertIn("[OpenAI](https://example.com/openai)", markdown)
+            self.assertIn("License warnings: 0", markdown)
 
     def test_find_artifacts_limits_latest_files(self):
         with tempfile.TemporaryDirectory() as tmpdir:

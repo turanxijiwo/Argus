@@ -636,6 +636,15 @@ class ResearchToolkitToolsTest(unittest.TestCase):
             self.assertEqual(result["data"]["images"][0]["source"], "image:openverse")
             self.assertEqual(result["data"]["images"][0]["license"], "by-sa")
             self.assertNotIn("images", result["data"]["sources"]["image:openverse"]["data"])
+            handoff = result["data"]["handoff"]
+            self.assertEqual(handoff["openverse_image_count"], 1)
+            self.assertEqual(handoff["page_image_count"], 0)
+            self.assertEqual(handoff["openverse_license_complete_count"], 1)
+            self.assertEqual(handoff["license_verification_required_count"], 1)
+            self.assertEqual(
+                handoff["license_warnings"],
+                ["openverse_license_verification_required"],
+            )
             self.assertIn("by-sa 4.0", result["data"]["brief"]["content"])
             self.assertIn("Campus by Example Creator", result["data"]["brief"]["content"])
             self.assertIn("Verify license metadata", result["data"]["brief"]["content"])
@@ -747,10 +756,23 @@ class ResearchToolkitToolsTest(unittest.TestCase):
             with open(path, "w", encoding="utf-8") as handle:
                 json.dump({
                     "query": "OpenAI",
-                    "sources": {"wikipedia": {}},
+                    "sources": {"wikipedia": {}, "image:openverse": {}},
                     "source_errors": [],
                     "brief": {"content": "brief " * 50},
-                    "images": [{"image_url": "https://example.com/image.png"}],
+                    "images": [
+                        {
+                            "image_url": "https://example.com/page-image.png",
+                            "source": "wikipedia",
+                        },
+                        {
+                            "image_url": "https://example.com/openverse-image.png",
+                            "source": "image:openverse",
+                            "license": "by",
+                            "license_url": "https://creativecommons.org/licenses/by/4.0/",
+                            "attribution": "Image by Example Creator, CC BY 4.0",
+                            "license_verification_required": True,
+                        },
+                    ],
                     "documents": [{"success": True, "text": "evidence " * 100}],
                 }, handle)
 
@@ -762,6 +784,21 @@ class ResearchToolkitToolsTest(unittest.TestCase):
             self.assertEqual(result["data"]["path"], "output/research/review.json")
             self.assertTrue(result["data"]["handoff"]["ready"])
             self.assertEqual(result["data"]["handoff"]["schema"], "argus.research.review.handoff.v1")
+            self.assertEqual(result["data"]["counts"]["openverse_images"], 1)
+            self.assertEqual(result["data"]["counts"]["page_images"], 1)
+            self.assertEqual(result["data"]["counts"]["openverse_license_complete"], 1)
+            self.assertEqual(result["data"]["counts"]["license_verification_required_images"], 1)
+            self.assertEqual(
+                result["data"]["license_warnings"],
+                ["openverse_license_verification_required"],
+            )
+            self.assertEqual(result["data"]["warnings"], [])
+            self.assertEqual(result["summary"]["license_warning_count"], 1)
+            self.assertEqual(result["data"]["handoff"]["openverse_image_count"], 1)
+            self.assertEqual(
+                result["data"]["handoff"]["license_warnings"],
+                ["openverse_license_verification_required"],
+            )
             self.assertNotIn("evidence evidence", json.dumps(result))
 
     def test_research_review_artifact_rejects_outside_project(self):
@@ -963,6 +1000,7 @@ class ResearchToolkitToolsTest(unittest.TestCase):
             self.assertEqual(result["summary"]["query_count"], 2)
             self.assertEqual(result["summary"]["artifact_count"], 2)
             self.assertEqual(result["data"]["review"]["status_counts"], {"ready": 2})
+            self.assertEqual(result["data"]["review"]["license_warning_count"], 2)
             self.assertEqual(len(result["data"]["runs"]), 2)
             self.assertEqual(len(result["data"]["artifact_paths"]), 2)
             self.assertTrue(result["data"]["report_artifact"]["success"])
@@ -977,11 +1015,22 @@ class ResearchToolkitToolsTest(unittest.TestCase):
             self.assertIsNone(handoff["exit_code"])
             self.assertEqual(handoff["artifact_paths"], result["data"]["artifact_paths"])
             self.assertEqual(handoff["review_report"], "output/research/artifact-reviews/batch-review.md")
+            self.assertEqual(handoff["openverse_image_count"], 2)
+            self.assertEqual(handoff["page_image_count"], 2)
+            self.assertEqual(handoff["openverse_license_complete_count"], 2)
+            self.assertEqual(handoff["license_verification_required_count"], 2)
+            self.assertEqual(handoff["license_warning_count"], 2)
             self.assertEqual(openverse_search.call_count, 2)
             for run in result["data"]["runs"]:
                 self.assertTrue(run["artifact_path"].startswith("output/research/batch/"))
                 self.assertTrue(run["brief_path"].startswith("output/research/batch/"))
                 self.assertEqual(run["quality_status"], "ready")
+                self.assertEqual(run["openverse_image_count"], 1)
+                self.assertEqual(run["page_image_count"], 1)
+                self.assertEqual(
+                    run["license_warnings"],
+                    ["openverse_license_verification_required"],
+                )
                 artifact_path = os.path.join(tmpdir, run["artifact_path"])
                 with open(artifact_path, "r", encoding="utf-8") as handle:
                     saved = json.load(handle)
@@ -989,7 +1038,12 @@ class ResearchToolkitToolsTest(unittest.TestCase):
                 self.assertEqual(saved["images"][0]["license"], "by")
             serialized = json.dumps(result, ensure_ascii=False)
             self.assertNotIn(tmpdir, serialized)
-            self.assertTrue(os.path.exists(os.path.join(tmpdir, "output/research/artifact-reviews/batch-review.md")))
+            report_path = os.path.join(tmpdir, "output/research/artifact-reviews/batch-review.md")
+            self.assertTrue(os.path.exists(report_path))
+            with open(report_path, "r", encoding="utf-8") as handle:
+                report = handle.read()
+            self.assertIn("License warnings: `2`", report)
+            self.assertIn("openverse_license_verification_required", report)
 
     def test_research_batch_workflow_rejects_empty_queries(self):
         tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())

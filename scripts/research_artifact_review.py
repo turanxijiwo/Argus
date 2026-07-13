@@ -13,6 +13,7 @@ DEFAULT_ARTIFACT_GLOB = "output/research/**/*.json"
 DEFAULT_REPORT_PATH = "output/research/artifact-reviews/latest-review.md"
 MIN_BRIEF_CHARS = 200
 MIN_EVIDENCE_TEXT_CHARS = 500
+OPENVERSE_SOURCE = "image:openverse"
 
 
 def find_artifacts(paths: Optional[Iterable[str]], directory: str, latest: int) -> List[str]:
@@ -49,6 +50,7 @@ def review_artifact(path: str, project_root: str) -> Dict[str, Any]:
             "quality_status": "unreadable",
             "score": 0,
             "warnings": ["json_unreadable"],
+            "license_warnings": [],
             "error": error,
             "query": None,
             "counts": {},
@@ -61,6 +63,7 @@ def review_artifact(path: str, project_root: str) -> Dict[str, Any]:
     failed_documents = [document for document in documents if not document.get("success")]
     source_errors = payload.get("source_errors") or []
     images = payload.get("images") or []
+    image_summary = summarize_image_candidates(images)
     brief = payload.get("brief") or {}
     brief_content = brief.get("content") or ""
     total_text_chars = sum(len(document.get("text") or "") for document in successful_documents)
@@ -86,13 +89,18 @@ def review_artifact(path: str, project_root: str) -> Dict[str, Any]:
         "quality_status": quality_status(score, warnings),
         "score": score,
         "warnings": warnings,
+        "license_warnings": image_summary["license_warnings"],
         "query": payload.get("query"),
         "counts": {
             "sources": len(payload.get("sources") or {}),
             "documents": len(documents),
             "successful_documents": len(successful_documents),
             "failed_documents": len(failed_documents),
-            "images": len(images),
+            "images": image_summary["images"],
+            "openverse_images": image_summary["openverse_images"],
+            "page_images": image_summary["page_images"],
+            "openverse_license_complete": image_summary["openverse_license_complete"],
+            "license_verification_required_images": image_summary["license_verification_required_images"],
             "source_errors": len(source_errors),
             "brief_chars": len(brief_content),
             "evidence_text_chars": total_text_chars,
@@ -163,6 +171,38 @@ def quality_status(score: int, warnings: List[str]) -> str:
     return "needs_attention"
 
 
+def summarize_image_candidates(images: Iterable[Any]) -> Dict[str, Any]:
+    selected_images = list(images or [])
+    openverse_images = [
+        image
+        for image in selected_images
+        if isinstance(image, dict) and image.get("source") == OPENVERSE_SOURCE
+    ]
+    complete_openverse_licenses = sum(
+        1
+        for image in openverse_images
+        if all(image.get(field) for field in ("license", "license_url", "attribution"))
+    )
+    verification_required = sum(
+        1
+        for image in openverse_images
+        if image.get("license_verification_required") is True
+    )
+    license_warnings = []
+    if complete_openverse_licenses < len(openverse_images):
+        license_warnings.append("openverse_license_metadata_incomplete")
+    if verification_required:
+        license_warnings.append("openverse_license_verification_required")
+    return {
+        "images": len(selected_images),
+        "openverse_images": len(openverse_images),
+        "page_images": len(selected_images) - len(openverse_images),
+        "openverse_license_complete": complete_openverse_licenses,
+        "license_verification_required_images": verification_required,
+        "license_warnings": license_warnings,
+    }
+
+
 def key_documents(documents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     selected = []
     for document in documents[:5]:
@@ -217,6 +257,15 @@ def review_collection(paths: List[str], project_root: str) -> Dict[str, Any]:
         "artifact_count": len(reviews),
         "status_counts": status_counts,
         "average_score": round(sum(review.get("score", 0) for review in reviews) / len(reviews), 1) if reviews else 0,
+        "openverse_image_count": sum((review.get("counts") or {}).get("openverse_images", 0) for review in reviews),
+        "page_image_count": sum((review.get("counts") or {}).get("page_images", 0) for review in reviews),
+        "openverse_license_complete_count": sum(
+            (review.get("counts") or {}).get("openverse_license_complete", 0) for review in reviews
+        ),
+        "license_verification_required_count": sum(
+            (review.get("counts") or {}).get("license_verification_required_images", 0) for review in reviews
+        ),
+        "license_warning_count": sum(len(review.get("license_warnings") or []) for review in reviews),
         "reviews": reviews,
     }
 
@@ -228,6 +277,7 @@ def render_markdown_report(report: Dict[str, Any]) -> str:
         f"- Artifacts: {report.get('artifact_count', 0)}",
         f"- Average score: {report.get('average_score', 0)}",
         f"- Status counts: {json.dumps(report.get('status_counts') or {}, ensure_ascii=False, sort_keys=True)}",
+        f"- License warnings: {report.get('license_warning_count', 0)}",
         "",
     ]
     for review in report.get("reviews") or []:
@@ -242,12 +292,15 @@ def render_markdown_report(report: Dict[str, Any]) -> str:
         )
         warnings = review.get("warnings") or []
         lines.append(f"- Warnings: {', '.join(f'`{warning}`' for warning in warnings) if warnings else 'none'}")
+        license_warnings = review.get("license_warnings") or []
+        lines.append(f"- License warnings: {', '.join(f'`{warning}`' for warning in license_warnings) if license_warnings else 'none'}")
         counts = review.get("counts") or {}
         if counts:
             lines.append(
                 "- Counts: "
                 f"{counts.get('successful_documents', 0)}/{counts.get('documents', 0)} documents usable, "
-                f"{counts.get('images', 0)} images, "
+                f"{counts.get('images', 0)} images "
+                f"({counts.get('openverse_images', 0)} Openverse, {counts.get('page_images', 0)} page), "
                 f"{counts.get('source_errors', 0)} source errors, "
                 f"{counts.get('brief_chars', 0)} brief chars"
             )

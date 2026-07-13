@@ -4,6 +4,7 @@ import json
 import os
 from typing import Any, Dict, List, Optional
 
+from .research_handoff import summarize_image_candidates
 from .research_io import resolve_project_path
 
 
@@ -37,6 +38,7 @@ def review_research_artifact(
     successful = [document for document in documents if document.get("success")]
     failed = [document for document in documents if not document.get("success")]
     source_errors = payload.get("source_errors") or []
+    image_summary = summarize_image_candidates(payload.get("images") or [])
     brief_chars = len((payload.get("brief") or {}).get("content") or "")
     evidence_chars = sum(len(document.get("text") or "") for document in successful)
     warnings = _warnings(successful, failed, source_errors, brief_chars, evidence_chars)
@@ -45,18 +47,27 @@ def review_research_artifact(
     relative_path = _relative_path(resolved, project_root)
     return {
         "success": True,
-        "summary": {"quality_status": quality_status, "score": score},
+        "summary": {
+            "quality_status": quality_status,
+            "score": score,
+            "license_warning_count": len(image_summary["license_warnings"]),
+        },
         "data": {
             "path": relative_path,
             "query": payload.get("query"),
             "quality_status": quality_status,
             "score": score,
             "warnings": warnings,
+            "license_warnings": image_summary["license_warnings"],
             "counts": {
                 "documents": len(documents),
                 "successful_documents": len(successful),
                 "failed_documents": len(failed),
-                "images": len(payload.get("images") or []),
+                "images": image_summary["images"],
+                "openverse_images": image_summary["openverse_images"],
+                "page_images": image_summary["page_images"],
+                "openverse_license_complete": image_summary["openverse_license_complete"],
+                "license_verification_required_images": image_summary["license_verification_required_images"],
                 "source_errors": len(source_errors),
                 "brief_chars": brief_chars,
                 "evidence_text_chars": evidence_chars,
@@ -68,6 +79,11 @@ def review_research_artifact(
                 "quality_status": quality_status,
                 "score": score,
                 "warnings": warnings,
+                "openverse_image_count": image_summary["openverse_images"],
+                "page_image_count": image_summary["page_images"],
+                "openverse_license_complete_count": image_summary["openverse_license_complete"],
+                "license_verification_required_count": image_summary["license_verification_required_images"],
+                "license_warnings": image_summary["license_warnings"],
             },
         },
     }

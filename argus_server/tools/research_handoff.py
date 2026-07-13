@@ -9,6 +9,39 @@ from .research_io import resolve_project_path
 BATCH_HANDOFF_SCHEMA = "argus.research.batch.handoff.v1"
 COMPARISON_HANDOFF_SCHEMA = "argus.research.comparison.handoff.v1"
 WORKFLOW_HANDOFF_SCHEMA = "argus.research.workflow.handoff.v1"
+OPENVERSE_SOURCE = "image:openverse"
+
+
+def summarize_image_candidates(images: Iterable[Any]) -> Dict[str, Any]:
+    selected_images = list(images or [])
+    openverse_images = [
+        image
+        for image in selected_images
+        if isinstance(image, dict) and image.get("source") == OPENVERSE_SOURCE
+    ]
+    complete_openverse_licenses = sum(
+        1
+        for image in openverse_images
+        if all(image.get(field) for field in ("license", "license_url", "attribution"))
+    )
+    verification_required = sum(
+        1
+        for image in openverse_images
+        if image.get("license_verification_required") is True
+    )
+    license_warnings = []
+    if complete_openverse_licenses < len(openverse_images):
+        license_warnings.append("openverse_license_metadata_incomplete")
+    if verification_required:
+        license_warnings.append("openverse_license_verification_required")
+    return {
+        "images": len(selected_images),
+        "openverse_images": len(openverse_images),
+        "page_images": len(selected_images) - len(openverse_images),
+        "openverse_license_complete": complete_openverse_licenses,
+        "license_verification_required_images": verification_required,
+        "license_warnings": license_warnings,
+    }
 
 
 def build_workflow_handoff(
@@ -18,6 +51,7 @@ def build_workflow_handoff(
     entrypoint: str = "mcp",
 ) -> Dict[str, Any]:
     documents = workflow.get("documents") or []
+    image_summary = summarize_image_candidates(workflow.get("images") or [])
     successful_documents = sum(1 for document in documents if document.get("success"))
     crawl_error_count = sum(1 for document in documents if not document.get("success"))
     source_errors = workflow.get("source_errors") or {}
@@ -47,7 +81,12 @@ def build_workflow_handoff(
         "successful_document_count": successful_documents,
         "crawl_error_count": crawl_error_count,
         "source_error_count": len(source_errors),
-        "image_count": len(workflow.get("images") or []),
+        "image_count": image_summary["images"],
+        "openverse_image_count": image_summary["openverse_images"],
+        "page_image_count": image_summary["page_images"],
+        "openverse_license_complete_count": image_summary["openverse_license_complete"],
+        "license_verification_required_count": image_summary["license_verification_required_images"],
+        "license_warnings": image_summary["license_warnings"],
         "output_dir": _relative_hint(output_dir),
     }
 
@@ -84,6 +123,26 @@ def build_batch_handoff(
         "review_report": report_path,
         "status_counts": status_counts,
         "average_score": selected_review.get("average_score", 0),
+        "openverse_image_count": selected_review.get(
+            "openverse_image_count",
+            sum(run.get("openverse_image_count", 0) for run in selected_runs),
+        ),
+        "page_image_count": selected_review.get(
+            "page_image_count",
+            sum(run.get("page_image_count", 0) for run in selected_runs),
+        ),
+        "openverse_license_complete_count": selected_review.get(
+            "openverse_license_complete_count",
+            sum(run.get("openverse_license_complete_count", 0) for run in selected_runs),
+        ),
+        "license_verification_required_count": selected_review.get(
+            "license_verification_required_count",
+            sum(run.get("license_verification_required_count", 0) for run in selected_runs),
+        ),
+        "license_warning_count": selected_review.get(
+            "license_warning_count",
+            sum(len(run.get("license_warnings") or []) for run in selected_runs),
+        ),
         "output_dir": output_dir,
         "exit_code": exit_code,
     }

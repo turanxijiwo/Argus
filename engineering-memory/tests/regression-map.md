@@ -107,6 +107,7 @@ Known historical bugs:
 - Phase 2B public crawl quality smoke must validate fixed public page fixtures, image discovery shape, and a key-free Wikipedia `research_workflow` before treating crawl quality as ready.
 - Openverse quality smoke must validate anonymous direct-image URLs, source pages, non-mature filtering, license/attribution metadata, notices, rate-limit metadata, source errors, and no-download behavior with stable exit codes.
 - Saved workflows must treat `image:openverse` as an explicit direct-image source, preserve license metadata in JSON/Markdown artifacts, dedupe against page images, and keep Openverse failures source-scoped without changing default sources.
+- Workflow/review/batch handoffs and standalone artifact review must distinguish Openverse from page images, report complete-license and verification-required counts, and keep license warnings separate from quality score/ready semantics.
 - Phase 2C artifact smoke must verify saved JSON and Markdown outputs are parseable, project-local, structurally readable, and tied to successful workflow documents.
 - Phase 2C artifact review must summarize saved research quality without full page-text replay, classify ready/partial/needs-attention artifacts, and preserve warnings for source/page/brief risks.
 - Phase 2C batch workflow must run multiple saved workflows, collect project-relative artifact paths, and generate a review report without requiring provider keys or replaying full page text.
@@ -278,6 +279,7 @@ Test file:
 
 What it protects:
 - Keeps local artifact review useful for batch handoff by summarizing quality status, scores, warnings, key source metadata, unreadable files, and Markdown report output without replaying full crawled page text.
+- Keeps Openverse/page image counts, complete-license counts, and explicit verification/incomplete-metadata warnings visible in JSON and Markdown without downgrading otherwise reusable artifacts.
 
 ### Research toolkit batch workflow report
 
@@ -289,6 +291,7 @@ What it protects:
 - Keeps the one-command saved workflow loop reliable by loading query lists, running per-query saved workflows, collecting project-relative artifact paths, and generating a Markdown review report from the local artifact review pipeline.
 - Keeps the MCP-facing batch workflow reliable by deduping queries, saving per-query JSON/Markdown artifacts, writing a project-local review report, and rejecting unsafe report paths.
 - Keeps MCP and script batch workflow outputs aligned through the shared `handoff` block without replaying full crawled page text.
+- Keeps aggregate Openverse/page/license counts and license-warning totals aligned across MCP runs, batch reports, and shared batch handoffs.
 
 ### Research toolkit topic image discovery
 
@@ -305,6 +308,7 @@ Test file:
 
 What it protects:
 - Keeps `image:openverse` opt-in additive for saved single and batch workflows, writes license and attribution metadata to JSON/Markdown artifacts, gives direct licensed candidates dedupe priority, and preserves page evidence plus a partial handoff when Openverse is rate-limited.
+- Keeps workflow and review handoffs explicit about Openverse/page image counts, complete license metadata, and required manual verification without changing existing readiness rules.
 
 ### Research toolkit evidence pack generation
 

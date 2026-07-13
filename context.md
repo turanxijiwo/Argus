@@ -4,12 +4,13 @@
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
 - Current product focus remains the Argus agent-native research and intelligence toolkit: 171 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest milestone: saved single and batch `research_workflow` calls can now opt into licensed direct-image candidates by including `image:openverse` in `sources`; default source selection and no-download behavior remain unchanged.
-- Next candidate stage: teach artifact review/handoff summaries to distinguish licensed Openverse images from page-derived candidates and surface license-verification warnings; defer SearXNG until a maintained self-host endpoint is available.
+- Latest milestone: workflow, review, and batch handoffs plus terminal artifact review now distinguish Openverse and page images, count complete license metadata, and surface separate license-verification warnings without changing quality score/ready semantics.
+- Next candidate stage: extend the saved-artifact smoke with an opt-in Openverse end-to-end license contract, then reassess the next no-key media/content adapter; defer SearXNG until a maintained self-host endpoint is available.
 
 ## 已知问题
 
-- `tests/test_research_toolkit.py` has reached 1,316 lines; split it by Research Toolkit capability in a dedicated test-organization task rather than mixing that refactor into feature work.
+- `tests/test_research_toolkit.py` has reached 1,370 lines; split it by Research Toolkit capability in a dedicated test-organization task rather than mixing that refactor into feature work.
+- `scripts/research_artifact_review.py` has reached 452 lines; preserve its standalone execution contract, but split loading, image-license summarization, and Markdown rendering in a dedicated task.
 - JavaScript rendering now has an optional Crawl4AI runtime adapter through `crawl_url(render_js=True)`, but it requires Crawl4AI and browser dependencies to be installed locally.
 - Broad web search can reuse configured Tavily / Exa / Perplexity / Brave providers through `research_topic` sources such as `web:tavily`; optional local Codex SDK research is available through the `codex` source when `openai-codex` is installed. `research_images` now uses anonymous Openverse by default and can mix `image:openverse` with page-derived sources, but anonymous calls are rate-limited and Openverse license metadata must be independently verified.
 - `find_research_resource` uses Open Library plus Project Gutenberg OPDS for books, arXiv / Semantic Scholar / OpenReview / Crossref for papers, and the Codex source for official course pages; it labels open download/read, borrow, preview, metadata-only, and unverified results without bypassing access controls.
@@ -40,7 +41,7 @@
 - `scripts/research_openverse_smoke.py` exits with code 0 for a passing image/license contract, 2 for rate-limit/network availability failures, and 3 for structure/quality failures; the current real smoke passes with three unique non-mature Flickr/Wikimedia results and no media download.
 - `docs/RESEARCH_WORKFLOW_EXAMPLES.md` is now the preferred handoff for running saved JSON + Markdown research workflows from an MCP client.
 - `scripts/research_artifact_smoke.py` saves artifacts under ignored `output/research/artifact-smoke/` and verifies JSON parseability, Markdown brief structure, project-local paths, successful documents, and readable handoff fields; the current local smoke passes with one successful document and Markdown/JSON artifacts saved.
-- `scripts/research_artifact_review.py` scans saved JSON artifacts under `output/research/` or explicit paths, scores readability/reuse quality, summarizes key documents and warnings, and can write a Markdown review report under ignored output paths; the current local review report is ready with score 100 and no warnings.
+- `scripts/research_artifact_review.py` scans saved JSON artifacts under `output/research/` or explicit paths, scores readability/reuse quality, summarizes key documents and warnings, and can write a Markdown review report under ignored output paths. License warnings are reported separately from quality warnings, so `ready` means structurally reusable rather than legally cleared for image reuse.
 - `scripts/research_batch_workflow.py` runs one or more saved workflows, stores artifacts under ignored `output/research/batch/`, prints project-relative artifact paths, and writes `output/research/artifact-reviews/batch-review.md` through the local artifact review pipeline; the current local batch for OpenAI and AI safety passes with two ready artifacts and average score 100.
 - The MCP `research_batch_workflow` tool now exposes batch saved-workflow execution to agents directly, dedupes query lists, saves per-query JSON/Markdown artifacts, writes a compact review report, and returns only counts plus project-relative paths; the current local MCP batch for OpenAI and AI safety passes with two ready artifacts and average score 100.
 - `research_runtime.py` now owns Research Toolkit session headers, max HTML/text limits, retriable crawl error defaults, and automatic workflow source selection; this is a structure-only split from `research_toolkit.py`.
@@ -58,6 +59,9 @@
 
 ## 最近变更记录
 
+- Added shared workflow/MCP review image summaries for total, Openverse, page-derived, license-complete, and manual-verification-required candidates, with additive handoff fields.
+- Extended MCP batch and standalone artifact reviews with aggregate license counts and separate `openverse_license_metadata_incomplete` / `openverse_license_verification_required` warnings while preserving existing score and ready behavior.
+- Verified 71 related tests, 173 full tests, package build, and matching MCP/CLI review of a real saved artifact: two images split 1 Openverse/1 page, one complete license record, one verification warning, quality ready, and score 100.
 - Added explicit `sources=[..., "image:openverse"]` opt-in for saved single and batch workflows, preserving direct-image license, attribution, provider, source-page, and rate-limit metadata without changing defaults or downloading media.
 - Added cross-source image deduplication, license-aware Markdown rendering, and saved-artifact regressions for successful Openverse results and anonymous rate limiting.
 - Verified 55 related tests, 171 full tests, package build, and a real saved Wikipedia + Openverse workflow with one successful document, two image candidates, zero source errors, persisted `by-sa` metadata, and a ready handoff.

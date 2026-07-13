@@ -3,7 +3,7 @@
 import os
 from typing import Any, Callable, Dict, Iterable, List, Optional
 
-from .research_handoff import build_batch_handoff
+from .research_handoff import build_batch_handoff, summarize_image_candidates
 from .research_io import resolve_project_path
 from .research_web import clean_text
 
@@ -108,6 +108,7 @@ def summarize_workflow_result(query: str, result: Dict[str, Any], project_root: 
     artifact = data.get("artifact") or {}
     brief_artifact = brief.get("artifact") or {}
     evidence_text_chars = sum(len(document.get("text") or "") for document in successful_documents)
+    image_summary = summarize_image_candidates(data.get("images") or [])
     run = {
         "query": query,
         "success": bool(result.get("success")),
@@ -117,7 +118,12 @@ def summarize_workflow_result(query: str, result: Dict[str, Any], project_root: 
         "successful_document_count": len(successful_documents),
         "crawl_error_count": len(failed_documents),
         "source_error_count": len(source_errors),
-        "image_count": len(data.get("images") or []),
+        "image_count": image_summary["images"],
+        "openverse_image_count": image_summary["openverse_images"],
+        "page_image_count": image_summary["page_images"],
+        "openverse_license_complete_count": image_summary["openverse_license_complete"],
+        "license_verification_required_count": image_summary["license_verification_required_images"],
+        "license_warnings": image_summary["license_warnings"],
         "brief_included": bool(brief_content),
         "brief_chars": len(brief_content),
         "evidence_text_chars": evidence_text_chars,
@@ -168,9 +174,7 @@ def run_score(run: Dict[str, Any]) -> int:
 def quality_status(score: int, warnings: List[str]) -> str:
     if score >= 80 and not warnings:
         return "ready"
-    if score >= 40:
-        return "partial"
-    return "needs_attention"
+    return "partial" if score >= 40 else "needs_attention"
 
 
 def review_runs(runs: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -183,6 +187,7 @@ def review_runs(runs: List[Dict[str, Any]]) -> Dict[str, Any]:
         "artifact_count": sum(1 for run in runs if run.get("artifact_path")),
         "status_counts": status_counts,
         "average_score": round(sum(run.get("score", 0) for run in runs) / len(runs), 1) if runs else 0,
+        "license_warning_count": sum(len(run.get("license_warnings") or []) for run in runs),
     }
 
 
@@ -200,6 +205,7 @@ def render_batch_report(
         f"- Output dir: `{output_dir}`",
         f"- Average score: `{review.get('average_score', 0)}`",
         f"- Status counts: `{review.get('status_counts') or {}}`",
+        f"- License warnings: `{review.get('license_warning_count', 0)}`",
         "",
     ]
     for run in runs:
@@ -214,7 +220,8 @@ def render_batch_report(
                 (
                     "- Counts: "
                     f"{run.get('successful_document_count', 0)}/{run.get('document_count', 0)} documents usable, "
-                    f"{run.get('image_count', 0)} images, "
+                    f"{run.get('image_count', 0)} images "
+                    f"({run.get('openverse_image_count', 0)} Openverse, {run.get('page_image_count', 0)} page), "
                     f"{run.get('source_error_count', 0)} source errors, "
                     f"{run.get('crawl_error_count', 0)} crawl errors"
                 ),
@@ -222,6 +229,8 @@ def render_batch_report(
         )
         warnings = run.get("warnings") or []
         lines.append(f"- Warnings: {', '.join(f'`{warning}`' for warning in warnings) if warnings else 'none'}")
+        license_warnings = run.get("license_warnings") or []
+        lines.append(f"- License warnings: {', '.join(f'`{warning}`' for warning in license_warnings) if license_warnings else 'none'}")
         if run.get("error"):
             error = run["error"]
             lines.append(f"- Error: `{error.get('code')}` {error.get('message') or ''}".rstrip())
