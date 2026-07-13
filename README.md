@@ -126,6 +126,8 @@ Claude Code / Cherry Studio / 任何 MCP client 配置:
 
 研究工具包第一版不新增依赖,默认提供网页抓取、图片候选发现、主题驱动图片研究、跨源情报搜索、证据包生成、研究流水线、批量保存型研究流水线、单 artifact 质量审查、显式可选 runtime probe 和 `gallery-dl` 安全 dry-run 封装; `research_toolkit_health` 会返回包/CLI/配置准备状态,而 `research_runtime_probe` 会按明确请求验证 Crawl4AI 或 Codex SDK 是否真的可运行; `crawl_url(render_js=True)` 可在本地安装 Crawl4AI 后启用动态渲染,`research_topic` 可复用已配置的 Tavily / Exa / Perplexity / Brave 作为 `web:<provider>` 搜索源,也可在本地安装 `openai-codex` 后使用 `codex` 源控制本地 Codex SDK 做个人研究检索,`ARGUS_CODEX_MODEL` 可覆盖默认模型; `research_pack` 会先找页面再抓取正文,保留 source/page 错误和可继续交给 AI 总结的结构化证据; `research_images` 默认通过 `image:openverse` 免 Key 搜图,保留原图、缩略图、作者、许可、署名、来源页和动态限流信息,也可与 `codex` / `wikipedia` / `web:<provider>` 页面来源混合并跨源去重; Openverse 授权元数据使用前仍需独立复核; `research_workflow` 会自动选择可用搜索源,一次完成主题搜索、页面抓取、图片候选抽取、可重试错误记录、Markdown 研究简报生成,并可选保存 JSON + Markdown 文件; `research_batch_workflow` 会为多个查询批量生成 JSON/Markdown 产物和一份项目内 Markdown 审查报告,`research_review_artifact` 可直接审查单个已保存 JSON 并返回分数、状态、警告和计数,响应只返回计数、相对路径和质量摘要。后续按活跃度、License、CLI/API 稳定性、结构化输出、速率限制能力逐个接入 Crawl4AI / gallery-dl / yt-dlp / Scrapy / SearXNG 等开源工具。
 
+Openverse 匿名搜索可用 `uv run python scripts/research_openverse_smoke.py` 做真实质量冒烟。脚本只检索元数据、不下载媒体；退出码 `0` 表示结果与许可元数据契约通过，`2` 表示限流或网络等外部不可用，`3` 表示结果结构或质量回归。
+
 `find_research_resource` 使用 Open Library / Project Gutenberg、arXiv / Semantic Scholar / OpenReview / Crossref 和 Codex 官方课程搜索,统一标记公开下载、在线阅读、借阅、预览、仅元数据或未验证状态,且不绕过登录、付费墙、DRM 或校园权限。
 
 `research_resource_workflow` 会选择一个资源结果,通过 Jina Reader 读取已验证的公开 PDF 或课程页,可选用本机 Codex SDK 生成摘要,并保存项目内 JSON + Markdown 产物。摘要使用本机 Codex 登录状态,不要求单独 API key; `summarize=False` 可完全跳过 Codex。默认拒绝未验证、借阅、预览和仅元数据资源;图书若只有 EPUB/Kindle 文件,当前只读取资源页,不声称已读取全文。

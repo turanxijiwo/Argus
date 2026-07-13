@@ -71,6 +71,7 @@ Tests to run:
 - `uv run python -m unittest tests.test_research_provider_smoke`
 - `uv run python -m unittest tests.test_research_codex_smoke`
 - `uv run python -m unittest tests.test_research_crawl_quality_smoke`
+- `uv run python -m unittest tests.test_research_openverse_smoke`
 - `uv run python -m unittest tests.test_research_artifact_smoke`
 - `uv run python -m unittest tests.test_research_artifact_review`
 - `uv run python -m unittest tests.test_research_batch_workflow`
@@ -104,6 +105,7 @@ Known historical bugs:
 - Phase 2B Codex-source smoke must distinguish local SDK/state/permission unavailability from Codex research-contract failures and validate the topic-to-workflow chain when available.
 - Phase 2B web-provider smoke must skip clearly when no provider key is configured and must validate `research_topic`, `research_pack`, and `research_workflow` when a provider is available.
 - Phase 2B public crawl quality smoke must validate fixed public page fixtures, image discovery shape, and a key-free Wikipedia `research_workflow` before treating crawl quality as ready.
+- Openverse quality smoke must validate anonymous direct-image URLs, source pages, non-mature filtering, license/attribution metadata, notices, rate-limit metadata, source errors, and no-download behavior with stable exit codes.
 - Phase 2C artifact smoke must verify saved JSON and Markdown outputs are parseable, project-local, structurally readable, and tied to successful workflow documents.
 - Phase 2C artifact review must summarize saved research quality without full page-text replay, classify ready/partial/needs-attention artifacts, and preserve warnings for source/page/brief risks.
 - Phase 2C batch workflow must run multiple saved workflows, collect project-relative artifact paths, and generate a review report without requiring provider keys or replaying full page text.
@@ -251,6 +253,14 @@ Test file:
 
 What it protects:
 - Keeps the Phase 2B public crawl quality runner repeatable by checking fixed public fixture contracts, page image discovery summaries, and a Wikipedia workflow success contract without provider keys or Codex SDK state.
+
+### Research toolkit Openverse quality smoke runner
+
+Test file:
+- `tests/test_research_openverse_smoke.py`
+
+What it protects:
+- Keeps anonymous Openverse image search repeatable without downloading media, requires unique non-mature HTTP image/source URLs plus complete license metadata and notices, and distinguishes external unavailability exit code `2` from quality-contract failure exit code `3`.
 
 ### Research toolkit saved artifact quality smoke runner
 

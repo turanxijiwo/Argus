@@ -4,8 +4,8 @@
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
 - Current product focus remains the Argus agent-native research and intelligence toolkit: 171 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest milestone: `research_images` now defaults to anonymous `image:openverse` search with creator, license, attribution, source-page, thumbnail, mature-content, and live rate-limit metadata; existing page-derived sources remain available and can be mixed with direct results.
-- Next candidate stage: add a repeatable Openverse quality smoke and decide whether saved `research_workflow` artifacts should opt into licensed direct-image candidates; defer SearXNG until a maintained self-host endpoint is available.
+- Latest milestone: `scripts/research_openverse_smoke.py` now provides a repeatable no-key quality gate for the default `image:openverse` source without downloading media.
+- Next candidate stage: decide whether saved `research_workflow` artifacts should opt into licensed direct-image candidates; defer SearXNG until a maintained self-host endpoint is available.
 
 ## 已知问题
 
@@ -37,6 +37,7 @@
 - `scripts/research_codex_smoke.py` exits with code 2 for Codex SDK/state/permission unavailability and code 3 for Codex research-contract failures; the approved unsandboxed smoke currently passes with one URL-bearing topic result, one successful workflow document, and can use `--save` to verify the saved artifact-to-review handoff.
 - `scripts/research_provider_smoke.py` exits with code 2 and `NO_CONFIGURED_PROVIDER` when no provider key is configured; with a key, it validates `research_topic`, `research_pack`, and `research_workflow` against the chosen `web:<provider>` source.
 - `scripts/research_crawl_quality_smoke.py` exits with code 0 only when both public crawl fixtures and the public Wikipedia workflow pass; the current local smoke passes with two fixture pages, one successful Wikipedia workflow document, five images, and a Markdown brief.
+- `scripts/research_openverse_smoke.py` exits with code 0 for a passing image/license contract, 2 for rate-limit/network availability failures, and 3 for structure/quality failures; the current real smoke passes with three unique non-mature Flickr/Wikimedia results and no media download.
 - `docs/RESEARCH_WORKFLOW_EXAMPLES.md` is now the preferred handoff for running saved JSON + Markdown research workflows from an MCP client.
 - `scripts/research_artifact_smoke.py` saves artifacts under ignored `output/research/artifact-smoke/` and verifies JSON parseability, Markdown brief structure, project-local paths, successful documents, and readable handoff fields; the current local smoke passes with one successful document and Markdown/JSON artifacts saved.
 - `scripts/research_artifact_review.py` scans saved JSON artifacts under `output/research/` or explicit paths, scores readability/reuse quality, summarizes key documents and warnings, and can write a Markdown review report under ignored output paths; the current local review report is ready with score 100 and no warnings.
@@ -57,6 +58,8 @@
 
 ## 最近变更记录
 
+- Added a repeatable anonymous Openverse quality smoke covering unique HTTP image/source URLs, non-mature results, license/attribution metadata, notices, rate-limit metadata, source errors, and no-download behavior.
+- Verified 45 related tests, 169 full tests, package build, and the real `Tsinghua University` smoke with three unique `by-sa` Flickr/Wikimedia images and exit code 0.
 - Added the no-key `image:openverse` source as the `research_images` default while preserving explicit page-first sources and cross-source URL deduplication.
 - Preserved Openverse creator, license, attribution, landing-page, thumbnail, dimensions, mature-content, and anonymous rate-limit metadata; `429`, timeout, HTTP, network, and malformed-response failures remain source-scoped.
 - Verified 41 Research Toolkit tests, 165 full tests, package build, and a real Chinese Openverse query returning three unique non-mature Flickr/Wikimedia images with source and license links; the live anonymous headers reported 20 requests/minute and 200 requests/day.
