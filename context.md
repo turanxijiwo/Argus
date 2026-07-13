@@ -4,8 +4,8 @@
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
 - Current product focus remains the Argus agent-native research and intelligence toolkit: 171 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest milestone: the no-key media adapter evaluation selected metadata-only Openverse audio as the next source, with Internet Archive deferred to broad metadata and `yt-dlp` deferred to known-URL enrichment.
-- Next candidate stage: implement a focused `audio:openverse` adapter plus normal/error contract tests without changing the public MCP surface; expose `research_audio` separately after the adapter contract is stable.
+- Latest milestone: the internal `audio:openverse` adapter now performs bounded anonymous Openverse audio search, returns license-aware metadata only, filters mature/malformed results, dedupes preview URLs, and preserves rate-limit/error contracts without changing the public MCP surface.
+- Next candidate stage: expose the proven adapter as a public `research_audio` MCP tool, then update health, registration count, inventories, examples, and a real no-download smoke in separately scoped work.
 
 ## 已知问题
 
@@ -13,7 +13,7 @@
 - `scripts/research_artifact_review.py` has reached 452 lines; preserve its standalone execution contract, but split loading, image-license summarization, and Markdown rendering in a dedicated task.
 - JavaScript rendering now has an optional Crawl4AI runtime adapter through `crawl_url(render_js=True)`, but it requires Crawl4AI and browser dependencies to be installed locally.
 - Broad web search can reuse configured Tavily / Exa / Perplexity / Brave providers through `research_topic` sources such as `web:tavily`; optional local Codex SDK research is available through the `codex` source when `openai-codex` is installed. `research_images` now uses anonymous Openverse by default and can mix `image:openverse` with page-derived sources, but anonymous calls are rate-limited and Openverse license metadata must be independently verified.
-- Openverse audio is the selected next no-key media source; a real anonymous probe returned complete CC metadata and observed the same 20/minute and 200/day limits as image search, but those values remain dynamic and every result still requires independent license verification.
+- Openverse audio is implemented internally but is not yet registered as an MCP tool. A real anonymous probe returned complete CC metadata and observed the same 20/minute and 200/day limits as image search, but those values remain dynamic and every result still requires independent license verification.
 - Internet Archive search and metadata APIs are viable later, but automated requests require a descriptive User-Agent and search metadata does not prove open file access or reusable rights. The installed `yt-dlp` `2026.07.04` can inspect a public MIT video without downloading it, while warning that reliable YouTube extraction needs an additional JavaScript runtime.
 - `find_research_resource` uses Open Library plus Project Gutenberg OPDS for books, arXiv / Semantic Scholar / OpenReview / Crossref for papers, and the Codex source for official course pages; it labels open download/read, borrow, preview, metadata-only, and unverified results without bypassing access controls.
 - `research_resource_workflow` reads verified public PDF/HTML/TXT links through Jina Reader, optionally summarizes with the local Codex SDK, and can save project-local JSON/Markdown artifacts; unverified links require explicit opt-in, while borrow/preview/metadata-only results remain blocked.
@@ -61,6 +61,9 @@
 
 ## 最近变更记录
 
+- Added the internal metadata-only `audio:openverse` adapter with bounded query/timeout inputs, URL deduplication, mature/malformed filtering, Openverse notices, dynamic anonymous limit metadata, and no waveform/alternate-file/media retrieval.
+- Added six focused regressions covering normalization and no-download output plus empty query, anonymous rate limiting, timeout, invalid JSON, and missing result-list failures.
+- Verified 49 related tests, 180 full tests, package build, and a real `birdsong` adapter query returning two license-aware Freesound results with no waveform or alternate-file fields; the first result was CC BY 4.0, non-mature, and marked for independent license verification.
 - Added `docs/RESEARCH_MEDIA_ADAPTER_EVALUATION.md` and ADR-0002, selecting metadata-only `audio:openverse` as the next adapter while defining no-download, no-scraping, license-verification, rate-limit, and mature-content boundaries.
 - Verified real anonymous Openverse audio and Internet Archive searches plus two no-download `yt-dlp` probes; recorded why Internet Archive, `yt-dlp`, and undocumented course-search endpoints are deferred.
 - Extended the saved-artifact smoke so explicit `image:openverse` runs enforce license metadata and verification notices in JSON/Markdown plus count/warning consistency across workflow and review handoffs.

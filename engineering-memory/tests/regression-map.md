@@ -106,6 +106,7 @@ Known historical bugs:
 - Phase 2B web-provider smoke must skip clearly when no provider key is configured and must validate `research_topic`, `research_pack`, and `research_workflow` when a provider is available.
 - Phase 2B public crawl quality smoke must validate fixed public page fixtures, image discovery shape, and a key-free Wikipedia `research_workflow` before treating crawl quality as ready.
 - Openverse quality smoke must validate anonymous direct-image URLs, source pages, non-mature filtering, license/attribution metadata, notices, rate-limit metadata, source errors, and no-download behavior with stable exit codes.
+- Openverse audio search must remain metadata-only, bounded, non-mature, URL-deduplicated, license-verification-aware, and explicit about rate-limit, timeout, and provider-response failures.
 - Saved workflows must treat `image:openverse` as an explicit direct-image source, preserve license metadata in JSON/Markdown artifacts, dedupe against page images, and keep Openverse failures source-scoped without changing default sources.
 - Workflow/review/batch handoffs and standalone artifact review must distinguish Openverse from page images, report complete-license and verification-required counts, and keep license warnings separate from quality score/ready semantics.
 - Phase 2C artifact smoke must verify saved JSON and Markdown outputs are parseable, project-local, structurally readable, and tied to successful workflow documents.
@@ -264,6 +265,14 @@ Test file:
 
 What it protects:
 - Keeps anonymous Openverse image search repeatable without downloading media, requires unique non-mature HTTP image/source URLs plus complete license metadata and notices, and distinguishes external unavailability exit code `2` from quality-contract failure exit code `3`.
+
+### Research toolkit Openverse audio adapter
+
+Test file:
+- `tests/test_research_audio.py`
+
+What it protects:
+- Keeps `audio:openverse` metadata-only and bounded, filters mature or malformed candidates, dedupes preview URLs, omits waveform and alternate-file payloads, preserves license notices and anonymous rate limits, and returns stable invalid-query, timeout, rate-limit, and provider-response errors.
 
 ### Research toolkit saved artifact quality smoke runner
 
