@@ -4,6 +4,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+import requests
+
 from argus_server.tools.research_runtime import default_workflow_sources
 from argus_server.tools.research_toolkit import ResearchToolkitTools
 
@@ -85,6 +87,40 @@ class FakeMultiPageAIWebSearch:
         }
 
 
+class FakeImageAPIResponse:
+    def __init__(self, payload=None, status_code=200, headers=None):
+        self.payload = payload
+        self.status_code = status_code
+        self.headers = headers or {}
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise requests.HTTPError(f"HTTP {self.status_code}", response=self)
+
+    def json(self):
+        if isinstance(self.payload, Exception):
+            raise self.payload
+        return self.payload
+
+
+class FakeImageAPISession:
+    def __init__(self, response=None, error=None):
+        self.response = response
+        self.error = error
+        self.calls = []
+
+    def get(self, url, params, headers, timeout):
+        self.calls.append({
+            "url": url,
+            "params": params,
+            "headers": headers,
+            "timeout": timeout,
+        })
+        if self.error:
+            raise self.error
+        return self.response
+
+
 class FakeMarkdown:
     raw_markdown = "# Rendered Title\nRendered body from browser"
     fit_markdown = None
@@ -144,6 +180,9 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertEqual(capabilities["research_topic_web"]["status"], "needs_api_key")
         self.assertFalse(capabilities["research_topic_codex"]["can_use_now"])
         self.assertEqual(capabilities["research_topic_codex"]["missing"], ["openai-codex"])
+        self.assertTrue(capabilities["research_images"]["can_use_now"])
+        self.assertEqual(capabilities["research_images"]["default_source"], "image:openverse")
+        self.assertEqual(result["data"]["image_search_sources"], ["image:openverse"])
         self.assertFalse(capabilities["research_pack"]["can_use_now"])
         self.assertFalse(capabilities["research_workflow"]["can_use_now"])
         self.assertFalse(capabilities["research_batch_workflow"]["can_use_now"])
@@ -875,6 +914,170 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertEqual(image["source_page_url"], "https://example.com/web")
         self.assertEqual(image["source"], "web:tavily")
         self.assertGreater(image["confidence"], 0.8)
+
+    def test_research_images_defaults_to_openverse_with_license_metadata(self):
+        response = FakeImageAPIResponse(
+            payload={
+                "result_count": 2,
+                "results": [
+                    {
+                        "title": "Tsinghua University",
+                        "foreign_landing_url": "https://www.flickr.com/photos/example/1",
+                        "url": "https://live.staticflickr.com/1/tsinghua.jpg",
+                        "thumbnail": "https://api.openverse.org/v1/images/example/thumb/",
+                        "creator": "Example Creator",
+                        "creator_url": "https://www.flickr.com/photos/example",
+                        "license": "by-sa",
+                        "license_version": "4.0",
+                        "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+                        "provider": "flickr",
+                        "attribution": "Tsinghua University by Example Creator, CC BY-SA 4.0",
+                        "mature": False,
+                        "width": 1600,
+                        "height": 1200,
+                        "detail_url": "https://api.openverse.org/v1/images/example/",
+                    },
+                    {
+                        "title": "Filtered sensitive result",
+                        "url": "https://example.com/sensitive.jpg",
+                        "mature": True,
+                    },
+                ],
+            },
+            headers={
+                "x-ratelimit-limit-anon_burst": "20/min",
+                "x-ratelimit-available-anon_burst": "19",
+                "x-ratelimit-limit-anon_sustained": "200/day",
+                "x-ratelimit-available-anon_sustained": "199",
+            },
+        )
+        session = FakeImageAPISession(response=response)
+        tool = ResearchToolkitTools(project_root=os.getcwd())
+
+        with patch(
+            "argus_server.tools.research_images.create_research_session",
+            return_value=session,
+        ):
+            result = tool.research_images("清华大学", limit=2)
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["summary"]["source_count"], 1)
+        self.assertEqual(result["summary"]["page_count"], 0)
+        self.assertEqual(result["summary"]["image_count"], 1)
+        image = result["data"]["images"][0]
+        self.assertEqual(image["source"], "image:openverse")
+        self.assertEqual(image["creator"], "Example Creator")
+        self.assertEqual(image["license"], "by-sa")
+        self.assertEqual(image["license_version"], "4.0")
+        self.assertTrue(image["license_verification_required"])
+        self.assertFalse(image["mature"])
+        self.assertIsNone(image["confidence"])
+        source_data = result["data"]["sources"]["image:openverse"]["data"]
+        self.assertIn("Made using Openverse", source_data["provider_notice"])
+        self.assertEqual(
+            source_data["rate_limit"]["anonymous_sustained_limit"],
+            "200/day",
+        )
+        self.assertEqual(session.calls[0]["params"]["mature"], "false")
+        self.assertEqual(session.calls[0]["params"]["page_size"], 2)
+
+    def test_research_images_reports_openverse_rate_limit(self):
+        response = FakeImageAPIResponse(
+            payload={},
+            status_code=429,
+            headers={
+                "retry-after": "60",
+                "x-ratelimit-available-anon_burst": "0",
+            },
+        )
+        session = FakeImageAPISession(response=response)
+        tool = ResearchToolkitTools(project_root=os.getcwd())
+
+        with patch(
+            "argus_server.tools.research_images.create_research_session",
+            return_value=session,
+        ):
+            result = tool.research_images("AI browser")
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["summary"]["image_count"], 0)
+        self.assertEqual(result["summary"]["source_error_count"], 1)
+        self.assertEqual(result["data"]["source_errors"][0]["code"], "RATE_LIMITED")
+        source_error = result["data"]["sources"]["image:openverse"]["error"]
+        self.assertEqual(source_error["rate_limit"]["retry_after"], "60")
+
+    def test_research_images_reports_openverse_timeout(self):
+        session = FakeImageAPISession(error=requests.Timeout("timed out"))
+        tool = ResearchToolkitTools(project_root=os.getcwd())
+
+        with patch(
+            "argus_server.tools.research_images.create_research_session",
+            return_value=session,
+        ):
+            result = tool.research_images("AI browser")
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["summary"]["image_count"], 0)
+        self.assertEqual(result["data"]["source_errors"][0]["code"], "TIMEOUT")
+
+    def test_research_images_reports_invalid_openverse_response(self):
+        response = FakeImageAPIResponse(payload=ValueError("invalid JSON"))
+        session = FakeImageAPISession(response=response)
+        tool = ResearchToolkitTools(project_root=os.getcwd())
+
+        with patch(
+            "argus_server.tools.research_images.create_research_session",
+            return_value=session,
+        ):
+            result = tool.research_images("AI browser")
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["summary"]["image_count"], 0)
+        self.assertEqual(
+            result["data"]["source_errors"][0]["code"],
+            "INVALID_PROVIDER_RESPONSE",
+        )
+
+    def test_research_images_dedupes_openverse_and_page_sources(self):
+        shared_url = "https://cdn.example.com/shared.png"
+        response = FakeImageAPIResponse(
+            payload={
+                "result_count": 1,
+                "results": [
+                    {
+                        "title": "Shared image",
+                        "foreign_landing_url": "https://example.com/openverse-source",
+                        "url": shared_url,
+                        "mature": False,
+                    }
+                ],
+            },
+        )
+        session = FakeImageAPISession(response=response)
+        tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())
+        tool.discover_page_images = lambda url, timeout, limit: {
+            "success": True,
+            "data": {
+                "page_url": url,
+                "title": "Page image",
+                "images": [{"url": shared_url, "alt": "Shared image"}],
+            },
+        }
+
+        with patch(
+            "argus_server.tools.research_images.create_research_session",
+            return_value=session,
+        ):
+            result = tool.research_images(
+                "AI browser",
+                sources=["image:openverse", "web:tavily"],
+                limit=2,
+            )
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["summary"]["page_count"], 1)
+        self.assertEqual(result["summary"]["image_count"], 1)
+        self.assertEqual(result["data"]["images"][0]["source"], "image:openverse")
 
     def test_research_images_uses_web_result_when_answer_has_no_url_at_limit_one(self):
         tool = ResearchToolkitTools(project_root=os.getcwd(), ai_search=FakeAIWebSearch())

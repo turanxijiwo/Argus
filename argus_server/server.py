@@ -3511,20 +3511,21 @@ async def research_images(
     timeout: int = 20,
 ) -> str:
     """
-    先按主题查找相关页面, 再从页面中发现图片候选, 保留来源页上下文。
+    通过 Openverse 直接搜图, 或先查找相关页面再提取图片候选。
 
-    这是轻量图片研究入口, 不是下载器, 也不是专用图片搜索引擎。
-    默认 sources 为 ["web:tavily"], 也可传 local_news / hackernews / wikipedia / reddit:<subreddit> / codex 等。
+    默认 sources 为 ["image:openverse"], 无需 API key; 也可与 wikipedia / codex /
+    web:<provider> 等页面来源混合使用。Openverse 返回作者、许可和署名元数据,
+    但使用前仍需独立复核授权状态。本工具只返回候选链接, 不下载媒体。
 
     Args:
         query: 查询主题。
-        sources: 用于找页面的信息源列表。
-        limit: 最多抓取多少个页面。
+        sources: 图片直接来源或用于找页面的信息源列表。
+        limit: Openverse 最多返回多少张图, 或页面来源最多搜索多少个页面。
         images_per_page: 每个页面最多提取多少张图片。
         timeout: 单页面抓取超时秒数。
 
     Returns:
-        JSON: 图片候选、来源页面、source 错误和轻量 confidence 分数。
+        JSON: 图片候选、来源页面、许可/署名元数据、限流状态和 source 错误。
     """
     tools = _get_tools()
     result = await asyncio.to_thread(

@@ -2,6 +2,9 @@
 
 > Historical Phase 1 contract. The current Phase 2 surface is documented in
 > `RESEARCH_TOOLKIT_PHASE2_DELIVERY_AUDIT.md`.
+> Phase 2 now also gives `research_images` a built-in anonymous
+> `image:openverse` source; the page-first statements below remain the Phase 1
+> baseline rather than the current default.
 
 This document keeps the Research Toolkit scope explicit so later work does not
 drift into unrelated crawling, account automation, or dependency installation.
@@ -125,6 +128,8 @@ Future work can be considered only after Phase 1 is complete and verified:
 - Local Crawl4AI installation verification and browser dependency diagnostics.
 - Optional browser-session research through an explicit user-approved tool path.
 - Dedicated image-search backend selection after API/license/rate-limit review.
+  Completed later with the anonymous `image:openverse` source, including
+  attribution metadata, license-verification warnings, and rate-limit errors.
 - SearXNG or other metasearch adapter evaluation.
 - Deeper media tooling around `gallery-dl` and `yt-dlp`, still dry-run by
   default.

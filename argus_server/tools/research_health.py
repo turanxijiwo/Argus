@@ -31,7 +31,7 @@ def toolkit_health(
                 "discover_page_images": "image candidate extraction from HTML",
                 "research_topic": "cross-source normalized research aggregation, including optional web:<provider> and codex sources",
                 "research_pack": "topic search plus page crawling into an evidence packet",
-                "research_images": "query-driven page discovery plus normalized image candidate extraction",
+                "research_images": "anonymous Openverse image search plus optional page-derived image extraction",
                 "research_workflow": "one-call topic search, page crawl, image extraction, markdown brief, retry summary, and optional export",
                 "research_batch_workflow": "multi-query saved research workflows plus compact artifact review report",
                 "research_review_artifact": "compact quality review for one saved JSON research artifact",
@@ -44,6 +44,7 @@ def toolkit_health(
                 "download_gallery": "safe gallery-dl wrapper when installed",
             },
             "web_search_sources": ["web", "web:tavily", "web:exa", "web:perplexity", "web:brave"],
+            "image_search_sources": ["image:openverse"],
             "research_sources": [
                 "local_news",
                 "hackernews",
@@ -92,10 +93,11 @@ def toolkit_health(
                     model=os.environ.get("ARGUS_CODEX_MODEL") or "gpt-5.4",
                 ),
                 "research_images": _capability(
-                    can_use_now=topic_source_ready,
-                    status="ready" if topic_source_ready else "needs_source",
-                    missing=[] if topic_source_ready else ["a topic source that returns page URLs"],
-                    setup_hint=None if topic_source_ready else "Use non-web sources with URLs, configure a web-search provider, or install the local Codex SDK",
+                    can_use_now=True,
+                    status="ready",
+                    mode="anonymous_openverse_and_optional_page_sources",
+                    default_source="image:openverse",
+                    note="Openverse is anonymously rate-limited; returned license metadata requires independent verification.",
                 ),
                 "research_pack": _capability(
                     can_use_now=topic_source_ready,

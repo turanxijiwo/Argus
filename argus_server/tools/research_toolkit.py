@@ -160,10 +160,10 @@ class ResearchToolkitTools:
         timeout: int = 20,
     ) -> Dict:
         """
-        Discover image candidates by first finding relevant pages, then extracting page media.
+        Search Openverse directly or discover image candidates from relevant pages.
 
-        This is not a dedicated image-search backend. It is a dependency-free
-        research workflow that preserves source page context for each image.
+        The default ``image:openverse`` source is anonymous and preserves
+        creator/license metadata. Other sources keep the page-first workflow.
         """
         return build_research_images(
             query=query,

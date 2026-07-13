@@ -4,13 +4,14 @@
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
 - Current product focus remains the Argus agent-native research and intelligence toolkit: 171 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest milestone: `research_audit_comparison` now verifies every unique locator actually used by saved comparison claims without returning excerpts or source text; comparison handoffs expose integrity-audit readiness and the public surface is 171 tools.
-- Next candidate stage: audit live search/crawl source coverage and choose one no-key expansion, prioritizing a SearXNG metasearch adapter or dedicated image-search backend only after license, runtime, and result-quality evidence.
+- Latest milestone: `research_images` now defaults to anonymous `image:openverse` search with creator, license, attribution, source-page, thumbnail, mature-content, and live rate-limit metadata; existing page-derived sources remain available and can be mixed with direct results.
+- Next candidate stage: add a repeatable Openverse quality smoke and decide whether saved `research_workflow` artifacts should opt into licensed direct-image candidates; defer SearXNG until a maintained self-host endpoint is available.
 
 ## 已知问题
 
+- `tests/test_research_toolkit.py` has reached 1,149 lines; split it by Research Toolkit capability in a dedicated test-organization task rather than mixing that refactor into feature work.
 - JavaScript rendering now has an optional Crawl4AI runtime adapter through `crawl_url(render_js=True)`, but it requires Crawl4AI and browser dependencies to be installed locally.
-- Broad web search can now reuse configured Tavily / Exa / Perplexity / Brave providers through `research_topic` sources such as `web:tavily`; optional local Codex SDK research is available through the `codex` source when `openai-codex` is installed; `research_images` provides page-derived image candidates, while a dedicated image-search backend remains a future adapter.
+- Broad web search can reuse configured Tavily / Exa / Perplexity / Brave providers through `research_topic` sources such as `web:tavily`; optional local Codex SDK research is available through the `codex` source when `openai-codex` is installed. `research_images` now uses anonymous Openverse by default and can mix `image:openverse` with page-derived sources, but anonymous calls are rate-limited and Openverse license metadata must be independently verified.
 - `find_research_resource` uses Open Library plus Project Gutenberg OPDS for books, arXiv / Semantic Scholar / OpenReview / Crossref for papers, and the Codex source for official course pages; it labels open download/read, borrow, preview, metadata-only, and unverified results without bypassing access controls.
 - `research_resource_workflow` reads verified public PDF/HTML/TXT links through Jina Reader, optionally summarizes with the local Codex SDK, and can save project-local JSON/Markdown artifacts; unverified links require explicit opt-in, while borrow/preview/metadata-only results remain blocked.
 - Books that expose only EPUB/Kindle files currently fall back to reading the public resource landing page; the workflow does not claim that this is full-book text.
@@ -56,6 +57,9 @@
 
 ## 最近变更记录
 
+- Added the no-key `image:openverse` source as the `research_images` default while preserving explicit page-first sources and cross-source URL deduplication.
+- Preserved Openverse creator, license, attribution, landing-page, thumbnail, dimensions, mature-content, and anonymous rate-limit metadata; `429`, timeout, HTTP, network, and malformed-response failures remain source-scoped.
+- Verified 41 Research Toolkit tests, 165 full tests, package build, and a real Chinese Openverse query returning three unique non-mature Flickr/Wikimedia images with source and license links; the live anonymous headers reported 20 requests/minute and 200 requests/day.
 - Added `research_audit_comparison`, a no-text, no-key audit of every unique locator used by saved comparison claims, with verified/unverified/failed aggregation and compact per-source issues.
 - Extracted shared project-local comparison loading, source caching, and source/locator indexing so bounded replay and full audit enforce one artifact boundary.
 - Fixed locator validation to reject ranges outside the SHA-256-covered comparison prefix even when they remain inside the current full source text; replay and full audit share the regression guard.
