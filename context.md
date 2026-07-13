@@ -4,8 +4,8 @@
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
 - Current product focus remains the Argus agent-native research and intelligence toolkit: 171 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest milestone: workflow, review, and batch handoffs plus terminal artifact review now distinguish Openverse and page images, count complete license metadata, and surface separate license-verification warnings without changing quality score/ready semantics.
-- Next candidate stage: extend the saved-artifact smoke with an opt-in Openverse end-to-end license contract, then reassess the next no-key media/content adapter; defer SearXNG until a maintained self-host endpoint is available.
+- Latest milestone: the saved-artifact smoke now turns an explicit `image:openverse` source into a strict end-to-end license contract across saved JSON/Markdown, workflow handoff, MCP review counts, and review handoff warnings without changing the default Wikipedia smoke.
+- Next candidate stage: reassess the next maintained no-key media/content adapter, with public media metadata and course/resource discovery as candidates; defer SearXNG until a maintained self-host endpoint is available.
 
 ## 已知问题
 
@@ -40,7 +40,7 @@
 - `scripts/research_crawl_quality_smoke.py` exits with code 0 only when both public crawl fixtures and the public Wikipedia workflow pass; the current local smoke passes with two fixture pages, one successful Wikipedia workflow document, five images, and a Markdown brief.
 - `scripts/research_openverse_smoke.py` exits with code 0 for a passing image/license contract, 2 for rate-limit/network availability failures, and 3 for structure/quality failures; the current real smoke passes with three unique non-mature Flickr/Wikimedia results and no media download.
 - `docs/RESEARCH_WORKFLOW_EXAMPLES.md` is now the preferred handoff for running saved JSON + Markdown research workflows from an MCP client.
-- `scripts/research_artifact_smoke.py` saves artifacts under ignored `output/research/artifact-smoke/` and verifies JSON parseability, Markdown brief structure, project-local paths, successful documents, and readable handoff fields; the current local smoke passes with one successful document and Markdown/JSON artifacts saved.
+- `scripts/research_artifact_smoke.py` saves artifacts under ignored project-local output paths and verifies JSON parseability, Markdown brief structure, successful documents, and the workflow-to-review handoff. Repeating `--source` with `image:openverse` additionally requires a saved Openverse candidate, complete license metadata, manual-verification markers, matching review counts, and aligned license warnings; the default Wikipedia path remains unchanged.
 - `scripts/research_artifact_review.py` scans saved JSON artifacts under `output/research/` or explicit paths, scores readability/reuse quality, summarizes key documents and warnings, and can write a Markdown review report under ignored output paths. License warnings are reported separately from quality warnings, so `ready` means structurally reusable rather than legally cleared for image reuse.
 - `scripts/research_batch_workflow.py` runs one or more saved workflows, stores artifacts under ignored `output/research/batch/`, prints project-relative artifact paths, and writes `output/research/artifact-reviews/batch-review.md` through the local artifact review pipeline; the current local batch for OpenAI and AI safety passes with two ready artifacts and average score 100.
 - The MCP `research_batch_workflow` tool now exposes batch saved-workflow execution to agents directly, dedupes query lists, saves per-query JSON/Markdown artifacts, writes a compact review report, and returns only counts plus project-relative paths; the current local MCP batch for OpenAI and AI safety passes with two ready artifacts and average score 100.
@@ -59,6 +59,9 @@
 
 ## 最近变更记录
 
+- Extended the saved-artifact smoke so explicit `image:openverse` runs enforce license metadata and verification notices in JSON/Markdown plus count/warning consistency across workflow and review handoffs.
+- Added normal and incomplete-license regression coverage while preserving the existing default-source smoke behavior and stable exit-code contract.
+- Verified 61 related tests, 174 full tests, package build, and a real Wikipedia + Openverse saved-artifact smoke with one successful document, two image candidates, one complete Openverse license record, aligned verification warnings, ready status, score 100, and exit code 0.
 - Added shared workflow/MCP review image summaries for total, Openverse, page-derived, license-complete, and manual-verification-required candidates, with additive handoff fields.
 - Extended MCP batch and standalone artifact reviews with aggregate license counts and separate `openverse_license_metadata_incomplete` / `openverse_license_verification_required` warnings while preserving existing score and ready behavior.
 - Verified 71 related tests, 173 full tests, package build, and matching MCP/CLI review of a real saved artifact: two images split 1 Openverse/1 page, one complete license record, one verification warning, quality ready, and score 100.

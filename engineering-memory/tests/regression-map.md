@@ -118,6 +118,7 @@ Known historical bugs:
 - Phase 2H artifact review must validate project-local JSON paths, return compact quality scores/statuses, and avoid replaying saved page text through MCP.
 - Phase 2I review handoff chaining must accept `research_workflow.data.handoff`, preserve project-relative paths, and emit `argus.research.review.handoff.v1` with batch-compatible quality fields.
 - Phase 2J artifact smoke must execute the public zero-key workflow-to-review chain and require ready review status with matching workflow/review artifact paths.
+- Explicit Openverse artifact smoke must validate saved JSON/Markdown license fields and notices plus matching workflow/review handoff counts and warnings without changing the default Wikipedia smoke.
 - Phase 2K artifact review must accept batch handoff artifact lists, select only a valid indexed project-relative artifact, and reject missing or out-of-range selections.
 - Phase 2L batch handoff smoke must execute two public saved workflows, select a batch artifact by index for review, and require matching batch/review handoff paths.
 - Phase 3 optional runtime probe must distinguish installed packages from explicit runtime verification and sanitize Codex configuration or permission failures.
@@ -271,6 +272,7 @@ Test file:
 
 What it protects:
 - Keeps saved `research_workflow` artifacts useful for handoff by checking JSON parseability, Markdown brief structure, project-local paths, successful document evidence, and exit code behavior.
+- When `image:openverse` is explicit, enforces the end-to-end saved license contract and workflow/review count-warning alignment while preserving the default Wikipedia path.
 
 ### Research toolkit saved artifact review report
 
