@@ -51,3 +51,30 @@ Related Bugs / Rules:
 - BUG-0007
 - BUG-0008
 - BUG-0009
+
+## ADR-0002: Prefer Openverse Audio For The Next No-Key Media Adapter
+
+Date: 2026-07-13
+Status: active
+Area: Research Toolkit external media adapters
+
+Context:
+Argus needs a maintained no-key media source that fits its agent-native research workflows without adding dependencies, downloading media, using browser credentials, or weakening license and access controls. Openverse audio, Internet Archive metadata, `yt-dlp`, and official course catalogs were evaluated against the existing Openverse image and resource-discovery contracts.
+
+Decision:
+Implement a metadata-only `audio:openverse` adapter before other media candidates. Use only the documented API, preserve anonymous rate-limit metadata, require independent license verification, exclude mature or malformed results, and do not fetch media bytes, waveforms, alternate files, transcripts, or lyrics. Defer Internet Archive to a later broad-media metadata adapter with explicit User-Agent, access-state, and optional-license handling. Keep `yt-dlp` optional for user-supplied public URL metadata, not search, and do not use cookies, authentication bypasses, geography bypasses, downloads, subtitles, or execution hooks by default. Keep course discovery on official-page search until a documented consumer API contract is confirmed.
+
+Consequences:
+The next adapter reuses a proven provider, error model, attribution warning, and no-download posture while adding a genuinely new media type. Anonymous limits and third-party license accuracy remain external risks. Internet Archive and `yt-dlp` remain useful later but need different contracts and should not be mixed into the first audio change.
+
+Alternatives Considered:
+Internet Archive was not selected first because search metadata does not by itself prove open file access or reusable rights. `yt-dlp` was not selected as a search source because it is URL-driven, site-specific, and increasingly depends on extra JavaScript runtime support for YouTube. A dedicated course API was deferred because the reviewed official course materials did not establish a stable external no-key search contract.
+
+Supersedes:
+None.
+
+Superseded By:
+None.
+
+Related Bugs / Rules:
+None.
