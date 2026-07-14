@@ -1,6 +1,6 @@
 # Argus Project Handoff
 
-Last updated: 2026-07-11
+Last updated: 2026-07-14
 
 This is the durable project handoff. Start new engineering sessions by reading
 `AGENTS.md`, then `context.md`, then only the source and tests relevant to the
@@ -11,10 +11,10 @@ storage, schema, auth, refactor, or bug-fix work.
 
 - Branch: `feature/intelligence-toolkit`.
 - Runtime: Python 3.12+ with `uv`.
-- MCP surface: 171 FastMCP tools and 8 resources.
-- Research Toolkit: 16 public MCP tools.
-- Verification baseline: 160 tests passing and `uv build` successful.
-- Current delivery report: `docs/RESEARCH_TOOLKIT_PHASE2_DELIVERY_AUDIT.md`.
+- MCP surface: 172 FastMCP tools and 8 resources.
+- Research Toolkit: 17 public MCP tools, including key-free metadata-only `research_audio`.
+- Verification baseline: 184 tests passing and `uv build` successful.
+- Historical Phase 2 delivery report: `docs/RESEARCH_TOOLKIT_PHASE2_DELIVERY_AUDIT.md`.
 
 ## Primary Commands
 
@@ -69,6 +69,8 @@ but audit and locator responses identify their integrity as unverified.
 ## Runtime Notes
 
 - Public HTTP and Wikipedia paths are ready without API keys.
+- Openverse image and audio metadata search is ready without API keys; no media
+  is downloaded and returned license metadata still requires independent review.
 - Crawl4AI, gallery-dl, yt-dlp, Scrapy, and openai-codex are installed locally.
 - Commercial web providers are inactive until a Tavily, Exa, Perplexity, or
   Brave API key is configured.

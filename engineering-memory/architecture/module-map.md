@@ -76,7 +76,7 @@ Path:
 - `argus_server/utils/`
 
 Responsibility:
-- Register 171 MCP tools and 8 MCP resources, create shared tool adapters, normalize tool responses, and provide the `argus-mcp` console script.
+- Register 172 MCP tools and 8 MCP resources, create shared tool adapters, normalize tool responses, and provide the `argus-mcp` console script.
 
 Depends on:
 - `fastmcp`, Argus core/storage modules, all `argus_server.tools` adapters
@@ -211,6 +211,7 @@ Path:
 - `argus_server/tools/research_source_ai.py`
 - `argus_server/tools/research_topic.py`
 - `argus_server/tools/research_images.py`
+- `argus_server/tools/research_audio.py`
 - `argus_server/tools/research_pack.py`
 - `argus_server/tools/research_workflow.py`
 - `argus_server/tools/research_batch.py`
@@ -243,7 +244,7 @@ Path:
 - `docs/RESEARCH_TOOLKIT_BOUNDARIES.md`
 
 Responsibility:
-- Provide dependency-free page crawling/image discovery entrypoints, access-aware book/paper/course resource discovery, verified-public resource reading and optional Codex summaries, saved-artifact comparison with shared project-local source/locator indexing, SHA-256 comparison-input fingerprints, full no-text comparison integrity audits, BibTeX/CSL-JSON/RIS metadata and optional citation files, bounded project-local locator replay, canonical project-path enforcement, runtime defaults/session setup, compact handoff summaries, explicit optional runtime probes, HTTP crawl orchestration, cross-source topic aggregation, topic-driven image research, full research workflow orchestration, batch saved-workflow orchestration, saved-artifact quality review, capability health matrix reporting, optional Crawl4AI render runtime, source adapter normalization, optional AI-backed web/Codex source adapters, evidence packet construction, workflow document/image scoring helpers, safe gallery-dl wrapping, HTML/URL parsing, research brief rendering, safe project-local research artifact writing, public external API lookup, and optional social CLI wrappers.
+- Provide dependency-free page crawling/image discovery entrypoints, anonymous license-aware image and audio metadata search, access-aware book/paper/course resource discovery, verified-public resource reading and optional Codex summaries, saved-artifact comparison with shared project-local source/locator indexing, SHA-256 comparison-input fingerprints, full no-text comparison integrity audits, BibTeX/CSL-JSON/RIS metadata and optional citation files, bounded project-local locator replay, canonical project-path enforcement, runtime defaults/session setup, compact handoff summaries, explicit optional runtime probes, HTTP crawl orchestration, cross-source topic aggregation, topic-driven image research, full research workflow orchestration, batch saved-workflow orchestration, saved-artifact quality review, capability health matrix reporting, optional Crawl4AI render runtime, source adapter normalization, optional AI-backed web/Codex source adapters, evidence packet construction, workflow document/image scoring helpers, safe gallery-dl wrapping, HTML/URL parsing, research brief rendering, safe project-local research artifact writing, public external API lookup, and optional social CLI wrappers.
 
 Depends on:
 - `requests`, optional local CLIs (`gallery-dl`, bili/xhs/twitter/tg/discord), optional local Codex SDK (`openai-codex`), external API availability.

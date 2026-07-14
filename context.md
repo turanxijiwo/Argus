@@ -4,8 +4,8 @@
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
 - Current product focus remains the Argus agent-native research and intelligence toolkit: 172 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest milestone: `research_audio` is now the 172nd MCP tool, exposing bounded anonymous `audio:openverse` metadata search with a no-download contract and independent license-verification warning.
-- Next candidate stage: update public README/boundary examples for the audio tool, then add a repeatable real no-download MCP smoke in a separately scoped task.
+- Latest milestone: README, HANDOFF, the Phase 2 boundary overlay, and the architecture module map now consistently document the 172-tool surface and the key-free metadata-only `research_audio` contract.
+- Next candidate stage: add a repeatable real no-download `research_audio` MCP smoke with stable external-unavailability and contract-failure exit codes.
 
 ## 已知问题
 
@@ -63,6 +63,9 @@
 
 ## 最近变更记录
 
+- Synchronized current public inventories to 172 MCP tools and 17 Research Toolkit tools while preserving historical Phase 1 counts.
+- Added public `research_audio` usage, no-key metadata-only behavior, input bounds, structured-error expectations, and independent license-review guidance.
+- Verified the three MCP registration tests, current-count consistency checks, clean Markdown diffs, and successful package build with the updated README.
 - Registered `research_audio` as the 172nd MCP tool with a minimal `query`, `limit`, and `timeout` contract that preserves metadata-only, no-download behavior.
 - Extended MCP registration coverage to require all 17 Research Toolkit tools and lock the audio tool's public parameter schema.
 - Verified 11 related tests, 184 full tests, targeted syntax checks, package build, and a real FastMCP `birdsong` query returning one license-aware Openverse result with no waveform or alternate-file fields.

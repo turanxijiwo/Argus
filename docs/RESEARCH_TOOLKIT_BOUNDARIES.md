@@ -1,10 +1,13 @@
 # Research Toolkit Phase 1 Boundaries
 
-> Historical Phase 1 contract. The current Phase 2 surface is documented in
-> `RESEARCH_TOOLKIT_PHASE2_DELIVERY_AUDIT.md`.
+> Historical Phase 1 contract. The current surface is documented in
+> `HANDOFF.md`; `RESEARCH_TOOLKIT_PHASE2_DELIVERY_AUDIT.md` remains a historical
+> Phase 2 delivery snapshot.
 > Phase 2 now also gives `research_images` a built-in anonymous
-> `image:openverse` source; the page-first statements below remain the Phase 1
-> baseline rather than the current default.
+> `image:openverse` source and exposes metadata-only `research_audio` through
+> anonymous `audio:openverse`. Neither path downloads media, and returned
+> license metadata requires independent review. The page-first statements below
+> remain the Phase 1 baseline rather than the current default.
 
 This document keeps the Research Toolkit scope explicit so later work does not
 drift into unrelated crawling, account automation, or dependency installation.
