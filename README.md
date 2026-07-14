@@ -2,7 +2,7 @@
 
 > 个人情报中枢 · 基于 [sansan0/TrendRadar](https://github.com/sansan0/TrendRadar) 的二次开发扩展
 >
-> 在原项目热榜聚合能力之上,新增 **172 个 MCP 工具** · 跨平台叙事追踪 · 本地 BM25 语义搜索 · 研究工具包 · 定时任务编排 · 飞书机器人反向通道 · Obsidian 导出。
+> 在原项目热榜聚合能力之上,新增 **173 个 MCP 工具** · 跨平台叙事追踪 · 本地 BM25 语义搜索 · 研究工具包 · 定时任务编排 · 飞书机器人反向通道 · Obsidian 导出。
 >
 > 协议:**GPL-3.0**(继承上游)· 完整归属见 [NOTICE.md](NOTICE.md)
 
@@ -10,7 +10,7 @@
 
 ## 🧭 这是什么
 
-你每天要扫 10+ 个热榜,刷 5 个社媒,查几个 RSS 源,还想在一堆信息里做去重、找突发话题、看跨平台情感差异 —— Argus 把这些操作沉淀成 **172 个 MCP 工具 + 5 个 launchd 定时任务 + 1 个飞书机器人**,让 AI agent(Claude Code / Cherry Studio / 任何 MCP client)替你跑。
+你每天要扫 10+ 个热榜,刷 5 个社媒,查几个 RSS 源,还想在一堆信息里做去重、找突发话题、看跨平台情感差异 —— Argus 把这些操作沉淀成 **173 个 MCP 工具 + 5 个 launchd 定时任务 + 1 个飞书机器人**,让 AI agent(Claude Code / Cherry Studio / 任何 MCP client)替你跑。
 
 ---
 
@@ -18,13 +18,13 @@
 
 | 模块 | 路径 | 作用 |
 |---|---|---|
-| **MCP Server** | `argus_server/` | 172 个工具,覆盖数据查询 / 分析 / 搜索 / 通知 / 自动化 |
+| **MCP Server** | `argus_server/` | 173 个工具,覆盖数据查询 / 分析 / 搜索 / 通知 / 自动化 |
 | **跨平台叙事追踪** | `tools/cross_platform.py` | 对比同话题在 news/hn/reddit/xhs/bili/twitter 上的情感走向 |
 | **本地语义搜索** | `tools/semantic_search.py` | BM25 + jieba 中文分词,跨天全文检索,<50ms 查询 |
 | **Alert 规则引擎** | `tools/alerts.py` | keyword_count / anomaly / semantic_hit 三类规则 |
 | **定时任务编排** | `tools/scheduler.py` + `scheduler_runner.py` | macOS launchd workflow DSL |
 | **MCP client 反向挂载** | `tools/mcp_proxy.py` | 把外部 MCP server 的工具挂到本服务下 |
-| **研究工具包** | `tools/research_toolkit.py` + `research_resources.py` / `research_resource_normalize.py` / `research_resource_workflow.py` / `research_resource_content.py` / `research_codex_summary.py` / `research_compare.py` / `research_compare_contract.py` / `research_compare_sources.py` / `research_compare_brief.py` / `research_compare_audit.py` / `research_comparison_artifact.py` / `research_citation.py` / `research_citation_bundle.py` / `research_integrity.py` / `research_locator.py` / `research_locator_evidence.py` / `research_runtime.py` / `research_handoff.py` / `research_page.py` / `research_health.py` / `research_crawl.py` / `research_sources.py` / `research_source_ai.py` / `research_topic.py` / `research_images.py` / `research_audio.py` / `research_pack.py` / `research_workflow.py` / `research_batch.py` / `research_gallery.py` / `research_render.py` / `research_web.py` / `research_brief.py` / `research_io.py` | 统一网页抓取、图书/论文/课程资源发现与公开内容读取、Codex 摘要、带内容指纹、无正文完整性审计、BibTeX/CSL-JSON/RIS 引用包和可限量回放 locator 的多 artifact 比较、Openverse 免 Key 图像与音频元数据搜索、页面图片发现、gallery-dl 安全封装、跨源研究聚合 |
+| **研究工具包** | `tools/research_toolkit.py` + `research_resources.py` / `research_resource_normalize.py` / `research_resource_workflow.py` / `research_resource_content.py` / `research_codex_summary.py` / `research_compare.py` / `research_compare_contract.py` / `research_compare_sources.py` / `research_compare_brief.py` / `research_compare_audit.py` / `research_comparison_artifact.py` / `research_citation.py` / `research_citation_bundle.py` / `research_integrity.py` / `research_locator.py` / `research_locator_evidence.py` / `research_runtime.py` / `research_handoff.py` / `research_page.py` / `research_health.py` / `research_crawl.py` / `research_sources.py` / `research_source_ai.py` / `research_topic.py` / `research_images.py` / `research_audio.py` / `research_video.py` / `research_pack.py` / `research_workflow.py` / `research_batch.py` / `research_gallery.py` / `research_render.py` / `research_web.py` / `research_brief.py` / `research_io.py` | 统一网页抓取、图书/论文/课程资源发现与公开内容读取、Codex 摘要、带内容指纹、无正文完整性审计、BibTeX/CSL-JSON/RIS 引用包和可限量回放 locator 的多 artifact 比较、Openverse 免 Key 图像与音频元数据搜索、yt-dlp 视频元数据读取、页面图片发现、gallery-dl 安全封装、跨源研究聚合 |
 | **多账号通知路由** | `tools/router.py` | 按关键词分流到多个飞书/钉钉/Bark 群 |
 | **飞书机器人反向通道** | `feishu_bot.py` | 群里 @ 机器人触发命令 → 调用 MCP → 回复 |
 | **Obsidian 导出** | `tools/exporter.py` | 每日简报 / 查询报告 / 异常报告自动落 vault |
@@ -46,7 +46,9 @@ cd Argus
 uv sync
 ```
 
-### 2. 复制配置
+### 2. 初始化配置
+
+在 MCP client 中调用 `initialize_config()`；或者手工复制同一份模板：
 
 ```bash
 cp config/config.example.yaml config/config.yaml
@@ -56,18 +58,32 @@ cp config/config.example.yaml config/config.yaml
 ### 3. 抓一次数据试试
 
 ```bash
-.venv/bin/argus --now
+.venv/bin/argus
 ```
 
 ### 4. 接入 MCP client
 
-Claude Code / Cherry Studio / 任何 MCP client 配置:
+Codex 可注册为用户级 MCP server，注册后同一台机器上的其他 Codex 项目也能调用 Argus：
+
+```bash
+codex mcp add argus -- /absolute/path/to/Argus/.venv/bin/python \
+  -m argus_server.server \
+  --project-root /absolute/path/to/Argus
+```
+
+Claude Code / Cherry Studio / 其他支持 STDIO MCP 的 client 可使用等价配置：
 
 ```json
 {
   "mcpServers": {
     "argus": {
-      "command": "/path/to/Argus/.venv/bin/argus-mcp"
+      "command": "/absolute/path/to/Argus/.venv/bin/python",
+      "args": [
+        "-m",
+        "argus_server.server",
+        "--project-root",
+        "/absolute/path/to/Argus"
+      ]
     }
   }
 }
@@ -95,6 +111,7 @@ Claude Code / Cherry Studio / 任何 MCP client 配置:
 | [docs/RESEARCH_TOOLKIT_BOUNDARIES.md](docs/RESEARCH_TOOLKIT_BOUNDARIES.md) | Research Toolkit 第一阶段边界: 内置能力、可选依赖、非目标、后续候选 |
 | [docs/RESEARCH_TOOLKIT_PHASE2A_AUDIT.md](docs/RESEARCH_TOOLKIT_PHASE2A_AUDIT.md) | Research Toolkit Phase 2A 本机可选运行时与真实公开源 readiness 审计 |
 | [docs/RESEARCH_TOOLKIT_PHASE2_DELIVERY_AUDIT.md](docs/RESEARCH_TOOLKIT_PHASE2_DELIVERY_AUDIT.md) | Research Toolkit Phase 2 交付基线、验证证据与剩余运行时风险 |
+| [docs/TOOL_AVAILABILITY_AUDIT.md](docs/TOOL_AVAILABILITY_AUDIT.md) | 当前 173 个 MCP 工具及已退役入口的真实数据、认证、额度、付费限制与替代方案审计 |
 | [docs/RESEARCH_WORKFLOW_EXAMPLES.md](docs/RESEARCH_WORKFLOW_EXAMPLES.md) | `research_workflow` MCP prompt 示例、工具参数、保存产物和失败检查点 |
 | [docs/SCHEDULER_GUIDE.md](docs/SCHEDULER_GUIDE.md) | 定时任务 DSL 语法 / 接入飞书 / 调试方法 |
 | [docs/FEISHU_BOT_SETUP.md](docs/FEISHU_BOT_SETUP.md) | 飞书反向通道接入:App 创建、Cloudflare Tunnel、联调 |
@@ -102,12 +119,12 @@ Claude Code / Cherry Studio / 任何 MCP client 配置:
 
 ---
 
-## 🧩 172 个 MCP 工具速览
+## 🧩 173 个 MCP 工具速览
 
 工具分类(详见 `argus_server/tools/` 各模块):
 
-- **原生数据 (27)**:`get_latest_news` / `search_news` / `analyze_sentiment` / `trigger_crawl` ...
-- **外部 API (54, 无 key)**:`search_arxiv` / `get_hackernews_top` / `search_reddit` / `search_gdelt` / `search_cve` ...
+- **原生数据 (28)**:`initialize_config` / `get_latest_news` / `search_news` / `analyze_sentiment` / `trigger_crawl` ...
+- **外部 API (53, 无 key)**:`search_arxiv` / `get_hackernews_top` / `search_reddit` / `search_gdelt` / `search_cve` ...
 - **CLI 适配 (7)**:`check_cli_auth` / `xhs_auth_status` / `run_bilibili` / `run_xhs` / `run_twitter` / `run_telegram` / `run_discord`
 - **AI 增强 (8)**:`ai_summarize` / `ai_brief_news` / `semantic_deduplicate` / `detect_anomaly` ...
 - **跨平台 (2)**:`narrative_tracking` / `universal_search`
@@ -122,17 +139,21 @@ Claude Code / Cherry Studio / 任何 MCP client 配置:
 - **路由 (5)**:`route_add/list/remove/test/dispatch`
 - **微信公众号 RSS (4)**:`wechat_*`
 - **每日早报 (2)**:`push_daily_brief` / `render_daily_brief`
-- **研究工具包 (17)**:`research_toolkit_health` / `research_runtime_probe` / `crawl_url` / `discover_page_images` / `research_images` / `research_audio` / `find_research_resource` / `research_resource_workflow` / `research_compare_artifacts` / `research_audit_comparison` / `research_resolve_locators` / `research_pack` / `research_workflow` / `research_batch_workflow` / `research_review_artifact` / `download_gallery` / `research_topic`(含可选 `codex` 和 `web:tavily/exa/perplexity/brave` 源)
+- **研究工具包 (18)**:`research_toolkit_health` / `research_runtime_probe` / `crawl_url` / `discover_page_images` / `research_images` / `research_audio` / `research_video_metadata` / `find_research_resource` / `research_resource_workflow` / `research_compare_artifacts` / `research_audit_comparison` / `research_resolve_locators` / `research_pack` / `research_workflow` / `research_batch_workflow` / `research_review_artifact` / `download_gallery` / `research_topic`(含可选 `codex` 和 `web:tavily/exa/perplexity/brave` 源)
 
-研究工具包第一版不新增依赖,默认提供网页抓取、图片候选发现、主题驱动图片研究、跨源情报搜索、证据包生成、研究流水线、批量保存型研究流水线、单 artifact 质量审查、显式可选 runtime probe 和 `gallery-dl` 安全 dry-run 封装; `research_toolkit_health` 会返回包/CLI/配置准备状态,而 `research_runtime_probe` 会按明确请求验证 Crawl4AI 或 Codex SDK 是否真的可运行; `crawl_url(render_js=True)` 可在本地安装 Crawl4AI 后启用动态渲染,`research_topic` 可复用已配置的 Tavily / Exa / Perplexity / Brave 作为 `web:<provider>` 搜索源,也可在本地安装 `openai-codex` 后使用 `codex` 源控制本地 Codex SDK 做个人研究检索,`ARGUS_CODEX_MODEL` 可覆盖默认模型; `research_pack` 会先找页面再抓取正文,保留 source/page 错误和可继续交给 AI 总结的结构化证据; `research_images` 默认通过 `image:openverse` 免 Key 搜图,保留原图、缩略图、作者、许可、署名、来源页和动态限流信息,也可与 `codex` / `wikipedia` / `web:<provider>` 页面来源混合并跨源去重; `research_audio` 通过 `audio:openverse` 免 Key 搜索音频候选的来源页、作者、许可、署名、时长和文件元数据,不下载音频、waveform 或备用文件; Openverse 授权元数据使用前仍需独立复核; `research_workflow` 会自动选择可用搜索源,一次完成主题搜索、页面抓取、图片候选抽取、可重试错误记录、Markdown 研究简报生成,并可选保存 JSON + Markdown 文件; `research_batch_workflow` 会为多个查询批量生成 JSON/Markdown 产物和一份项目内 Markdown 审查报告,`research_review_artifact` 可直接审查单个已保存 JSON 并返回分数、状态、警告和计数,响应只返回计数、相对路径和质量摘要。后续按活跃度、License、CLI/API 稳定性、结构化输出、速率限制能力逐个接入 Crawl4AI / gallery-dl / yt-dlp / Scrapy / SearXNG 等开源工具。
+研究工具包第一版不新增依赖,默认提供网页抓取、图片候选发现、主题驱动图片研究、跨源情报搜索、证据包生成、研究流水线、批量保存型研究流水线、单 artifact 质量审查、显式可选 runtime probe 和 `gallery-dl` 安全 dry-run 封装; `research_toolkit_health` 会返回包/CLI/配置准备状态,而 `research_runtime_probe` 会按明确请求验证 Crawl4AI 或 Codex SDK 是否真的可运行; `crawl_url(render_js=True)` 可在本地安装 Crawl4AI 后启用动态渲染,`research_topic` 可复用已配置的 Tavily / Exa / Perplexity / Brave 作为 `web:<provider>` 搜索源,也可在本地安装 `openai-codex` 后使用 `codex` 源控制本地 Codex SDK 做个人研究检索,`ARGUS_CODEX_MODEL` 可覆盖默认模型; `research_pack` 会先找页面再抓取正文,保留 source/page 错误和可继续交给 AI 总结的结构化证据; `research_images` 默认通过 `image:openverse` 免 Key 搜图,保留原图、缩略图、作者、许可、署名、来源页和动态限流信息,也可与 `codex` / `wikipedia` / `web:<provider>` 页面来源混合并跨源去重; `research_audio` 通过 `audio:openverse` 免 Key 搜索音频候选的来源页、作者、许可、署名、时长和文件元数据,不下载音频、waveform 或备用文件; `research_video_metadata` 通过已安装的 yt-dlp 和推荐的 Deno runtime 读取单个公开视频页面的白名单元数据,忽略用户配置与 Cookie,禁止下载、播放列表、缓存和远程组件,且不返回临时媒体直链; Openverse 授权元数据使用前仍需独立复核; `research_workflow` 会自动选择可用搜索源,一次完成主题搜索、页面抓取、图片候选抽取、可重试错误记录、Markdown 研究简报生成,并可选保存 JSON + Markdown 文件; `research_batch_workflow` 会为多个查询批量生成 JSON/Markdown 产物和一份项目内 Markdown 审查报告,`research_review_artifact` 可直接审查单个已保存 JSON 并返回分数、状态、警告和计数,响应只返回计数、相对路径和质量摘要。后续按活跃度、License、CLI/API 稳定性、结构化输出、速率限制能力逐个接入 Crawl4AI / gallery-dl / Scrapy / SearXNG 等开源工具。
 
 在 MCP client 中可直接调用 `research_audio(query="birdsong", limit=5)` 获取音频元数据。`limit` 会限制在 1–20,`timeout` 会限制在 3–90 秒; 空查询、匿名限流、网络超时和异常 provider 响应都会返回结构化错误。
+
+公开视频元数据可调用 `research_video_metadata(url="https://www.youtube.com/watch?v=...", timeout=60)`。工具只接受单个 http/https 页面,超时会限制在 10–180 秒;它不会读取文件或浏览器 Cookie,不会下载媒体、写文件、处理播放列表或返回 `formats` / `requested_downloads` / 缩略图 / 字幕直链。
 
 Openverse 匿名图片搜索可用 `uv run python scripts/research_openverse_smoke.py` 做真实质量冒烟。脚本只检索元数据、不下载媒体；退出码 `0` 表示结果与许可元数据契约通过，`2` 表示限流或网络等外部不可用，`3` 表示结果结构或质量回归。
 
 Openverse 匿名音频搜索可用 `uv run python scripts/research_audio_smoke.py` 通过已注册的 `research_audio` FastMCP 工具做真实质量冒烟。脚本只检索元数据，不下载音频、waveform 或备用文件；退出码 `0` 表示结果与许可/no-download 契约通过，`2` 表示限流、网络或超时等外部不可用，`3` 表示 provider、MCP 输出或质量契约回归。
 
 `find_research_resource` 使用 Open Library / Project Gutenberg、arXiv / Semantic Scholar / OpenReview / Crossref 和 Codex 官方课程搜索,统一标记公开下载、在线阅读、借阅、预览、仅元数据或未验证状态,且不绕过登录、付费墙、DRM 或校园权限。
+
+`search_arxiv` 对同一查询使用 24 小时项目本地缓存,对未命中请求保持至少 3 秒间隔,并仅对短时 429 做一次有界重试。缓存命中会显式标记, 持续限流仍返回 `RATE_LIMITED`, 不会伪装成实时刷新。
 
 `research_resource_workflow` 会选择一个资源结果,通过 Jina Reader 读取已验证的公开 PDF 或课程页,可选用本机 Codex SDK 生成摘要,并保存项目内 JSON + Markdown 产物。摘要使用本机 Codex 登录状态,不要求单独 API key; `summarize=False` 可完全跳过 Codex。默认拒绝未验证、借阅、预览和仅元数据资源;图书若只有 EPUB/Kindle 文件,当前只读取资源页,不声称已读取全文。
 

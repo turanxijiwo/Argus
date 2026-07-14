@@ -55,6 +55,8 @@ config/safety_rules.yaml
 # 运行时产物
 # ═══════════════════════════════════════════════════════════════
 output/news/
+output/backups/
+output/cache/
 output/semantic_index/
 output/scheduled_tasks/
 output/telemetry/

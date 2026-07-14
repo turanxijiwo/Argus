@@ -2,7 +2,7 @@
 
 > Personal intelligence hub · A fork and extension of [sansan0/TrendRadar](https://github.com/sansan0/TrendRadar)
 >
-> On top of the original news aggregation core, Argus adds **154 MCP tools** · cross-platform narrative tracking · local BM25 semantic search · launchd-based scheduler · Feishu bot reverse channel · Obsidian exporter.
+> On top of the original news aggregation core, Argus adds **173 MCP tools and 8 resources** · cross-platform narrative tracking · local BM25 semantic search · launchd-based scheduler · Feishu bot reverse channel · Obsidian exporter.
 >
 > License: **GPL-3.0** (inherited from upstream) · See [NOTICE.md](NOTICE.md) for attribution.
 
@@ -10,7 +10,7 @@
 
 ## 🧭 What is it
 
-You scan 10+ hot lists, 5 social feeds, a dozen RSS sources daily, and want to deduplicate, spot emerging topics, and compare sentiment across platforms. Argus consolidates these operations into **154 MCP tools + 5 launchd scheduled jobs + 1 Feishu bot**, so any MCP client (Claude Code, Cherry Studio, etc.) can run them for you.
+You scan 10+ hot lists, 5 social feeds, a dozen RSS sources daily, and want to deduplicate, spot emerging topics, and compare sentiment across platforms. Argus consolidates these operations into **173 MCP tools and 8 resources**, so any MCP client can run them for you.
 
 ---
 
@@ -18,7 +18,7 @@ You scan 10+ hot lists, 5 social feeds, a dozen RSS sources daily, and want to d
 
 | Module | Path | Purpose |
 |---|---|---|
-| **MCP Server** | `argus_server/` | 154 tools: query / analyze / search / notify / automate |
+| **MCP Server** | `argus_server/` | 173 tools and 8 resources: query / analyze / search / notify / automate |
 | **Cross-platform narrative** | `tools/cross_platform.py` | Compare sentiment on news/hn/reddit/xhs/bili/twitter for the same topic |
 | **Local semantic search** | `tools/semantic_search.py` | BM25 + jieba Chinese segmentation, full-text across days, <50ms |
 | **Alert rule engine** | `tools/alerts.py` | `keyword_count` / `anomaly` / `semantic_hit` |
@@ -42,15 +42,29 @@ git clone https://github.com/turanxijiwo/Argus.git
 cd Argus
 uv sync
 cp config/config.example.yaml config/config.yaml   # then edit it
-.venv/bin/argus --now                               # crawl once
+.venv/bin/argus                                     # crawl once
 ```
 
-MCP client config:
+Register Argus once for all Codex projects on the same machine:
+
+```bash
+codex mcp add argus -- /absolute/path/to/Argus/.venv/bin/python \
+  -m argus_server.server \
+  --project-root /absolute/path/to/Argus
+```
+
+Equivalent config for other STDIO MCP clients:
 ```json
 {
   "mcpServers": {
     "argus": {
-      "command": "/path/to/Argus/.venv/bin/argus-mcp"
+      "command": "/absolute/path/to/Argus/.venv/bin/python",
+      "args": [
+        "-m",
+        "argus_server.server",
+        "--project-root",
+        "/absolute/path/to/Argus"
+      ]
     }
   }
 }
@@ -68,7 +82,7 @@ Optional services:
 
 | File | Contents |
 |---|---|
-| [docs/HANDOFF.md](docs/HANDOFF.md) | Full architecture, 154-tool catalog, credentials, troubleshooting |
+| [docs/HANDOFF.md](docs/HANDOFF.md) | Current architecture, 173-tool catalog, credentials, troubleshooting |
 | [docs/SCHEDULER_GUIDE.md](docs/SCHEDULER_GUIDE.md) | Workflow DSL, Feishu integration, debugging |
 | [docs/FEISHU_BOT_SETUP.md](docs/FEISHU_BOT_SETUP.md) | Feishu App creation, Cloudflare Tunnel, end-to-end setup |
 | [NOTICE.md](NOTICE.md) | Attribution for upstream project, dependencies, contributors |
