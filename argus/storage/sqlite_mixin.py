@@ -113,12 +113,25 @@ class SQLiteStorageMixin:
         Returns:
             (success, new_count, updated_count, title_changed_count, off_list_count)
         """
+        conn: Optional[sqlite3.Connection] = None
         try:
             conn = self._get_connection(data.date)
             cursor = conn.cursor()
 
             # 获取配置时区的当前时间
             now_str = self._get_configured_time().strftime("%Y-%m-%d %H:%M:%S")
+
+            # Claim this crawl slot before mutating item state. The unique crawl_time
+            # key serializes concurrent writers and makes same-minute retries no-ops.
+            cursor.execute("""
+                INSERT INTO crawl_records
+                (crawl_time, total_items, created_at)
+                VALUES (?, 0, ?)
+                ON CONFLICT(crawl_time) DO NOTHING
+            """, (data.crawl_time, now_str))
+            if cursor.rowcount == 0:
+                conn.commit()
+                return True, 0, 0, 0, 0
 
             # 首先同步平台信息到 platforms 表
             for source_id, source_name in data.id_to_name.items():
@@ -276,12 +289,12 @@ class SQLiteStorageMixin:
                             """, (news_id, data.crawl_time, now_str))
                             off_list_count += 1
 
-            # 记录抓取信息
+            # 更新本轮抓取信息
             cursor.execute("""
-                INSERT OR REPLACE INTO crawl_records
-                (crawl_time, total_items, created_at)
-                VALUES (?, ?, ?)
-            """, (data.crawl_time, total_items, now_str))
+                UPDATE crawl_records
+                SET total_items = ?, created_at = ?
+                WHERE crawl_time = ?
+            """, (total_items, now_str, data.crawl_time))
 
             # 获取刚插入的 crawl_record 的 ID
             cursor.execute("""
@@ -318,6 +331,11 @@ class SQLiteStorageMixin:
             return True, new_count, updated_count, title_changed_count, off_list_count
 
         except Exception as e:
+            if conn is not None:
+                try:
+                    conn.rollback()
+                except sqlite3.Error as rollback_error:
+                    print(f"{log_prefix} 回滚失败: {rollback_error}")
             print(f"{log_prefix} 保存失败: {e}")
             return False, 0, 0, 0, 0
 
@@ -795,11 +813,24 @@ class SQLiteStorageMixin:
         Returns:
             (success, new_count, updated_count)
         """
+        conn: Optional[sqlite3.Connection] = None
         try:
             conn = self._get_connection(data.date, db_type="rss")
             cursor = conn.cursor()
 
             now_str = self._get_configured_time().strftime("%Y-%m-%d %H:%M:%S")
+
+            # Keep RSS retries idempotent under the same crawl_time contract used
+            # by the news store.
+            cursor.execute("""
+                INSERT INTO rss_crawl_records
+                (crawl_time, total_items, created_at)
+                VALUES (?, 0, ?)
+                ON CONFLICT(crawl_time) DO NOTHING
+            """, (data.crawl_time, now_str))
+            if cursor.rowcount == 0:
+                conn.commit()
+                return True, 0, 0
 
             # 同步 RSS 源信息到 rss_feeds 表
             for feed_id, feed_name in data.id_to_name.items():
@@ -884,12 +915,12 @@ class SQLiteStorageMixin:
 
             total_items = new_count + updated_count
 
-            # 记录抓取信息
+            # 更新本轮抓取信息
             cursor.execute("""
-                INSERT OR REPLACE INTO rss_crawl_records
-                (crawl_time, total_items, created_at)
-                VALUES (?, ?, ?)
-            """, (data.crawl_time, total_items, now_str))
+                UPDATE rss_crawl_records
+                SET total_items = ?, created_at = ?
+                WHERE crawl_time = ?
+            """, (total_items, now_str, data.crawl_time))
 
             # 记录抓取状态
             cursor.execute("""
@@ -925,6 +956,11 @@ class SQLiteStorageMixin:
             return True, new_count, updated_count
 
         except Exception as e:
+            if conn is not None:
+                try:
+                    conn.rollback()
+                except sqlite3.Error as rollback_error:
+                    print(f"{log_prefix} RSS 回滚失败: {rollback_error}")
             print(f"{log_prefix} 保存 RSS 数据失败: {e}")
             return False, 0, 0
 
