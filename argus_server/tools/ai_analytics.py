@@ -437,12 +437,57 @@ class AIAnalyticsTools:
             dedup     — 只语义去重 (需 news_items)
             anomaly   — 只异常检测 (可选 topic 过滤)
         """
-        out = {"mode": mode}
+        if mode not in ("full", "dedup", "anomaly"):
+            return _err(
+                "mode 必须是 full、dedup 或 anomaly",
+                code="INVALID_PARAM",
+            )
+
+        steps = {}
         if mode in ("full", "dedup"):
             if not news_items:
-                out["dedup"] = _err("news_items 为空", code="INVALID_PARAM")
+                steps["dedup"] = _err("news_items 为空", code="INVALID_PARAM")
             else:
-                out["dedup"] = self.semantic_deduplicate(news_items)
+                try:
+                    steps["dedup"] = self.semantic_deduplicate(news_items)
+                except Exception as ex:
+                    steps["dedup"] = _err(f"语义去重执行失败: {ex}")
         if mode in ("full", "anomaly"):
-            out["anomaly"] = self.detect_anomaly(topic=topic)
-        return _ok(out, mode=mode)
+            try:
+                steps["anomaly"] = self.detect_anomaly(topic=topic)
+            except Exception as ex:
+                steps["anomaly"] = _err(f"异常检测执行失败: {ex}")
+
+        successful_step_names = [
+            name for name, response in steps.items() if response.get("success")
+        ]
+        failed_step_names = [
+            name for name, response in steps.items() if not response.get("success")
+        ]
+        if not successful_step_names:
+            status = "failed"
+        elif failed_step_names:
+            status = "partial"
+        else:
+            status = "complete"
+
+        response_data = {"mode": mode, "status": status, **steps}
+        summary = {
+            "mode": mode,
+            "status": status,
+            "steps_attempted": len(steps),
+            "successful_steps": len(successful_step_names),
+            "failed_steps": len(failed_step_names),
+            "failed_step_names": failed_step_names,
+        }
+        if status == "failed":
+            return {
+                "success": False,
+                "error": {
+                    "code": "ALL_STEPS_FAILED",
+                    "message": "所有 AI 分析步骤均失败",
+                },
+                "summary": summary,
+                "data": response_data,
+            }
+        return _ok(response_data, **summary)

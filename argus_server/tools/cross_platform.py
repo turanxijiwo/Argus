@@ -26,6 +26,9 @@ import re
 from collections import Counter
 from typing import Any, Dict, List, Optional
 
+import feedparser
+import requests
+
 
 def _ok(data: Any, **summary) -> Dict:
     return {"success": True, "summary": summary, "data": data}
@@ -33,6 +36,36 @@ def _ok(data: Any, **summary) -> Dict:
 
 def _err(message: str, code: str = "CROSS_PLATFORM_ERROR", **extra) -> Dict:
     return {"success": False, "error": {"code": code, "message": message, **extra}}
+
+
+def _response_error(response: Any, fallback_message: str) -> tuple[Optional[str], Optional[str]]:
+    if not isinstance(response, dict):
+        return "INVALID_RESPONSE", fallback_message
+    if response.get("success") is not False:
+        return None, None
+    error = response.get("error") or {}
+    if isinstance(error, dict):
+        return str(error.get("code") or "SOURCE_ERROR"), str(
+            error.get("message") or fallback_message
+        )
+    return "SOURCE_ERROR", str(error or fallback_message)
+
+
+def _rate_limit_metadata(headers: Any) -> Dict[str, str]:
+    if not hasattr(headers, "get"):
+        return {}
+    values = {
+        "limit": headers.get("x-ratelimit-limit"),
+        "remaining": headers.get("x-ratelimit-remaining"),
+        "reset": headers.get("x-ratelimit-reset"),
+        "retry_after": headers.get("retry-after"),
+    }
+    return {key: str(value) for key, value in values.items() if value is not None}
+
+
+def _reddit_subreddit_from_url(url: str) -> str:
+    match = re.search(r"/r/([^/]+)/", url or "", flags=re.IGNORECASE)
+    return match.group(1) if match else ""
 
 
 # ────────────────────── 规则情感词典 (fallback) ──────────────────────
@@ -138,13 +171,15 @@ class CrossPlatformTools:
 
     @staticmethod
     def _norm_hn(item: Dict) -> Dict:
+        score = int(item.get("score") or item.get("points") or 0)
+        comments = int(item.get("comments") or item.get("num_comments") or 0)
         return {
             "title": item.get("title") or "",
             "url": item.get("url") or item.get("hn_url") or "",
             "source": "hn",
-            "author": item.get("by") or "",
-            "engagement": int(item.get("score", 0) or 0) + int(item.get("comments", 0) or 0),
-            "extra": {"score": item.get("score"), "comments": item.get("comments")},
+            "author": item.get("by") or item.get("author") or "",
+            "engagement": score + comments,
+            "extra": {"score": score, "comments": comments},
         }
 
     @staticmethod
@@ -216,6 +251,14 @@ class CrossPlatformTools:
                 if not self._search:
                     return {"source": source, "items": [], "error": "search_tools 未注入"}
                 res = self._search.search_news_unified(query=query, limit=limit)
+                error_code, error_message = _response_error(res, "本地新闻搜索失败")
+                if error_message:
+                    return {
+                        "source": source,
+                        "items": [],
+                        "error": error_message,
+                        "error_code": error_code,
+                    }
                 hot = (res.get("data") or {}).get("hot_list") if isinstance(res, dict) else None
                 if not hot and isinstance(res, dict):
                     hot = res.get("hot_list") or res.get("results") or []
@@ -225,90 +268,163 @@ class CrossPlatformTools:
             if source == "hn":
                 if not self._ext:
                     return {"source": source, "items": [], "error": "external_apis 未注入"}
-                res = self._ext.search_hackernews(query=query, limit=limit) if hasattr(self._ext, "search_hackernews") else None
-                if res is None:
-                    # 退化: 抓 top 然后本地过滤
+                if hasattr(self._ext, "search_hackernews"):
+                    res = self._ext.search_hackernews(query=query, hits=limit)
+                    stories = (res.get("data") or {}).get("hits") if isinstance(res, dict) else []
+                    transport = "algolia_search"
+                else:
                     res = self._ext.get_hackernews_top(limit=limit * 3)
-                stories = ((res.get("data") or {}).get("stories")
-                           or (res.get("data") or {}).get("hits")
-                           or [])
-                q = query.lower()
-                filtered = [s for s in stories if q in (s.get("title") or "").lower()]
-                if not filtered:
-                    filtered = stories[:limit]
-                items = [self._norm_hn(s) for s in filtered[:limit]]
-                return {"source": source, "items": items}
+                    top_stories = (res.get("data") or {}).get("stories") if isinstance(res, dict) else []
+                    query_text = query.lower()
+                    stories = [
+                        story
+                        for story in (top_stories or [])
+                        if query_text in (story.get("title") or "").lower()
+                    ]
+                    transport = "firebase_top_filter"
+                error_code, error_message = _response_error(res, "Hacker News 搜索失败")
+                if error_message:
+                    return {
+                        "source": source,
+                        "items": [],
+                        "error": error_message,
+                        "error_code": error_code,
+                        "meta": {"transport": transport},
+                    }
+                items = [self._norm_hn(story) for story in (stories or [])[:limit]]
+                return {"source": source, "items": items, "meta": {"transport": transport}}
 
             if source == "reddit":
-                if not self._ext:
-                    return {"source": source, "items": [], "error": "external_apis 未注入"}
-                # 用 /r/all/search.json 或退化到 /r/all
                 try:
-                    import requests
-                    r = requests.get(
-                        "https://www.reddit.com/search.json",
+                    response = requests.get(
+                        "https://www.reddit.com/search.rss",
                         params={"q": query, "limit": max(1, min(limit, 50)), "sort": "hot"},
-                        headers={"User-Agent": "ArgusBot/1.0"},
+                        headers={"User-Agent": "Argus/6.6 research client"},
                         timeout=15,
                     )
-                    children = r.json().get("data", {}).get("children", [])
-                    posts = [c.get("data", {}) for c in children]
-                    # 补齐 reddit dict 结构
-                    normalized = []
-                    for p in posts:
-                        normalized.append({
-                            "title": p.get("title"),
-                            "permalink": f"https://reddit.com{p.get('permalink', '')}",
-                            "url": p.get("url"),
-                            "subreddit": p.get("subreddit"),
-                            "score": p.get("score"),
-                            "num_comments": p.get("num_comments"),
-                            "author": p.get("author"),
+                    rate_limit = _rate_limit_metadata(response.headers)
+                    metadata = {"transport": "reddit_atom", "rate_limit": rate_limit}
+                    if response.status_code == 429:
+                        return {
+                            "source": source,
+                            "items": [],
+                            "error": "Reddit Atom 搜索触发限流",
+                            "error_code": "RATE_LIMITED",
+                            "meta": metadata,
+                        }
+                    response.raise_for_status()
+                    feed = feedparser.parse(response.content)
+                    entries = list(getattr(feed, "entries", []) or [])
+                    if getattr(feed, "bozo", False) and not entries:
+                        return {
+                            "source": source,
+                            "items": [],
+                            "error": "Reddit Atom 响应无法解析",
+                            "error_code": "PARSE_ERROR",
+                            "meta": metadata,
+                        }
+                    posts = []
+                    for entry in entries[:limit]:
+                        link = entry.get("link") or ""
+                        posts.append({
+                            "title": entry.get("title"),
+                            "permalink": link,
+                            "url": link,
+                            "subreddit": _reddit_subreddit_from_url(link),
+                            "score": 0,
+                            "num_comments": 0,
+                            "author": entry.get("author"),
                         })
-                    items = [self._norm_reddit(p) for p in normalized[:limit]]
-                    return {"source": source, "items": items}
+                    items = [self._norm_reddit(post) for post in posts]
+                    return {"source": source, "items": items, "meta": metadata}
+                except requests.exceptions.RequestException as ex:
+                    return {
+                        "source": source,
+                        "items": [],
+                        "error": f"Reddit Atom 请求失败: {ex}",
+                        "error_code": "NETWORK_ERROR",
+                        "meta": {"transport": "reddit_atom"},
+                    }
                 except Exception as ex:
-                    return {"source": source, "items": [], "error": f"reddit 搜索失败: {ex}"}
+                    return {
+                        "source": source,
+                        "items": [],
+                        "error": f"Reddit Atom 搜索失败: {ex}",
+                        "error_code": "SOURCE_ERROR",
+                        "meta": {"transport": "reddit_atom"},
+                    }
 
             if source == "xhs":
                 if not self._cli:
                     return {"source": source, "items": [], "error": "cli 未注入"}
-                res = self._cli.run_xhs("search", [query, "--limit", str(limit)], timeout=60)
+                res = self._cli.run_xhs("search", [query], timeout=60)
+                error_code, error_message = _response_error(res, "小红书搜索失败")
+                if error_message:
+                    return {
+                        "source": source,
+                        "items": [],
+                        "error": error_message,
+                        "error_code": error_code,
+                    }
                 data = res.get("data") or {}
                 raw_list = (data.get("notes") or data.get("items") or data.get("results")
                             or data.get("list") or [])
                 if not isinstance(raw_list, list):
                     raw_list = []
                 items = [self._norm_xhs(it) for it in raw_list[:limit]]
-                return {"source": source, "items": items, "error": res.get("error", {}).get("message") if not res.get("success") else None}
+                return {"source": source, "items": items}
 
             if source == "bili":
                 if not self._cli:
                     return {"source": source, "items": [], "error": "cli 未注入"}
-                res = self._cli.run_bilibili("search", [query, "--limit", str(limit)], timeout=60)
+                res = self._cli.run_bilibili("search", [query, "-n", str(limit)], timeout=60)
+                error_code, error_message = _response_error(res, "Bilibili 搜索失败")
+                if error_message:
+                    return {
+                        "source": source,
+                        "items": [],
+                        "error": error_message,
+                        "error_code": error_code,
+                    }
                 data = res.get("data") or {}
                 raw_list = (data.get("results") or data.get("videos") or data.get("items")
                             or data.get("list") or [])
                 if not isinstance(raw_list, list):
                     raw_list = []
                 items = [self._norm_bili(it) for it in raw_list[:limit]]
-                return {"source": source, "items": items, "error": res.get("error", {}).get("message") if not res.get("success") else None}
+                return {"source": source, "items": items}
 
             if source == "twitter":
                 if not self._cli:
                     return {"source": source, "items": [], "error": "cli 未注入"}
-                res = self._cli.run_twitter("search", [query, "--limit", str(limit)], timeout=60)
+                res = self._cli.run_twitter("search", [query, "-n", str(limit)], timeout=60)
+                error_code, error_message = _response_error(res, "Twitter 搜索失败")
+                if error_message:
+                    return {
+                        "source": source,
+                        "items": [],
+                        "error": error_message,
+                        "error_code": error_code,
+                    }
                 data = res.get("data") or {}
                 raw_list = (data.get("tweets") or data.get("results") or data.get("items") or [])
                 if not isinstance(raw_list, list):
                     raw_list = []
                 items = [self._norm_twitter(it) for it in raw_list[:limit]]
-                return {"source": source, "items": items, "error": res.get("error", {}).get("message") if not res.get("success") else None}
+                return {"source": source, "items": items}
 
             if source == "tg":
                 if not self._cli:
                     return {"source": source, "items": [], "error": "cli 未注入"}
-                res = self._cli.run_telegram("search", [query, "--limit", str(limit)], timeout=60)
+                res = self._cli.run_telegram("search", [query], timeout=60)
+                error_code, error_message = _response_error(res, "Telegram 搜索失败")
+                if error_message:
+                    return {
+                        "source": source,
+                        "items": [],
+                        "error": error_message,
+                        "error_code": error_code,
+                    }
                 data = res.get("data") or {}
                 raw_list = (data.get("messages") or data.get("results") or data.get("items") or [])
                 if not isinstance(raw_list, list):
@@ -323,12 +439,20 @@ class CrossPlatformTools:
                         "engagement": int(it.get("views", 0) or 0),
                         "extra": {},
                     })
-                return {"source": source, "items": items, "error": res.get("error", {}).get("message") if not res.get("success") else None}
+                return {"source": source, "items": items}
 
             if source == "discord":
                 if not self._cli:
                     return {"source": source, "items": [], "error": "cli 未注入"}
-                res = self._cli.run_discord("search", [query, "--limit", str(limit)], timeout=60)
+                res = self._cli.run_discord("search", [query], timeout=60)
+                error_code, error_message = _response_error(res, "Discord 搜索失败")
+                if error_message:
+                    return {
+                        "source": source,
+                        "items": [],
+                        "error": error_message,
+                        "error_code": error_code,
+                    }
                 data = res.get("data") or {}
                 raw_list = (data.get("messages") or data.get("results") or data.get("items") or [])
                 if not isinstance(raw_list, list):
@@ -343,7 +467,7 @@ class CrossPlatformTools:
                         "engagement": 0,
                         "extra": {},
                     })
-                return {"source": source, "items": items, "error": res.get("error", {}).get("message") if not res.get("success") else None}
+                return {"source": source, "items": items}
 
             return {"source": source, "items": [], "error": f"未知 source: {source}"}
         except Exception as ex:
@@ -398,25 +522,64 @@ class CrossPlatformTools:
         for s in sources:
             r = results.get(s) or {"items": []}
             items = r.get("items") or []
+            error = r.get("error")
+            if error and items:
+                source_status = "partial"
+            elif error:
+                source_status = "failed"
+            elif items:
+                source_status = "ready"
+            else:
+                source_status = "empty"
             sources_out[s] = {
                 "label": _PLATFORM_LABEL.get(s, s),
+                "status": source_status,
                 "count": len(items),
                 "items": items,
-                "error": r.get("error"),
+                "error": error,
+                "error_code": r.get("error_code"),
+                "meta": r.get("meta") or {},
             }
             merged.extend(items)
 
         merged.sort(key=lambda x: x.get("engagement", 0), reverse=True)
-
-        return _ok(
-            {
-                "query": query,
-                "sources": sources_out,
-                "merged": merged[:200],
-            },
-            sources=len(sources),
-            total_items=len(merged),
-        )
+        failed_sources = sum(1 for info in sources_out.values() if info["status"] == "failed")
+        degraded_sources = sum(1 for info in sources_out.values() if info["status"] == "partial")
+        empty_sources = sum(1 for info in sources_out.values() if info["status"] == "empty")
+        if not merged:
+            status = "failed" if failed_sources == len(sources) else "empty"
+        elif failed_sources or degraded_sources:
+            status = "partial"
+        else:
+            status = "complete"
+        response_data = {
+            "query": query,
+            "status": status,
+            "sources": sources_out,
+            "merged": merged[:200],
+        }
+        summary = {
+            "status": status,
+            "sources": len(sources),
+            "total_items": len(merged),
+            "failed_sources": failed_sources,
+            "degraded_sources": degraded_sources,
+            "empty_sources": empty_sources,
+        }
+        if not merged:
+            error_code = "ALL_SOURCES_FAILED" if status == "failed" else "NO_RESULTS"
+            error_message = (
+                "所有请求的数据源均失败"
+                if status == "failed"
+                else "数据源请求完成但没有匹配结果"
+            )
+            return {
+                "success": False,
+                "error": {"code": error_code, "message": error_message},
+                "summary": summary,
+                "data": response_data,
+            }
+        return _ok(response_data, **summary)
 
     # ────────────── Batch 4a: narrative_tracking ──────────────
 
@@ -513,12 +676,17 @@ class CrossPlatformTools:
             {
                 "topic": topic,
                 "method": method,
+                "status": us["summary"]["status"],
                 "platforms_compared": list(by_platform.keys()),
                 "by_platform": by_platform,
                 "ranking": ranking,
             },
-            platforms=len(platforms),
+            status=us["summary"]["status"],
+            platforms=len(by_platform),
             method=method,
+            failed_sources=us["summary"]["failed_sources"],
+            degraded_sources=us["summary"]["degraded_sources"],
+            empty_sources=us["summary"]["empty_sources"],
         )
 
     # ────────────── LLM 批量打分 ──────────────
