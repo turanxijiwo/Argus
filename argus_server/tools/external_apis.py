@@ -15,10 +15,13 @@
     {"success": bool, "summary": {...}, "data": {...}, "error"?: {...}}
 """
 
-import time
+import hashlib
 import json
+import threading
+import time
 import urllib.parse
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Dict, List, Optional, Any
 
 import requests
@@ -33,6 +36,10 @@ _DEFAULT_UA = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Argus/6.6 Safari/537.36"
 )
+
+_ARXIV_CACHE_VERSION = 1
+_ARXIV_CACHE_TTL_SECONDS = 24 * 60 * 60
+_ARXIV_REQUEST_DELAY_SECONDS = 3.0
 
 
 def _ok(data: Any, **summary) -> Dict:
@@ -50,7 +57,13 @@ class ExternalAPITools:
     """外部数据源 API 适配器集合"""
 
     def __init__(self, project_root: Optional[str] = None):
-        self.project_root = project_root
+        self.project_root = (
+            Path(project_root).resolve()
+            if project_root
+            else Path(__file__).resolve().parents[2]
+        )
+        self._arxiv_request_lock = threading.Lock()
+        self._arxiv_next_request_at = 0.0
         self.session = requests.Session()
         self.session.headers.update(
             {
@@ -67,6 +80,59 @@ class ExternalAPITools:
             h.update(headers)
         return self.session.get(url, params=params, headers=h, timeout=timeout)
 
+    def _arxiv_cache_path(self, params: Dict) -> Path:
+        cache_key = hashlib.sha256(
+            json.dumps(params, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        return self.project_root / "output" / "cache" / "arxiv" / f"{cache_key}.json"
+
+    def _read_arxiv_cache(self, cache_path: Path) -> Optional[Dict]:
+        try:
+            payload = json.loads(cache_path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict):
+                return None
+            cached_at = float(payload.get("cached_at", 0))
+            age_seconds = max(0.0, time.time() - cached_at)
+            response = payload.get("response")
+            papers = response.get("data", {}).get("papers") if isinstance(response, dict) else None
+            if (
+                payload.get("version") != _ARXIV_CACHE_VERSION
+                or age_seconds > _ARXIV_CACHE_TTL_SECONDS
+                or not isinstance(response, dict)
+                or response.get("success") is not True
+                or not isinstance(papers, list)
+            ):
+                return None
+            cached_response = dict(response)
+            cached_response["summary"] = {
+                **response.get("summary", {}),
+                "cache": {
+                    "hit": True,
+                    "age_seconds": round(age_seconds, 3),
+                    "ttl_seconds": _ARXIV_CACHE_TTL_SECONDS,
+                },
+            }
+            return cached_response
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+            return None
+
+    def _request_arxiv(self, params: Dict) -> requests.Response:
+        with self._arxiv_request_lock:
+            delay = self._arxiv_next_request_at - time.monotonic()
+            if delay > 0:
+                time.sleep(delay)
+            try:
+                response = self._get(
+                    "http://export.arxiv.org/api/query",
+                    params=params,
+                    timeout=25,
+                )
+            finally:
+                self._arxiv_next_request_at = (
+                    time.monotonic() + _ARXIV_REQUEST_DELAY_SECONDS
+                )
+            return response
+
     # ───────────────────────── 1. arXiv API ─────────────────────────
     def search_arxiv(
         self,
@@ -77,9 +143,6 @@ class ExternalAPITools:
         sort_order: str = "descending",
     ) -> Dict:
         """搜索 arXiv 论文 (官方 Atom API)"""
-        if not feedparser:
-            return _err("feedparser 未安装", code="DEP_MISSING")
-
         try:
             search = query.strip()
             if category:
@@ -91,7 +154,33 @@ class ExternalAPITools:
                 "sortBy": sort_by,
                 "sortOrder": sort_order,
             }
-            r = self._get("http://export.arxiv.org/api/query", params=params, timeout=25)
+            cache_path = self._arxiv_cache_path(params)
+            cached_response = self._read_arxiv_cache(cache_path)
+            if cached_response is not None:
+                return cached_response
+
+            if not feedparser:
+                return _err("feedparser 未安装", code="DEP_MISSING")
+
+            r = self._request_arxiv(params)
+            attempts = 1
+            if r.status_code == 429:
+                retry_after = r.headers.get("Retry-After")
+                try:
+                    retry_after_seconds = float(retry_after) if retry_after else None
+                except (TypeError, ValueError):
+                    retry_after_seconds = None
+                if retry_after_seconds is None or retry_after_seconds <= _ARXIV_REQUEST_DELAY_SECONDS:
+                    r = self._request_arxiv(params)
+                    attempts = 2
+                if r.status_code == 429:
+                    retry_after = r.headers.get("Retry-After") or retry_after
+                    return _err(
+                        "arXiv 限流, 请稍后重试",
+                        code="RATE_LIMITED",
+                        retry_after=retry_after,
+                        attempts=attempts,
+                    )
             r.raise_for_status()
             feed = feedparser.parse(r.content)
             items = []
@@ -115,13 +204,36 @@ class ExternalAPITools:
                         "abs_url": getattr(e, "link", ""),
                     }
                 )
-            return _ok(
+            response = _ok(
                 {"papers": items},
                 source="arxiv",
                 query=query,
                 category=category,
                 count=len(items),
             )
+            cache_stored = False
+            try:
+                cache_path.parent.mkdir(parents=True, exist_ok=True)
+                cache_payload = {
+                    "version": _ARXIV_CACHE_VERSION,
+                    "cached_at": time.time(),
+                    "response": response,
+                }
+                temporary_path = cache_path.with_suffix(".tmp")
+                temporary_path.write_text(
+                    json.dumps(cache_payload, ensure_ascii=False),
+                    encoding="utf-8",
+                )
+                temporary_path.replace(cache_path)
+                cache_stored = True
+            except OSError:
+                cache_stored = False
+            response["summary"]["cache"] = {
+                "hit": False,
+                "stored": cache_stored,
+                "ttl_seconds": _ARXIV_CACHE_TTL_SECONDS,
+            }
+            return response
         except requests.exceptions.RequestException as ex:
             return _err(f"arXiv 请求失败: {ex}", code="NETWORK_ERROR")
         except Exception as ex:
@@ -554,16 +666,74 @@ class ExternalAPITools:
         except Exception as ex:
             results["pubmed"] = _err(str(ex))
 
-        total = sum(
-            len(((v.get("data") or {}).get("papers") or (v.get("data") or {}).get("works") or []))
-            for v in results.values() if v.get("success")
-        )
-        return _ok(
-            {"sources": results},
-            query=query,
-            total_papers=total,
-            sources_attempted=list(results.keys()),
-        )
+        source_counts = {}
+        successful_source_names = []
+        failed_source_names = []
+        for source_name, source_response in results.items():
+            if not source_response.get("success"):
+                failed_source_names.append(source_name)
+                source_counts[source_name] = 0
+                continue
+            successful_source_names.append(source_name)
+            source_data = source_response.get("data") or {}
+            source_items = source_data.get("papers")
+            if not isinstance(source_items, list):
+                source_items = source_data.get("works")
+            source_counts[source_name] = len(source_items) if isinstance(source_items, list) else 0
+
+        total_papers = sum(source_counts.values())
+        empty_source_names = [
+            source_name
+            for source_name in successful_source_names
+            if source_counts[source_name] == 0
+        ]
+        if len(failed_source_names) == len(results):
+            status = "failed"
+        elif failed_source_names:
+            status = "partial"
+        elif total_papers == 0:
+            status = "empty"
+        else:
+            status = "complete"
+
+        response_data = {
+            "query": query,
+            "status": status,
+            "sources": results,
+            "source_counts": source_counts,
+        }
+        summary = {
+            "status": status,
+            "query": query,
+            "total_papers": total_papers,
+            "sources_attempted": list(results.keys()),
+            "successful_sources": len(successful_source_names),
+            "failed_sources": len(failed_source_names),
+            "empty_sources": len(empty_source_names),
+            "failed_source_names": failed_source_names,
+            "empty_source_names": empty_source_names,
+        }
+        if status == "failed":
+            return {
+                "success": False,
+                "error": {
+                    "code": "ALL_SOURCES_FAILED",
+                    "message": "所有学术搜索来源均失败",
+                },
+                "summary": summary,
+                "data": response_data,
+            }
+        if total_papers == 0:
+            return {
+                "success": False,
+                "error": {
+                    "code": "NO_RESULTS",
+                    "message": "可用学术来源没有匹配结果",
+                },
+                "summary": summary,
+                "data": response_data,
+            }
+        return _ok(response_data, **summary)
 
     # ───────────────────────── 8. CrossRef ─────────────────────────
     def search_crossref(
