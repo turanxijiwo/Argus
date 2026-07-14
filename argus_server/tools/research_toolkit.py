@@ -9,6 +9,7 @@ cross-source research aggregation, and optional external CLI adapters.
 import os
 from typing import Any, Dict, List, Optional
 
+from .research_audio import search_openverse_audio
 from .research_crawl import fetch_page_html, parse_page_html
 from .research_batch import (
     DEFAULT_BATCH_OUTPUT_DIR,
@@ -175,6 +176,15 @@ class ResearchToolkitTools:
             discover_page_images=self.discover_page_images,
             image_confidence=_image_confidence,
         )
+
+    def research_audio(
+        self,
+        query: str,
+        limit: int = 5,
+        timeout: int = 20,
+    ) -> Dict:
+        """Search Openverse for license-aware audio metadata without downloading media."""
+        return search_openverse_audio(query=query, limit=limit, timeout=timeout)
 
     def research_pack(
         self,

@@ -32,6 +32,7 @@ def toolkit_health(
                 "research_topic": "cross-source normalized research aggregation, including optional web:<provider> and codex sources",
                 "research_pack": "topic search plus page crawling into an evidence packet",
                 "research_images": "anonymous Openverse image search plus optional page-derived image extraction",
+                "research_audio": "anonymous Openverse audio metadata search without media downloads",
                 "research_workflow": "one-call topic search, page crawl, image extraction, markdown brief, retry summary, and optional export",
                 "research_batch_workflow": "multi-query saved research workflows plus compact artifact review report",
                 "research_review_artifact": "compact quality review for one saved JSON research artifact",
@@ -45,6 +46,7 @@ def toolkit_health(
             },
             "web_search_sources": ["web", "web:tavily", "web:exa", "web:perplexity", "web:brave"],
             "image_search_sources": ["image:openverse"],
+            "audio_search_sources": ["audio:openverse"],
             "research_sources": [
                 "local_news",
                 "hackernews",
@@ -98,6 +100,13 @@ def toolkit_health(
                     mode="anonymous_openverse_and_optional_page_sources",
                     default_source="image:openverse",
                     note="Openverse is anonymously rate-limited; returned license metadata requires independent verification.",
+                ),
+                "research_audio": _capability(
+                    can_use_now=True,
+                    status="ready",
+                    mode="anonymous_openverse_audio_metadata",
+                    default_source="audio:openverse",
+                    note="Openverse is anonymously rate-limited; returned license metadata requires independent verification and no media is downloaded.",
                 ),
                 "research_pack": _capability(
                     can_use_now=topic_source_ready,

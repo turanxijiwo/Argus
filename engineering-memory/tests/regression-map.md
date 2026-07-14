@@ -273,6 +273,7 @@ Test file:
 
 What it protects:
 - Keeps `audio:openverse` metadata-only and bounded, filters mature or malformed candidates, dedupes preview URLs, omits waveform and alternate-file payloads, preserves license notices and anonymous rate limits, and returns stable invalid-query, timeout, rate-limit, and provider-response errors.
+- Keeps `ResearchToolkitTools.research_audio` as a parameter-preserving wrapper and reports the no-key `audio:openverse` source as ready in toolkit health without implying media download or MCP registration.
 
 ### Research toolkit saved artifact quality smoke runner
 

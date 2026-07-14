@@ -4,6 +4,7 @@ from unittest.mock import patch
 import requests
 
 from argus_server.tools import research_audio
+from argus_server.tools.research_toolkit import ResearchToolkitTools
 
 
 class FakeResponse:
@@ -43,6 +44,32 @@ class FakeSession:
 
 
 class ResearchAudioTest(unittest.TestCase):
+    def test_toolkit_method_delegates_without_changing_adapter_result(self):
+        expected = {"success": True, "data": {"audio": []}}
+        tool = ResearchToolkitTools()
+
+        with patch(
+            "argus_server.tools.research_toolkit.search_openverse_audio",
+            return_value=expected,
+        ) as search_audio:
+            result = tool.research_audio("birdsong", limit=7, timeout=12)
+
+        self.assertIs(result, expected)
+        search_audio.assert_called_once_with(query="birdsong", limit=7, timeout=12)
+
+    def test_toolkit_health_reports_ready_audio_metadata_search(self):
+        tool = ResearchToolkitTools()
+
+        result = tool.toolkit_health()
+
+        capability = result["data"]["capabilities"]["research_audio"]
+        self.assertTrue(capability["can_use_now"])
+        self.assertEqual(capability["status"], "ready")
+        self.assertEqual(capability["mode"], "anonymous_openverse_audio_metadata")
+        self.assertEqual(capability["default_source"], "audio:openverse")
+        self.assertIn("no media is downloaded", capability["note"])
+        self.assertEqual(result["data"]["audio_search_sources"], ["audio:openverse"])
+
     def test_search_normalizes_dedupes_and_filters_without_download_metadata(self):
         audio_url = "https://cdn.example.com/birdsong.mp3"
         payload = {
