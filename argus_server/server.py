@@ -3141,7 +3141,7 @@ async def research_toolkit_health() -> str:
     检查研究工具包能力与可选开源 CLI 安装状态。
 
     覆盖:
-      - 研究能力: crawl_url / discover_page_images / research_images / research_topic / find_research_resource / research_resource_workflow / research_compare_artifacts / research_resolve_locators / research_pack / research_workflow / research_batch_workflow / download_gallery
+      - 研究能力: crawl_url / discover_page_images / research_images / research_audio / research_topic / find_research_resource / research_resource_workflow / research_compare_artifacts / research_resolve_locators / research_pack / research_workflow / research_batch_workflow / download_gallery
       - 可选高质量 CLI/SDK: gallery-dl / yt-dlp / scrapy / crawl4ai / openai-codex
 
     Returns:
@@ -3534,6 +3534,36 @@ async def research_images(
         sources=sources,
         limit=limit,
         images_per_page=images_per_page,
+        timeout=timeout,
+    )
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+
+@mcp.tool
+async def research_audio(
+    query: str,
+    limit: int = 5,
+    timeout: int = 20,
+) -> str:
+    """
+    通过 Openverse 搜索可核验授权的音频元数据, 无需 API key。
+
+    本工具只返回音频候选 URL、来源页、作者、许可、署名、时长和文件元数据;
+    不下载音频、waveform 或备用文件。Openverse 授权元数据使用前仍需独立复核。
+
+    Args:
+        query: 音频搜索关键词。
+        limit: 最多返回多少条候选, 会限制在 1–20。
+        timeout: 请求超时秒数, 会限制在 3–90。
+
+    Returns:
+        JSON: 音频候选、许可/署名元数据、动态限流状态和结构化错误。
+    """
+    tools = _get_tools()
+    result = await asyncio.to_thread(
+        tools['research'].research_audio,
+        query=query,
+        limit=limit,
         timeout=timeout,
     )
     return json.dumps(result, ensure_ascii=False, indent=2, default=str)

@@ -353,7 +353,7 @@ Test file:
 - `tests/test_mcp_registration.py`
 
 What it protects:
-- Keeps all sixteen Research Toolkit tools registered on the FastMCP server and catches accidental changes to the expected 171-tool public surface.
+- Keeps all seventeen Research Toolkit tools registered on the FastMCP server, locks `research_audio` to `query` / `limit` / `timeout`, preserves normal and structured-error JSON responses, and catches accidental changes to the expected 172-tool public surface.
 
 ### Research resource relevance and partial failure
 

@@ -1,4 +1,7 @@
+import json
 import unittest
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 from argus_server.server import mcp
 
@@ -11,6 +14,7 @@ class MCPRegistrationTest(unittest.IsolatedAsyncioTestCase):
             "crawl_url",
             "discover_page_images",
             "research_images",
+            "research_audio",
             "research_pack",
             "research_workflow",
             "research_batch_workflow",
@@ -25,7 +29,7 @@ class MCPRegistrationTest(unittest.IsolatedAsyncioTestCase):
             "research_topic",
         }
 
-        self.assertEqual(len(tools), 171)
+        self.assertEqual(len(tools), 172)
         self.assertTrue(expected_research_tools.issubset(tools))
 
         for tool_name in expected_research_tools:
@@ -38,6 +42,49 @@ class MCPRegistrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             set(audit_tool.parameters["properties"]),
             {"comparison_artifact_path"},
+        )
+        audio_tool = await mcp.get_tool("research_audio")
+        self.assertEqual(
+            set(audio_tool.parameters["properties"]),
+            {"query", "limit", "timeout"},
+        )
+        self.assertEqual(audio_tool.parameters["required"], ["query"])
+
+    async def test_research_audio_mcp_delegates_and_serializes_result(self):
+        expected = {"success": True, "data": {"audio": [{"title": "Birdsong"}]}}
+        research_audio = Mock(return_value=expected)
+        fake_tools = {"research": SimpleNamespace(research_audio=research_audio)}
+
+        with patch("argus_server.server._get_tools", return_value=fake_tools):
+            tool = await mcp.get_tool("research_audio")
+            result = await tool.run(
+                {"query": "birdsong", "limit": 7, "timeout": 12}
+            )
+
+        self.assertEqual(json.loads(result.content[0].text), expected)
+        research_audio.assert_called_once_with(
+            query="birdsong",
+            limit=7,
+            timeout=12,
+        )
+
+    async def test_research_audio_mcp_preserves_structured_adapter_error(self):
+        expected = {
+            "success": False,
+            "error": {"code": "RATE_LIMITED", "message": "Openverse rate limit reached"},
+        }
+        research_audio = Mock(return_value=expected)
+        fake_tools = {"research": SimpleNamespace(research_audio=research_audio)}
+
+        with patch("argus_server.server._get_tools", return_value=fake_tools):
+            tool = await mcp.get_tool("research_audio")
+            result = await tool.run({"query": "birdsong"})
+
+        self.assertEqual(json.loads(result.content[0].text), expected)
+        research_audio.assert_called_once_with(
+            query="birdsong",
+            limit=5,
+            timeout=20,
         )
 
 

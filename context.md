@@ -3,18 +3,19 @@
 ## 当前任务
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
-- Current product focus remains the Argus agent-native research and intelligence toolkit: 171 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest milestone: `ResearchToolkitTools.research_audio` now exposes the proven metadata-only `audio:openverse` adapter to direct Codex/Python callers, and toolkit health reports its anonymous no-key source and no-download boundary without changing the public MCP surface.
-- Next candidate stage: register `research_audio` as the 172nd MCP tool, then update the MCP inventory, registration tests, usage examples, and a real no-download smoke in separately scoped work.
+- Current product focus remains the Argus agent-native research and intelligence toolkit: 172 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
+- Latest milestone: `research_audio` is now the 172nd MCP tool, exposing bounded anonymous `audio:openverse` metadata search with a no-download contract and independent license-verification warning.
+- Next candidate stage: update public README/boundary examples for the audio tool, then add a repeatable real no-download MCP smoke in a separately scoped task.
 
 ## 已知问题
 
 - `tests/test_research_toolkit.py` has reached 1,370 lines; split it by Research Toolkit capability in a dedicated test-organization task rather than mixing that refactor into feature work.
+- `argus_server/server.py` exceeds 5,000 lines; split MCP registrations by tool family in a dedicated architecture task rather than mixing that refactor into feature work.
 - `argus_server/tools/research_toolkit.py` and `argus_server/tools/research_health.py` have reached 310 and 303 lines after the audio capability wiring; split their public adapter and capability declarations in a dedicated organization task rather than mixing that refactor into feature work.
 - `scripts/research_artifact_review.py` has reached 452 lines; preserve its standalone execution contract, but split loading, image-license summarization, and Markdown rendering in a dedicated task.
 - JavaScript rendering now has an optional Crawl4AI runtime adapter through `crawl_url(render_js=True)`, but it requires Crawl4AI and browser dependencies to be installed locally.
 - Broad web search can reuse configured Tavily / Exa / Perplexity / Brave providers through `research_topic` sources such as `web:tavily`; optional local Codex SDK research is available through the `codex` source when `openai-codex` is installed. `research_images` now uses anonymous Openverse by default and can mix `image:openverse` with page-derived sources, but anonymous calls are rate-limited and Openverse license metadata must be independently verified.
-- Openverse audio is implemented internally but is not yet registered as an MCP tool. A real anonymous probe returned complete CC metadata and observed the same 20/minute and 200/day limits as image search, but those values remain dynamic and every result still requires independent license verification.
+- Openverse audio is available through the public `research_audio` MCP tool. A real anonymous probe returned complete CC metadata and observed the same 20/minute and 200/day limits as image search, but those values remain dynamic and every result still requires independent license verification.
 - Internet Archive search and metadata APIs are viable later, but automated requests require a descriptive User-Agent and search metadata does not prove open file access or reusable rights. The installed `yt-dlp` `2026.07.04` can inspect a public MIT video without downloading it, while warning that reliable YouTube extraction needs an additional JavaScript runtime.
 - `find_research_resource` uses Open Library plus Project Gutenberg OPDS for books, arXiv / Semantic Scholar / OpenReview / Crossref for papers, and the Codex source for official course pages; it labels open download/read, borrow, preview, metadata-only, and unverified results without bypassing access controls.
 - `research_resource_workflow` reads verified public PDF/HTML/TXT links through Jina Reader, optionally summarizes with the local Codex SDK, and can save project-local JSON/Markdown artifacts; unverified links require explicit opt-in, while borrow/preview/metadata-only results remain blocked.
@@ -62,7 +63,10 @@
 
 ## 最近变更记录
 
-- Added `ResearchToolkitTools.research_audio` as a thin adapter-preserving wrapper and advertised `audio:openverse` as a ready anonymous metadata source in toolkit health; MCP registration remains unchanged at 171 tools.
+- Registered `research_audio` as the 172nd MCP tool with a minimal `query`, `limit`, and `timeout` contract that preserves metadata-only, no-download behavior.
+- Extended MCP registration coverage to require all 17 Research Toolkit tools and lock the audio tool's public parameter schema.
+- Verified 11 related tests, 184 full tests, targeted syntax checks, package build, and a real FastMCP `birdsong` query returning one license-aware Openverse result with no waveform or alternate-file fields.
+- Added `ResearchToolkitTools.research_audio` as a thin adapter-preserving wrapper and advertised `audio:openverse` as a ready anonymous metadata source in toolkit health before public registration.
 - Added focused regressions for class-method delegation and health capability/source reporting while retaining the adapter's existing normal and exceptional-path coverage.
 - Verified 51 related tests, 182 full tests, targeted syntax checks, package build, and a real class-entry `birdsong` query returning one license-aware Openverse result with no waveform or alternate-file fields.
 - Added the internal metadata-only `audio:openverse` adapter with bounded query/timeout inputs, URL deduplication, mature/malformed filtering, Openverse notices, dynamic anonymous limit metadata, and no waveform/alternate-file/media retrieval.
