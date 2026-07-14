@@ -37,6 +37,7 @@ from .research_review import review_research_artifact
 from .research_sources import run_source_search
 from .research_source_ai import run_codex_search
 from .research_topic import build_research_topic
+from .research_video import inspect_video_metadata
 from .research_workflow import (
     build_research_workflow,
     image_confidence as _image_confidence,
@@ -185,6 +186,10 @@ class ResearchToolkitTools:
     ) -> Dict:
         """Search Openverse for license-aware audio metadata without downloading media."""
         return search_openverse_audio(query=query, limit=limit, timeout=timeout)
+
+    def research_video_metadata(self, url: str, timeout: int = 60) -> Dict:
+        """Inspect public video metadata through yt-dlp without downloading media."""
+        return inspect_video_metadata(url=url, timeout=timeout)
 
     def research_pack(
         self,

@@ -21,6 +21,8 @@ def toolkit_health(
     ]
     crawl4ai_ready = status["crawl4ai"]["installed"]
     gallery_ready = status["gallery-dl"]["installed"]
+    yt_dlp_ready = status["yt-dlp"]["installed"]
+    deno_ready = status["deno"]["installed"]
     web_search_ready = bool(ai_search and configured_web_sources)
     codex_ready = bool(codex_runner or status["openai-codex"]["installed"])
     topic_source_ready = bool(search_tools or external_api or web_search_ready or codex_ready)
@@ -33,6 +35,7 @@ def toolkit_health(
                 "research_pack": "topic search plus page crawling into an evidence packet",
                 "research_images": "anonymous Openverse image search plus optional page-derived image extraction",
                 "research_audio": "anonymous Openverse audio metadata search without media downloads",
+                "research_video_metadata": "metadata-only yt-dlp inspection without cookies, downloads, or direct media URLs",
                 "research_workflow": "one-call topic search, page crawl, image extraction, markdown brief, retry summary, and optional export",
                 "research_batch_workflow": "multi-query saved research workflows plus compact artifact review report",
                 "research_review_artifact": "compact quality review for one saved JSON research artifact",
@@ -107,6 +110,15 @@ def toolkit_health(
                     mode="anonymous_openverse_audio_metadata",
                     default_source="audio:openverse",
                     note="Openverse is anonymously rate-limited; returned license metadata requires independent verification and no media is downloaded.",
+                ),
+                "research_video_metadata": _capability(
+                    can_use_now=yt_dlp_ready,
+                    status="ready" if yt_dlp_ready else "needs_setup",
+                    missing=[] if yt_dlp_ready else ["yt-dlp"],
+                    setup_hint=None if yt_dlp_ready else status["yt-dlp"]["install_hint"],
+                    mode="yt_dlp_metadata_only",
+                    javascript_runtime="deno" if deno_ready else "not_detected",
+                    note="Deno is the recommended YouTube JavaScript runtime. The adapter ignores config and cookies, disables downloads and remote components, and returns only allowlisted metadata.",
                 ),
                 "research_pack": _capability(
                     can_use_now=topic_source_ready,
@@ -213,6 +225,11 @@ def optional_tool_status() -> Dict[str, Dict[str, Any]]:
             "role": "video/audio metadata and downloads",
             "install_hint": "uv tool install yt-dlp",
             "license_note": "Unlicense",
+        },
+        "deno": {
+            "role": "recommended yt-dlp JavaScript runtime for YouTube metadata",
+            "install_hint": "Install Deno 2.3+ from https://docs.deno.com/runtime/getting_started/installation/",
+            "license_note": "MIT",
         },
         "scrapy": {
             "role": "large rule-based crawling projects",
