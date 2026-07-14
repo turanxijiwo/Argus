@@ -130,6 +130,8 @@ Claude Code / Cherry Studio / 任何 MCP client 配置:
 
 Openverse 匿名图片搜索可用 `uv run python scripts/research_openverse_smoke.py` 做真实质量冒烟。脚本只检索元数据、不下载媒体；退出码 `0` 表示结果与许可元数据契约通过，`2` 表示限流或网络等外部不可用，`3` 表示结果结构或质量回归。
 
+Openverse 匿名音频搜索可用 `uv run python scripts/research_audio_smoke.py` 通过已注册的 `research_audio` FastMCP 工具做真实质量冒烟。脚本只检索元数据，不下载音频、waveform 或备用文件；退出码 `0` 表示结果与许可/no-download 契约通过，`2` 表示限流、网络或超时等外部不可用，`3` 表示 provider、MCP 输出或质量契约回归。
+
 `find_research_resource` 使用 Open Library / Project Gutenberg、arXiv / Semantic Scholar / OpenReview / Crossref 和 Codex 官方课程搜索,统一标记公开下载、在线阅读、借阅、预览、仅元数据或未验证状态,且不绕过登录、付费墙、DRM 或校园权限。
 
 `research_resource_workflow` 会选择一个资源结果,通过 Jina Reader 读取已验证的公开 PDF 或课程页,可选用本机 Codex SDK 生成摘要,并保存项目内 JSON + Markdown 产物。摘要使用本机 Codex 登录状态,不要求单独 API key; `summarize=False` 可完全跳过 Codex。默认拒绝未验证、借阅、预览和仅元数据资源;图书若只有 EPUB/Kindle 文件,当前只读取资源页,不声称已读取全文。

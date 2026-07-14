@@ -4,8 +4,8 @@
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
 - Current product focus remains the Argus agent-native research and intelligence toolkit: 172 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest milestone: `scripts/research_audio_smoke.py` now exercises the registered FastMCP tool, validates metadata/license/no-download quality, and separates external unavailability (`2`) from contract failure (`3`).
-- Next candidate stage: document the audio smoke command in README/HANDOFF, then evaluate bounded Internet Archive metadata-only discovery as the next media adapter.
+- Latest milestone: README, HANDOFF, and the media evaluation now document the repeatable `research_audio` FastMCP smoke command, stable exit codes, and no-download boundary; the current verification baseline is 191 tests.
+- Next candidate stage: evaluate a bounded Internet Archive metadata-only discovery adapter, including descriptive User-Agent, access/license uncertainty, two-step metadata lookup, and rate-limit handling before any implementation.
 
 ## 已知问题
 
@@ -63,6 +63,8 @@
 
 ## 最近变更记录
 
+- Documented `uv run python scripts/research_audio_smoke.py` in the public README, durable handoff, and media evaluation, and refreshed the handoff baseline to 191 tests.
+- Verified the documented command verbatim with exit code 0, two `by`/`cc0` Freesound candidates, all no-download checks passing, and a successful package build.
 - Added a repeatable FastMCP `research_audio` smoke with stable `0` passing, `2` external-unavailability, and `3` contract-failure exit codes.
 - Added focused smoke regressions for public tool invocation, metadata-only quality, mature/duplicate/incomplete candidates, anonymous limits, malformed nested/provider results, and malformed MCP output.
 - Verified 22 related tests, 191 full tests, targeted syntax checks, package build, and a real `birdsong` FastMCP smoke returning two `by`/`cc0` Freesound candidates with exit code 0 and no forbidden media fields.

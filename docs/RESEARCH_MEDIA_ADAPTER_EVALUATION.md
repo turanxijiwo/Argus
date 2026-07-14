@@ -27,6 +27,12 @@ The real FastMCP smoke passed with exit code `0` for `birdsong`: two unique
 non-mature Freesound candidates, `by` and `cc0` licenses, complete source and
 license checks, dynamic rate-limit metadata, and no forbidden media fields.
 
+Reproduce the same bounded metadata-only path with:
+
+```bash
+uv run python scripts/research_audio_smoke.py
+```
+
 ## Evidence
 
 ### Openverse audio

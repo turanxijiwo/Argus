@@ -13,7 +13,7 @@ storage, schema, auth, refactor, or bug-fix work.
 - Runtime: Python 3.12+ with `uv`.
 - MCP surface: 172 FastMCP tools and 8 resources.
 - Research Toolkit: 17 public MCP tools, including key-free metadata-only `research_audio`.
-- Verification baseline: 184 tests passing and `uv build` successful.
+- Verification baseline: 191 tests passing and `uv build` successful.
 - Historical Phase 2 delivery report: `docs/RESEARCH_TOOLKIT_PHASE2_DELIVERY_AUDIT.md`.
 
 ## Primary Commands
@@ -25,6 +25,7 @@ uv run python scripts/research_crawl_quality_smoke.py
 uv run python scripts/research_artifact_smoke.py
 uv run python scripts/research_batch_handoff_smoke.py
 uv run python scripts/research_runtime_probe_smoke.py
+uv run python scripts/research_audio_smoke.py
 ```
 
 ## Research Toolkit Flow
