@@ -264,3 +264,275 @@ Whenever integrity covers a bounded prefix or slice, every coordinate derived fr
 
 ### Related Bugs
 - BUG-0009
+
+## RC-0010: Heterogeneous Source Contracts Collapsed Into Generic Success
+
+Status: active
+Category: API contract and status semantics
+First observed: BUG-0010
+Recurring count: 3
+Severity trend: high
+
+### Description
+A multi-source or multi-step orchestrator assumed compatible child contracts or treated completion of its fan-out as business success even when every child failed or returned no useful item.
+
+### Typical Symptoms
+- Several adapters fail with unsupported argument errors after receiving the same generic option.
+- The top-level envelope is successful while merged results are empty.
+- Partial source failures disappear or lose structured error codes.
+- A downstream analysis tool produces an empty report from the misleading aggregate.
+
+### Common Triggers
+- Adding a new provider to an existing fan-out without checking its real method or CLI help.
+- Reusing one parameter name across SDK, HTTP, and CLI adapters.
+- Returning `_ok` after orchestration without evaluating useful output and source failures.
+- Calling child analysis steps without validating the requested mode or containing step exceptions.
+
+### Prevention Rule
+Verify each adapter's actual input and output contract, preserve source-scoped diagnostics, and derive aggregate status from both useful output and failed/empty source counts.
+
+### Related Bugs
+- BUG-0010
+- BUG-0012
+- BUG-0013
+
+## RC-0011: Upstream Service Lifecycle Was Not Reconciled With Registration
+
+Status: active
+Category: external service lifecycle
+First observed: BUG-0011
+Recurring count: 1
+Severity trend: high
+
+### Description
+A permanently retired upstream API remained in the FastMCP registry and local adapter inventory, so an impossible capability continued to look discoverable and its permanent failure was misclassified as transient networking.
+
+### Typical Symptoms
+- A registered tool consistently fails against a provider-owned retired domain.
+- Official sunset documentation contradicts local readiness claims.
+- Tool counts remain stable only because dead capabilities are never removed.
+
+### Common Triggers
+- External API shutdowns after initial integration.
+- Inventory checks that count decorators without probing business readiness.
+- Generic request exception handling that cannot distinguish sunset from outage.
+
+### Prevention Rule
+Reconcile public registrations with official provider lifecycle changes; remove or explicitly disable permanently unavailable capabilities and preserve the decision in tests and audit history.
+
+### Related Bugs
+- BUG-0011
+
+## RC-0012: Health Semantics Had No Authoritative Contract
+
+Status: active
+Category: API contract and derived state
+First observed: BUG-0014
+Recurring count: 1
+Severity trend: high
+
+### Description
+Liveness, successful check execution, core business readiness, and optional capability availability were compressed into unrelated `healthy` or `ok` values maintained by separate entrypoints.
+
+### Typical Symptoms
+- One endpoint reports healthy while another reports false for the same runtime.
+- A missing directory causes the check to disappear instead of reporting not ready.
+- Optional services make the whole system look unavailable.
+- A process liveness endpoint is mistaken for business readiness.
+
+### Common Triggers
+- Health endpoints implemented by separate modules without a shared snapshot.
+- Constant status values attached to informational system metadata.
+- Aggregate booleans derived only from checks that happened to be present.
+- Required and optional dependencies represented with the same boolean.
+
+### Prevention Rule
+Use one authoritative readiness snapshot, distinguish execution from readiness, emit records for missing dependencies, mark checks as required or optional, and label liveness-only endpoints explicitly.
+
+### Related Bugs
+- BUG-0014
+
+## RC-0013: Layered Persistence Was Collapsed Into One Boolean
+
+Status: active
+Category: storage state and API contract
+First observed: BUG-0015
+Recurring count: 1
+Severity trend: high
+
+### Description
+A required SQLite write and optional TXT/HTML artifacts shared one success flag, while the optional-artifact request parameter was also used to describe all local persistence.
+
+### Typical Symptoms
+- A database file exists while the response says nothing was saved locally.
+- Missing optional artifacts are hidden by a successful database write.
+- An exception in one persistence layer overwrites the known outcome of another layer.
+
+### Common Triggers
+- Reusing one boolean across storage layers with different requirements.
+- Naming an optional-artifact flag as if it controls the whole persistence operation.
+- Building response notes from request intent instead of observed storage outcomes.
+
+### Prevention Rule
+Track each persistence layer independently, derive aggregate state from observed outcomes, and keep compatibility flags subordinate to explicit layer records.
+
+### Related Bugs
+- BUG-0015
+
+## RC-0014: Worker Operation Retained A Process-Global SQLite Manager
+
+Status: active
+Category: storage lifecycle and concurrency
+First observed: BUG-0016
+Recurring count: 1
+Severity trend: high
+
+### Description
+A short-lived FastMCP worker operation borrowed the process-global storage singleton, created a thread-affine SQLite connection, and left cleanup to destruction from another thread.
+
+### Typical Symptoms
+- A successful tool response is followed by a SQLite thread-affinity cleanup error.
+- A later worker can inherit a connection created by a different worker.
+- A project-scoped tool reads from a current-working-directory-relative output path.
+
+### Common Triggers
+- Calling a process singleton from `asyncio.to_thread` without an ownership contract.
+- Opening SQLite during a read-only operation without deterministic cleanup.
+- Treating destructor cleanup as a substitute for operation-scoped lifecycle management.
+
+### Prevention Rule
+Create project-bound storage for worker operations and close it in the same thread with `finally`; retain SQLite thread checks and use global managers only where one thread owns their full lifecycle.
+
+### Related Bugs
+- BUG-0016
+
+## RC-0015: Independent Metrics Shared One Data-Eligibility Gate
+
+Status: active
+Category: derived analytics
+First observed: BUG-0017
+Recurring count: 1
+Severity trend: medium
+
+### Description
+Peak and change-rate calculations were placed under the same two-point condition even though a peak is valid for one positive observation and a rate of change is not.
+
+### Typical Symptoms
+- Totals and detail rows contain positive observations while a derived peak is zero or absent.
+- One-point analysis behaves differently from the equivalent first point in a longer series.
+
+### Common Triggers
+- Computing several summary metrics inside one length guard.
+- Treating shared input data as proof that every metric has the same minimum sample size.
+
+### Prevention Rule
+Define and test the minimum-data requirement for each derived metric independently, including one-point and all-zero series.
+
+### Related Bugs
+- BUG-0017
+
+## RC-0016: Undefined Ratios Were Collapsed Into Numeric Zero
+
+Status: active
+Category: derived analytics
+First observed: BUG-0018
+Recurring count: 1
+Severity trend: medium
+
+### Description
+A zero denominator used numeric zero as a safety fallback, turning an undefined comparison percentage into a valid-looking `+0.0%`.
+
+### Typical Symptoms
+- A positive absolute change is paired with a zero relative change.
+- Missing baselines are indistinguishable from genuinely unchanged values.
+
+### Common Triggers
+- Inline divide-by-zero fallbacks in display metric calculations.
+- Formatting sentinel numbers before preserving their semantic meaning.
+
+### Prevention Rule
+Use an explicit unavailable value for undefined ratios and retain absolute differences so callers still receive truthful comparison information.
+
+### Related Bugs
+- BUG-0018
+
+## RC-0017: The Idempotency Key Was Written After Its Side Effects
+
+Status: active
+Category: storage concurrency and idempotency
+First observed: BUG-0019
+Recurring count: 1
+Severity trend: high
+
+### Description
+A unique crawl-time record was inserted or replaced only after news/RSS item mutations. Concurrent retries therefore duplicated counters and history before the late unique write collapsed only the visible crawl record.
+
+### Typical Symptoms
+- One crawl record exists for a minute while item counters or history rows show two runs.
+- An autoincrement ID skips even though the unique-key table exposes one logical record.
+- Concurrent workers both report successful persistence for the same operation key.
+
+### Common Triggers
+- Scheduled or manually retried work overlaps inside one crawl-time bucket.
+- A final upsert is mistaken for transaction-wide idempotency.
+- Side-effect tables do not share the operation key's uniqueness constraint.
+
+### Prevention Rule
+Claim the unique operation key transactionally before any dependent mutation, treat an existing claim as an idempotent no-op, and roll back the claim with all side effects on failure.
+
+### Related Bugs
+- BUG-0019
+
+## RC-0018: A Rate-Limited Source Was Treated As An Unrestricted Endpoint
+
+Status: active
+Category: external API availability
+First observed: BUG-0020
+Recurring count: 1
+Severity trend: high
+
+### Description
+The arXiv adapter issued every query directly without caching or pacing, despite the source documenting stable daily results and a minimum delay for consecutive calls. HTTP 429 was then collapsed into a generic network error.
+
+### Typical Symptoms
+- Repeating an identical public metadata query consumes another upstream request.
+- Serial requests fail with the same limit previously attributed only to concurrency.
+- A source limit is reported as `NETWORK_ERROR`, hiding retry guidance.
+
+### Common Triggers
+- Wrapping a public API with only `raise_for_status()`.
+- Assuming no-key means unmetered or stateless.
+- Implementing fallback aggregation without first respecting the owning source's usage contract.
+
+### Prevention Rule
+Before integrating a rate-limited source, encode its documented cache lifetime and request spacing at the adapter boundary, bound automatic retries, and expose persistent limits with source-specific metadata.
+
+### Related Bugs
+- BUG-0020
+
+## RC-0019: Onboarding Examples Drifted From Executable Contracts
+
+Status: active
+Category: documentation contract and test gap
+First observed: BUG-0021
+Recurring count: 1
+Severity trend: low
+
+### Description
+The quick-start command was maintained as prose without a process-level check against the installed argparse entrypoint, so an unsupported flag remained documented after the executable contract differed.
+
+### Typical Symptoms
+- A copy-pasted quick-start command exits during argument parsing.
+- The library or in-process tests pass while an external MCP client path remains untested.
+- Different language READMEs repeat the same stale invocation.
+
+### Common Triggers
+- Updating CLI behavior without scanning onboarding examples.
+- Verifying FastMCP registrations only in process.
+- Treating a running server process as proof of a successful MCP handshake.
+
+### Prevention Rule
+For documented CLI or MCP entrypoints, run the exact command or an equivalent process-level client handshake from outside the project working directory and scan all translated onboarding docs for the same contract.
+
+### Related Bugs
+- BUG-0021

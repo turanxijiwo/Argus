@@ -44,6 +44,7 @@ Related modules:
 - `argus_server/tools/research_source_ai.py`
 - `argus_server/tools/research_topic.py`
 - `argus_server/tools/research_images.py`
+- `argus_server/tools/research_video.py`
 - `argus_server/tools/research_pack.py`
 - `argus_server/tools/research_workflow.py`
 - `argus_server/tools/research_batch.py`
@@ -72,6 +73,7 @@ Tests to run:
 - `uv run python -m unittest tests.test_research_codex_smoke`
 - `uv run python -m unittest tests.test_research_crawl_quality_smoke`
 - `uv run python -m unittest tests.test_research_openverse_smoke`
+- `uv run python -m unittest tests.test_research_video`
 - `uv run python -m unittest tests.test_research_artifact_smoke`
 - `uv run python -m unittest tests.test_research_artifact_review`
 - `uv run python -m unittest tests.test_research_batch_workflow`
@@ -107,6 +109,7 @@ Known historical bugs:
 - Phase 2B public crawl quality smoke must validate fixed public page fixtures, image discovery shape, and a key-free Wikipedia `research_workflow` before treating crawl quality as ready.
 - Openverse quality smoke must validate anonymous direct-image URLs, source pages, non-mature filtering, license/attribution metadata, notices, rate-limit metadata, source errors, and no-download behavior with stable exit codes.
 - Openverse audio search must remain metadata-only, bounded, non-mature, URL-deduplicated, license-verification-aware, and explicit about rate-limit, timeout, and provider-response failures.
+- yt-dlp metadata inspection must remain single-URL and metadata-only, ignore user config and cookies, disable cache/remote components/playlists/downloads, sanitize errors, and never return format, requested-download, thumbnail, subtitle, or temporary media URLs.
 - Saved workflows must treat `image:openverse` as an explicit direct-image source, preserve license metadata in JSON/Markdown artifacts, dedupe against page images, and keep Openverse failures source-scoped without changing default sources.
 - Workflow/review/batch handoffs and standalone artifact review must distinguish Openverse from page images, report complete-license and verification-required counts, and keep license warnings separate from quality score/ready semantics.
 - Phase 2C artifact smoke must verify saved JSON and Markdown outputs are parseable, project-local, structurally readable, and tied to successful workflow documents.
@@ -186,11 +189,12 @@ Related modules:
 - `argus/notification/`
 
 Tests to run:
-- No dedicated automated test is mapped yet.
-- Add dry-run plist/workflow and notification mock tests before changing launchd or webhook behavior.
+- `uv run python -m unittest tests.test_scheduler`
+- Add notification mock tests separately before changing webhook behavior.
 
 Known historical bugs:
 - launchd requires capitalized `Hour`, `Minute`, `Day`, `Weekday`, and `Month` keys; lowercase keys can trigger at the wrong cadence.
+- A launchd process may be unable to start a project and virtual environment under macOS-protected Desktop storage even when load and kickstart both return zero; distinguish task submission from completed runner execution.
 
 ## Bug Regression Tests
 
@@ -362,7 +366,18 @@ Test file:
 - `tests/test_mcp_registration.py`
 
 What it protects:
-- Keeps all seventeen Research Toolkit tools registered on the FastMCP server, locks `research_audio` to `query` / `limit` / `timeout`, preserves normal and structured-error JSON responses, and catches accidental changes to the expected 172-tool public surface.
+- Keeps all eighteen Research Toolkit tools registered on the FastMCP server, locks `research_audio` to `query` / `limit` / `timeout` and `research_video_metadata` to `url` / `timeout`, preserves normal and structured-error JSON responses, keeps retired `get_crossref_events` absent, and catches accidental changes to the expected 173-tool public surface.
+- Starts the STDIO server from a non-project working directory with an explicit project root, discovers all 173 tools and 8 resources, calls both health entrypoints, and rejects an invalid transport before startup.
+
+### Research toolkit yt-dlp metadata boundary
+
+Test file:
+- `tests/test_research_video.py`
+
+What it protects:
+- Keeps the subprocess command in simulate mode with config, cookies, cache, remote components, playlists, and watched-state updates disabled.
+- Keeps output on an explicit metadata allowlist and proves nested format, download, thumbnail, and subtitle URLs are absent.
+- Preserves structured missing-install, invalid-URL, timeout, extractor, parse, invalid-response, and unsupported-playlist errors.
 
 ### Research resource relevance and partial failure
 
@@ -455,3 +470,129 @@ Test file:
 
 What it protects:
 - Keeps `xhs_auth_status` dependency-safe, ensures xhs cookie/auth failures return `AUTH_STORAGE_UNAVAILABLE` or `AUTH_REQUIRED`, and prevents `xhs_*` SocialOps tools from running business commands before auth is ready.
+
+### BUG-0010: Cross-platform search contract and truthful status
+
+Test file:
+- `tests/test_cross_platform.py`
+
+What it protects:
+- Keeps Hacker News and all five social CLI search arguments aligned with their actual contracts.
+- Preserves CLI error codes plus Reddit Atom rate-limit metadata at the source boundary.
+- Requires all-failed and zero-result searches to return failed envelopes while useful mixed-source results remain available as partial.
+- Propagates aggregate status and source counts through `narrative_tracking`.
+
+### BUG-0012: Academic aggregate nested failure semantics
+
+Test file:
+- `tests/test_external_academic.py`
+
+What it protects:
+- Preserves exact arXiv, Semantic Scholar, OpenAlex, and PubMed call contracts and nested envelopes.
+- Reports useful mixed-source results as partial with source and paper counts.
+- Returns `ALL_SOURCES_FAILED` when every source fails and `NO_RESULTS` when no useful paper remains.
+- Converts an unexpected source exception into its nested structured failure instead of escaping the aggregate.
+
+### BUG-0013: AI aggregate nested failure semantics
+
+Test file:
+- `tests/test_ai_analytics.py`
+
+What it protects:
+- Reports complete and useful partial AI analysis outcomes with explicit step counts.
+- Returns `ALL_STEPS_FAILED` when no requested analysis step succeeds while preserving every nested error.
+- Contains unexpected child exceptions as `ANALYSIS_ERROR` instead of letting them escape the aggregate.
+- Rejects unsupported modes without running deduplication or anomaly detection.
+
+### BUG-0014: System health execution and readiness semantics
+
+Test file:
+- `tests/test_system_health.py`
+
+What it protects:
+- Keeps successful check execution separate from required business readiness.
+- Requires missing configuration and news data to appear as blocking checks instead of disappearing.
+- Requires a fresh SQLite file to contain at least one `news_items` record before news data is ready.
+- Treats semantic index, RSSHub, social CLI auth verification, AI providers, and notifications as explicit optional degradation checks.
+- Contains optional adapter exceptions inside their nested checks.
+- Keeps `get_system_status` on the same authoritative readiness snapshot as `system_health` and `system://health`.
+- Labels Web `/api/health` as liveness-only without removing its compatible `ok` field.
+
+### Local configuration initialization
+
+Test file:
+- `tests/test_config_management.py`
+- `tests/test_mcp_registration.py`
+
+What it protects:
+- Creates `config/config.yaml` only from a structurally valid project template and preserves the template bytes and comments.
+- Never overwrites an existing valid or invalid config; repeated calls are idempotent and explicit about `created=false`.
+- Returns structured errors for missing/invalid templates and invalid existing config without creating or replacing the target.
+- Keeps the no-argument FastMCP contract registered and the public surface at 173 tools.
+
+### BUG-0015: Crawl persistence response contract
+
+Test file:
+- `tests/test_system_crawl_persistence.py`
+
+What it protects:
+- Keeps SQLite persistence enabled for default no-argument scheduled crawls while treating `save_to_local` as the legacy switch for optional TXT/HTML snapshots.
+- Reports database and snapshot outcomes independently for complete, partial, and failed combinations.
+- Prevents missing snapshot files or database exceptions from being hidden behind contradictory compatibility fields or notes.
+- Keeps the public FastMCP parameters and defaults unchanged while serializing the explicit persistence record.
+
+### BUG-0016: Semantic rebuild SQLite thread lifecycle
+
+Test file:
+- `tests/test_semantic_search.py`
+
+What it protects:
+- Prevents semantic rebuild from borrowing the process-global storage manager inside a FastMCP worker thread.
+- Requires local storage to resolve against the tool's project root rather than the process working directory.
+- Requires same-thread cleanup after both successful date reads and contained read failures.
+
+### BUG-0017 and BUG-0018: Local analytics summary truthfulness
+
+Test file:
+- `tests/test_analytics.py`
+
+What it protects:
+- Requires a one-day positive topic series to report its actual peak while keeping one-point change at zero.
+- Prevents all-zero date ranges from inventing a peak date.
+- Preserves normal percentage calculation for nonzero comparison baselines.
+- Requires zero-baseline relative change to be explicitly unavailable while preserving the absolute difference.
+
+### Scheduler workflow generation and runner control flow
+
+Test file:
+- `tests/test_scheduler.py`
+
+What it protects:
+- Generates a two-step crawl-then-index workflow and correctly cased launchd plist without notification steps.
+- Rejects tools outside the scheduler whitelist before writing a task.
+- Executes crawl before semantic rebuild and writes a successful last-run report.
+- Stops before index rebuild when crawl returns a failed envelope.
+
+### BUG-0019: Same-minute SQLite crawl idempotency
+
+Test file:
+- `tests/test_sqlite_crawl_idempotency.py`
+
+What it protects:
+- Preserves normal news updates across distinct crawl times.
+- Makes sequential and two-connection concurrent news retries for one crawl time successful no-ops.
+- Prevents duplicate rank history and crawl-count increments.
+- Rolls back an invalid crawl claim so a later valid write can proceed.
+- Applies the same crawl-time idempotency contract to RSS persistence.
+
+### BUG-0020: arXiv cache, pacing, and rate-limit behavior
+
+Test file:
+- `tests/test_external_academic.py`
+
+What it protects:
+- Persists successful normalized arXiv responses and reuses them across adapter instances without network access.
+- Rejects corrupt or expired cache entries and refreshes them from the source.
+- Spaces a short 429 retry by three seconds and attempts it only once.
+- Returns persistent or long-window limits as `RATE_LIMITED` without an unbounded sleep.
+- Preserves the existing academic aggregate status and source-error contracts.

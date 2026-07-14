@@ -392,3 +392,436 @@ Coordinate validation must use the same bounded text domain as the integrity pro
 
 ### Follow-up
 None.
+
+## BUG-0010: Cross-Platform Search Reported Success Without Useful Results
+
+Date: 2026-07-14
+Severity: P0
+Status: verified
+Area: Cross-platform aggregation
+Tags: source-contract, status-envelope, cli, rate-limit
+
+### Symptom
+`universal_search("OpenAI")` returned `success=true` with no merged items while multiple default sources had actually failed. `narrative_tracking` reused the same result and therefore also presented unusable collection as success.
+
+### Reproduction / Trigger
+The default call sent an unsupported Hacker News keyword, reused a generic `--limit` option across incompatible social CLIs, received blocked Reddit JSON responses, and then unconditionally wrapped the empty aggregate with `_ok`.
+
+### Root Cause
+Heterogeneous source contracts were treated as interchangeable, and the aggregate response encoded execution completion rather than whether any useful result existed. Source-specific error codes and rate-limit diagnostics were also discarded by CLI branches.
+
+### Affected Chain
+FastMCP or scheduler call -> `CrossPlatformTools.universal_search` -> `_fetch_source` adapters -> normalized aggregate -> `narrative_tracking`.
+
+### Fix
+Each adapter now uses its actual query arguments; Hacker News normalization accepts Algolia fields; Reddit uses anonymous Atom RSS with dynamic rate metadata; CLI error codes are preserved; and aggregate results distinguish complete, partial, empty, and failed states.
+
+### Tests Added / Updated
+- Test file: `tests/test_cross_platform.py`
+- Coverage: HN arguments/normalization, five CLI contracts and error envelopes, Reddit success/rate limiting, all-failed/empty/partial aggregates, and narrative status propagation.
+
+### Prevention
+Adapter orchestration must validate each source's real contract and derive top-level success from useful business output, while retaining source-scoped failures for partial results.
+
+### Related Files
+- `argus_server/tools/cross_platform.py`
+- `argus_server/server.py`
+- `tests/test_cross_platform.py`
+- `docs/TOOL_AVAILABILITY_AUDIT.md`
+
+### Follow-up
+Apply the same nested-failure audit separately to aggregate AI and academic tools.
+
+## BUG-0011: Retired Crossref Event Data Remained Publicly Registered
+
+Date: 2026-07-14
+Severity: P0
+Status: verified
+Area: External API and FastMCP surface
+Tags: upstream-sunset, registration, inventory, error-classification
+
+### Symptom
+`get_crossref_events` remained discoverable as a public MCP tool even though every call targeted a permanently retired API and returned a misleading `NETWORK_ERROR`.
+
+### Reproduction / Trigger
+A real `source="wikipedia", rows=1` call failed after 7.7 seconds with an SSL EOF from `api.eventdata.crossref.org`. Crossref's official documentation states that the Event Data public API was sunset on 2026-04-23.
+
+### Root Cause
+The public tool registry and inventory had no lifecycle reconciliation for upstream services. A permanent provider shutdown was therefore left behind as an apparently retryable network adapter.
+
+### Affected Chain
+FastMCP registration -> `get_crossref_events` -> `ExternalAPITools.get_crossref_events` -> retired Crossref Event Data endpoint.
+
+### Fix
+Removed the FastMCP registration, dead adapter method, endpoint reference, and CLI listing; updated current tool inventories from 173 to 172 and external API inventories from 54 to 53 while preserving the historical audit result.
+
+### Tests Added / Updated
+- Test file: `tests/test_mcp_registration.py`
+- Test case: `test_retired_crossref_events_tool_is_not_registered`
+
+### Prevention
+Permanent upstream shutdowns must be represented by removing or explicitly disabling the public capability, not by retaining a tool that reports generic network failure.
+
+### Related Files
+- `argus_server/server.py`
+- `argus_server/tools/external_apis.py`
+- `tests/test_mcp_registration.py`
+- `docs/TOOL_AVAILABILITY_AUDIT.md`
+
+### Follow-up
+Evaluate Crossref beta Data Citations only as a separate dataset-citation capability; it is not a replacement for social and web mentions.
+
+## BUG-0012: Academic Aggregate Hid Failed Sources Behind Success
+
+Date: 2026-07-14
+Severity: P0
+Status: verified
+Area: External academic API aggregation
+Tags: partial-failure, status-envelope, academic-search, rate-limit
+
+### Symptom
+`search_all_academic("OpenAI", per_source=1)` returned `success=true` and three papers while Semantic Scholar returned `RATE_LIMITED`; the top level exposed neither partial status nor failed-source counts.
+
+### Reproduction / Trigger
+A real four-source call succeeded for arXiv, OpenAlex, and PubMed but failed for Semantic Scholar. The aggregator counted only successful source items and unconditionally returned `_ok`.
+
+### Root Cause
+The fan-out treated orchestration completion as complete business success and did not derive aggregate status from nested source envelopes or useful paper output. This is another occurrence of RC-0010.
+
+### Affected Chain
+FastMCP `search_all_academic` -> `ExternalAPITools.search_all_academic` -> arXiv / Semantic Scholar / OpenAlex / PubMed envelopes.
+
+### Fix
+Preserved all nested source envelopes, added per-source paper counts and complete/partial/empty/failed summaries, kept useful partial results successful, and returned structured failures for all-source failure or zero useful papers.
+
+### Tests Added / Updated
+- Test file: `tests/test_external_academic.py`
+- Coverage: complete, partial, exception/all-failed, all-empty, and partial-without-results paths.
+
+### Prevention
+Multi-source search success must be derived from useful output plus nested source state, never from fan-out completion alone.
+
+### Related Files
+- `argus_server/tools/external_apis.py`
+- `argus_server/server.py`
+- `tests/test_external_academic.py`
+- `docs/TOOL_AVAILABILITY_AUDIT.md`
+
+### Follow-up
+Fix `analyze_with_ai` separately; it is a different module and call chain with the same known status risk.
+
+## BUG-0013: AI Aggregate Hid Failed Analysis Steps Behind Success
+
+Date: 2026-07-14
+Severity: P0
+Status: verified
+Area: AI analysis aggregation
+Tags: partial-failure, status-envelope, exception-boundary, scheduler
+
+### Symptom
+`analyze_with_ai(mode="full")` returned `success=true` even when semantic deduplication returned `AUTH_REQUIRED` and anomaly detection returned `NO_LOCAL_DATA`. Unsupported modes also returned successful empty envelopes.
+
+### Reproduction / Trigger
+A real no-key, no-history call returned both nested failures under a successful top-level envelope. A forced anomaly exception escaped the aggregate instead of becoming a nested error.
+
+### Root Cause
+The method treated invocation completion as business success, unconditionally returned `_ok`, and neither validated the mode nor contained child-step exceptions. This is the third occurrence of RC-0010's aggregate-status failure pattern.
+
+### Affected Chain
+FastMCP and scheduler -> `AIAnalyticsTools.analyze_with_ai` -> `semantic_deduplicate` / `detect_anomaly` envelopes.
+
+### Fix
+Validated modes, contained step exceptions, preserved nested envelopes, added step counts and complete/partial/failed status, and returned `ALL_STEPS_FAILED` when no analysis step succeeded.
+
+### Tests Added / Updated
+- Test file: `tests/test_ai_analytics.py`
+- Coverage: complete, partial, exception/all-failed, single-step failure, single-step success, and invalid-mode paths.
+
+### Prevention
+Multi-step tools must derive their top-level status from nested step outcomes and must contain unexpected child exceptions at the step boundary.
+
+### Related Files
+- `argus_server/tools/ai_analytics.py`
+- `argus_server/server.py`
+- `tests/test_ai_analytics.py`
+- `docs/TOOL_AVAILABILITY_AUDIT.md`
+
+### Follow-up
+Health-check readiness semantics were completed in BUG-0014. Split the oversized AI analytics module only in a dedicated architecture task recorded as DEBT-0006.
+
+## BUG-0014: Health Entrypoints Confused Liveness, Execution, And Readiness
+
+Date: 2026-07-14
+Severity: P0
+Status: verified
+Area: System health and readiness
+Tags: health-contract, readiness, liveness, missing-checks, dependency-status
+
+### Symptom
+`get_system_status` always returned `health="healthy"` with no news data, while `system_health` returned a successful envelope with `ok=false` because optional RSSHub and semantic-index checks failed. Missing configuration and a missing news directory were not represented consistently, and Web `/api/health` exposed only an ambiguous `ok=true`.
+
+### Reproduction / Trigger
+A real FastMCP probe returned `get_system_status.health="healthy"` and no latest record, while `system_health` omitted `news_data`, reported only four checks, and returned `summary.ok=false`. The Web endpoint simultaneously returned only liveness `ok=true`.
+
+### Root Cause
+Each entrypoint defined health independently without an explicit contract. One path hard-coded healthy, another reduced present checks into one boolean while omitting absent paths, and the Web path did not identify itself as liveness-only.
+
+### Affected Chain
+FastMCP `get_system_status` / `system_health` and `system://health`, Feishu status display, plus Web `/api/health` liveness.
+
+### Fix
+Made `HealthTools.system_health` the authoritative readiness snapshot, injected it into `SystemManagementTools`, added required/optional checks for configuration, data, index, RSSHub, disk, social CLIs, AI providers, notifications, tasks, and alerts, and labeled Web health as liveness-only.
+
+### Tests Added / Updated
+- Test file: `tests/test_system_health.py`
+- Coverage: missing required setup, empty-news databases, optional degradation, child-check exception containment, shared system status readiness, and Web liveness scope.
+
+### Prevention
+Health APIs must reserve `success` for check execution, expose explicit readiness, classify nested checks as required or optional, and derive summaries from those records.
+
+### Related Files
+- `argus_server/tools/telemetry.py`
+- `argus_server/tools/system.py`
+- `argus_server/server.py`
+- `argus/web/app.py`
+- `tests/test_system_health.py`
+- `docs/TOOL_AVAILABILITY_AUDIT.md`
+
+### Follow-up
+Implement the P1 configuration initialization workflow separately. Split telemetry and readiness collection only in the dedicated task recorded as DEBT-0007.
+
+## BUG-0015: Crawl Persistence Layers Shared One Misleading Success Flag
+
+Date: 2026-07-14
+Severity: P1
+Status: verified
+Area: Crawl persistence and FastMCP response contract
+Tags: persistence, sqlite, snapshots, response-contract, scheduler
+
+### Symptom
+With `save_to_local=False`, SQLite was successfully written while `summary.saved_to_local` was false. With snapshots requested, both TXT and HTML could be missing while the response claimed the output folder had been saved.
+
+### Reproduction / Trigger
+A fake storage backend returning true from `save_news_data` reproduced the database-write/false-summary contradiction. Returning no TXT or HTML paths reproduced `saved_files={}` together with a successful output-folder note.
+
+### Root Cause
+`_persist_crawl_data` collapsed the required SQLite write and optional TXT/HTML snapshots into one `save_success` boolean. `_build_crawl_response` then combined that value with `save_to_local`, even though the parameter only gated snapshots.
+
+### Affected Chain
+FastMCP or scheduler `trigger_crawl` -> `SystemManagementTools.trigger_crawl` -> `LocalStorageBackend` SQLite and snapshot methods -> crawl response.
+
+### Fix
+Preserved the public signature and default SQLite write, split database and snapshot outcomes into explicit persistence records, derived complete/partial/failed state from both layers, and made compatibility fields, files, errors, and notes agree.
+
+### Tests Added / Updated
+- Test file: `tests/test_system_crawl_persistence.py`
+- Coverage: database-only default, complete snapshots, partial snapshots, database exception with successful snapshots, and unchanged FastMCP parameters/serialization.
+
+### Prevention
+Multi-layer persistence must report each layer independently; a request flag for optional artifacts must not be used to infer whether required storage succeeded.
+
+### Related Files
+- `argus_server/tools/system.py`
+- `argus_server/server.py`
+- `tests/test_system_crawl_persistence.py`
+- `docs/TOOL_AVAILABILITY_AUDIT.md`
+
+### Follow-up
+Run the first controlled persistent crawl only after explicit project configuration initialization; no broader storage refactor is required for this fix.
+
+## BUG-0016: Semantic Rebuild Closed A Worker SQLite Connection From The Main Thread
+
+Date: 2026-07-14
+Severity: P1
+Status: verified
+Area: Semantic search and SQLite lifecycle
+Tags: sqlite, thread-lifecycle, storage-manager, semantic-index, fastmcp
+
+### Symptom
+`semantic_index_rebuild` returned a valid 255-document index, then process shutdown logged that the SQLite connection was created in one thread and closed from another.
+
+### Reproduction / Trigger
+A real FastMCP rebuild ran through `asyncio.to_thread`, created the local connection in that worker, and left the process-global manager for main-thread destruction. The first run consistently emitted the SQLite thread-affinity error after its success response.
+
+### Root Cause
+`SemanticSearchTools.rebuild` used the process-global `get_storage_manager()` for an operation-scoped read and never cleaned it up in the worker. It also relied on the current working directory instead of its resolved project root.
+
+### Affected Chain
+FastMCP `semantic_index_rebuild` -> `asyncio.to_thread` -> `SemanticSearchTools.rebuild` -> global `StorageManager` -> local SQLite connection -> main-thread destructor.
+
+### Fix
+Constructed a project-bound local `StorageManager` for each rebuild, disabled irrelevant snapshot capabilities, and closed it in a `finally` block immediately after date reads in the same worker thread.
+
+### Tests Added / Updated
+- Test file: `tests/test_semantic_search.py`
+- Coverage: successful rebuild and failed date read both reject the global singleton and require same-thread cleanup.
+
+### Prevention
+Worker-thread operations that open SQLite must own and close operation-scoped connections in the same thread; do not disable SQLite thread checks to hide lifecycle errors.
+
+### Related Files
+- `argus_server/tools/semantic_search.py`
+- `tests/test_semantic_search.py`
+- `docs/TOOL_AVAILABILITY_AUDIT.md`
+
+### Follow-up
+Audit the separate FastMCP tools recorded in DEBT-0009 with runtime evidence before changing their storage lifecycle.
+
+## BUG-0017: Single-Day Trend Hid Its Real Peak
+
+Date: 2026-07-14
+Severity: P1
+Status: verified
+Area: Local trend analytics
+Tags: summary-consistency, peak, single-day, fastmcp
+
+### Symptom
+A real one-day `analyze_topic_trend` call returned 10 total mentions but `peak_count=0` and `peak_time=null`.
+
+### Reproduction / Trigger
+The 2026-07-14 AI dataset reproduced the contradiction through FastMCP; a focused one-day parser fixture failed on the old implementation.
+
+### Root Cause
+Peak calculation was nested under the two-or-more-points condition required only by change-rate calculation, so every single-point series was assigned an artificial zero peak.
+
+### Affected Chain
+FastMCP `analyze_topic_trend` -> `AnalyticsTools.analyze_topic_trend_unified` -> `get_topic_trend_analysis` -> summary metrics.
+
+### Fix
+Calculated the peak independently whenever a positive count exists, retained zero change for one point, and kept `peak_time=null` for all-zero ranges.
+
+### Tests Added / Updated
+- Test file: `tests/test_analytics.py`
+- Coverage: one-day positive peak and multi-day all-zero range.
+
+### Prevention
+Do not share an eligibility gate between metrics with different minimum-data requirements.
+
+## BUG-0018: Zero Comparison Baseline Was Reported As No Growth
+
+Date: 2026-07-14
+Severity: P1
+Status: verified
+Area: Local period comparison
+Tags: summary-consistency, percentage, zero-baseline, fastmcp
+
+### Symptom
+Comparing an empty prior day with 255 current records returned an absolute change of 255 but `count_change_percent="+0.0%"`.
+
+### Reproduction / Trigger
+A real FastMCP comparison between 2026-07-13 and 2026-07-14 reproduced the misleading percentage; the focused zero-baseline helper regression failed before the fix.
+
+### Root Cause
+The divide-by-zero fallback collapsed an undefined relative percentage into numeric zero and formatted it as a valid measured change.
+
+### Affected Chain
+FastMCP `compare_periods` -> `AnalyticsTools.compare_periods` -> `_compare_overview` -> overview metrics.
+
+### Fix
+Preserved normal percentage calculation for nonzero baselines and returned `N/A` when the baseline is zero while retaining the absolute change.
+
+### Tests Added / Updated
+- Test file: `tests/test_analytics.py`
+- Coverage: nonzero baseline percentage and zero-baseline unavailable percentage.
+
+### Prevention
+Represent mathematically undefined ratios explicitly instead of converting them into valid-looking zero values.
+
+## BUG-0019: Same-Minute Crawl Retries Mutated SQLite Twice
+
+Date: 2026-07-14
+Severity: P1
+Status: verified
+Area: SQLite crawl persistence
+Tags: sqlite, concurrency, idempotency, crawl-history, rss
+
+### Symptom
+Two temporary Codex automation runs completed in the same minute. `crawl_records` retained one `17-58` row, but `rank_history` contained 612 rows for only 306 unique news items and affected news `crawl_count` values were incremented twice.
+
+### Reproduction / Trigger
+A minute-level acceptance automation created two independent FastMCP runs. Both called `trigger_crawl` with the same `crawl_time`; direct SQLite checks found 306 duplicate groups with exactly two identical ranks and no rank conflicts.
+
+### Root Cause
+News and RSS storage mutated item state before writing their unique crawl record. The final `INSERT OR REPLACE` collapsed the visible crawl record but could not undo duplicate history rows or counters already written by concurrent workers.
+
+### Affected Chain
+Codex automation or repeated scheduler call -> FastMCP `trigger_crawl` -> local/remote storage backend -> `SQLiteStorageMixin` news or RSS save -> item/history mutation -> late crawl-record replacement.
+
+### Fix
+Claim the unique crawl-time slot before any item mutation, return a successful no-op when another writer already owns it, update the claimed record after processing, and roll back failed transactions. The same contract now protects news and RSS storage.
+
+### Tests Added / Updated
+- Test file: `tests/test_sqlite_crawl_idempotency.py`
+- Coverage: distinct crawl times, sequential same-minute retry, two-connection concurrent retry, failed-claim rollback, and RSS retry idempotency.
+
+### Data Repair
+Backed up the affected database, removed 306 exact duplicate `17-58` rank rows, corrected 255 extra item counters, retained 359 news rows, and verified zero duplicate groups plus `PRAGMA integrity_check=ok`.
+
+### Prevention
+Use an existing unique operation key as an atomic claim before side effects; never rely on a final replace/upsert to make earlier mutations idempotent.
+
+## BUG-0020: arXiv Requests Ignored The Source's Cache And Pacing Contract
+
+Date: 2026-07-14
+Severity: P1
+Status: verified
+Area: External academic API
+Tags: arxiv, cache, rate-limit, retry, fastmcp
+
+### Symptom
+The initial real availability audit received HTTP 429 from both concurrent and serial arXiv calls. The adapter retried no requests, cached no successful response, and converted every HTTP failure into `NETWORK_ERROR`.
+
+### Reproduction / Trigger
+The old adapter called the official Atom endpoint for every invocation. A later real title query succeeded, proving intermittent rather than permanent failure, while source review confirmed there was still no cache, request spacing, or 429 branch.
+
+### Root Cause
+The adapter treated a rate-limited public metadata service like an unrestricted stateless endpoint. It did not implement arXiv's documented guidance to wait three seconds between repeated calls and cache identical query results for a day.
+
+### Affected Chain
+FastMCP `search_arxiv`, `search_all_academic`, or `find_research_resource` -> `ExternalAPITools.search_arxiv` -> official Atom API.
+
+### Fix
+Added a validated 24-hour project-local response cache keyed by normalized request parameters, per-instance serialized three-second request pacing, one retry for short or unspecified 429 windows, non-blocking handling for long windows, and explicit `RATE_LIMITED` metadata for persistent limits.
+
+### Tests Added / Updated
+- Test file: `tests/test_external_academic.py`
+- Coverage: cross-instance cache reuse, corrupt and expired cache fallback, successful paced retry, persistent rate limiting, and long retry windows without blocking.
+
+### Real Verification
+The official title query returned `Attention Is All You Need` and stored one cache entry. A fresh process whose network method was forced to raise returned the same paper from disk, and the registered FastMCP tool independently reported a cache hit.
+
+### Prevention
+Implement documented source pacing and cache semantics at the adapter boundary, and preserve rate-limit responses as source availability diagnostics rather than generic network failures.
+
+## BUG-0021: Quick Start Documented An Unsupported Crawl Flag
+
+Date: 2026-07-14
+Severity: P2
+Status: verified
+Area: CLI and MCP onboarding
+Tags: cli, documentation, mcp, cross-project, regression
+
+### Symptom
+Both quick-start READMEs instructed users to run `.venv/bin/argus --now`, but the installed CLI rejected that flag with exit code 2.
+
+### Reproduction / Trigger
+Running the documented command produced `argus: error: unrecognized arguments: --now`. Reading the parser confirmed that a one-off crawl is the no-argument command, and a repository-wide search found the stale flag only in `README.md` and `README-EN.md`.
+
+### Root Cause
+The onboarding examples drifted from the argparse entrypoint and were not covered by a process-level CLI/MCP acceptance check.
+
+### Affected Chain
+README quick start -> installed `argus` console script -> `argus.__main__.main` argument parsing.
+
+### Fix
+Replaced the unsupported flag with the real no-argument crawl command, documented a cross-project MCP command with an explicit project root, and synchronized the English MCP inventory.
+
+### Tests Added / Updated
+- Test file: `tests/test_mcp_registration.py`
+- Coverage: STDIO initialization from a non-project working directory, 173-tool/8-resource discovery, both health tool calls, and invalid transport rejection.
+
+### Real Verification
+A generic FastMCP client started Argus outside the repository, listed 173 tools and 8 resources, and called `system_health`. An independent ephemeral `codex exec` run then recorded successful `research_toolkit_health` and `system_health` MCP calls from `/private/tmp`.
+
+### Prevention
+Keep documented entrypoint examples aligned with real CLI help and retain a process-level STDIO acceptance test that starts outside the repository.
