@@ -83,11 +83,10 @@ class SemanticSearchTools:
         """扫 output/news 最近 N 天, 全量重建 BM25 索引"""
         t0 = time.time()
         try:
-            from argus.storage import get_storage_manager
+            from argus.storage import StorageManager
         except Exception as ex:
             return _err(f"无法加载 storage: {ex}", code="INTERNAL_ERROR")
 
-        sm = get_storage_manager()
         news_dir = self.project_root / "output" / "news"
         if not news_dir.exists():
             return _err("output/news 目录不存在", code="NO_DATA")
@@ -96,31 +95,40 @@ class SemanticSearchTools:
         if not available:
             return _err("无可用日期", code="NO_DATA")
 
+        sm = StorageManager(
+            backend_type="local",
+            data_dir=str(self.project_root / "output"),
+            enable_txt=False,
+            enable_html=False,
+        )
         docs: List[Dict] = []
-        for ds in available:
-            try:
-                data = sm.get_today_all_data(ds)
-            except Exception:
-                continue
-            if data is None:
-                continue
-            items_dict = getattr(data, "items", None) or {}
-            id_to_name = getattr(data, "id_to_name", {}) or {}
-            if not isinstance(items_dict, dict):
-                continue
-            for pid, items in items_dict.items():
-                pname = id_to_name.get(pid, pid)
-                for it in items or []:
-                    title = getattr(it, "title", None) or (it.get("title") if isinstance(it, dict) else "")
-                    url = getattr(it, "url", None) or (it.get("url") if isinstance(it, dict) else "")
-                    if not title:
-                        continue
-                    docs.append({
-                        "date": ds,
-                        "platform": pname,
-                        "title": title,
-                        "url": url,
-                    })
+        try:
+            for ds in available:
+                try:
+                    data = sm.get_today_all_data(ds)
+                except Exception:
+                    continue
+                if data is None:
+                    continue
+                items_dict = getattr(data, "items", None) or {}
+                id_to_name = getattr(data, "id_to_name", {}) or {}
+                if not isinstance(items_dict, dict):
+                    continue
+                for pid, items in items_dict.items():
+                    pname = id_to_name.get(pid, pid)
+                    for it in items or []:
+                        title = getattr(it, "title", None) or (it.get("title") if isinstance(it, dict) else "")
+                        url = getattr(it, "url", None) or (it.get("url") if isinstance(it, dict) else "")
+                        if not title:
+                            continue
+                        docs.append({
+                            "date": ds,
+                            "platform": pname,
+                            "title": title,
+                            "url": url,
+                        })
+        finally:
+            sm.cleanup()
 
         if not docs:
             return _err("所有日期都无可索引数据", code="NO_DATA")
