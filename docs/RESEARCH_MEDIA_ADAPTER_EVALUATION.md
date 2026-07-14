@@ -18,6 +18,15 @@ as an optional known-URL metadata adapter rather than a search backend. Keep
 course discovery on the current official-page Codex path until a documented,
 stable consumer API is confirmed.
 
+Implementation status on 2026-07-14: the metadata-only adapter, toolkit health,
+public `research_audio` MCP tool, 172-tool inventory, and repeatable FastMCP
+smoke are complete. The smoke keeps external unavailability (`2`) separate from
+result-contract failures (`3`) and never requests media downloads.
+
+The real FastMCP smoke passed with exit code `0` for `birdsong`: two unique
+non-mature Freesound candidates, `by` and `cc0` licenses, complete source and
+license checks, dynamic rate-limit metadata, and no forbidden media fields.
+
 ## Evidence
 
 ### Openverse audio
@@ -142,10 +151,10 @@ The first implementation should:
 
 ## Delivery Slices
 
-1. Add the focused `audio:openverse` adapter and normal/error contract tests
-   without changing the public MCP surface.
-2. Expose a `research_audio` MCP tool in a separate public-surface task, then
-   update health, registration count, inventories, examples, and smoke tests.
+1. Completed: add the focused `audio:openverse` adapter and normal/error
+   contract tests without changing the public MCP surface.
+2. Completed: expose a `research_audio` MCP tool, then update health,
+   registration count, inventories, examples, and a real no-download smoke.
 3. Consider Internet Archive metadata-only discovery after the Openverse audio
    contract is stable.
 4. Consider `yt-dlp` known-URL metadata enrichment only after runtime health and

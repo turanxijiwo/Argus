@@ -4,8 +4,8 @@
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
 - Current product focus remains the Argus agent-native research and intelligence toolkit: 172 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest milestone: README, HANDOFF, the Phase 2 boundary overlay, and the architecture module map now consistently document the 172-tool surface and the key-free metadata-only `research_audio` contract.
-- Next candidate stage: add a repeatable real no-download `research_audio` MCP smoke with stable external-unavailability and contract-failure exit codes.
+- Latest milestone: `scripts/research_audio_smoke.py` now exercises the registered FastMCP tool, validates metadata/license/no-download quality, and separates external unavailability (`2`) from contract failure (`3`).
+- Next candidate stage: document the audio smoke command in README/HANDOFF, then evaluate bounded Internet Archive metadata-only discovery as the next media adapter.
 
 ## 已知问题
 
@@ -63,6 +63,9 @@
 
 ## 最近变更记录
 
+- Added a repeatable FastMCP `research_audio` smoke with stable `0` passing, `2` external-unavailability, and `3` contract-failure exit codes.
+- Added focused smoke regressions for public tool invocation, metadata-only quality, mature/duplicate/incomplete candidates, anonymous limits, malformed nested/provider results, and malformed MCP output.
+- Verified 22 related tests, 191 full tests, targeted syntax checks, package build, and a real `birdsong` FastMCP smoke returning two `by`/`cc0` Freesound candidates with exit code 0 and no forbidden media fields.
 - Synchronized current public inventories to 172 MCP tools and 17 Research Toolkit tools while preserving historical Phase 1 counts.
 - Added public `research_audio` usage, no-key metadata-only behavior, input bounds, structured-error expectations, and independent license-review guidance.
 - Verified the three MCP registration tests, current-count consistency checks, clean Markdown diffs, and successful package build with the updated README.

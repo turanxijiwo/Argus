@@ -273,7 +273,16 @@ Test file:
 
 What it protects:
 - Keeps `audio:openverse` metadata-only and bounded, filters mature or malformed candidates, dedupes preview URLs, omits waveform and alternate-file payloads, preserves license notices and anonymous rate limits, and returns stable invalid-query, timeout, rate-limit, and provider-response errors.
-- Keeps `ResearchToolkitTools.research_audio` as a parameter-preserving wrapper and reports the no-key `audio:openverse` source as ready in toolkit health without implying media download or MCP registration.
+- Keeps `ResearchToolkitTools.research_audio` as a parameter-preserving wrapper and reports the no-key `audio:openverse` source as ready in toolkit health without implying media download.
+
+### Research toolkit Openverse audio MCP smoke runner
+
+Test file:
+- `tests/test_research_audio_smoke.py`
+
+What it protects:
+- Keeps the real smoke on the registered `research_audio` FastMCP path, requires unique non-mature HTTP audio/source URLs plus license metadata, notices, rate-limit metadata, and verification markers, and rejects waveform, alternate-file, byte, transcript, or lyric fields.
+- Distinguishes passing exit code `0`, external unavailability exit code `2`, and malformed nested/provider/MCP/quality contract failure exit code `3` without requesting media downloads or leaking tracebacks.
 
 ### Research toolkit saved artifact quality smoke runner
 
