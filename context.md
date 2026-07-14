@@ -4,8 +4,8 @@
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
 - Current product focus remains the Argus agent-native research and intelligence toolkit: 173 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest milestone: Argus is registered as a user-level Codex STDIO MCP server with an explicit project root; a generic client and an independent ephemeral `codex exec` run both completed cross-project initialization and real health-tool calls.
-- Next candidate stage: review the cumulative feature-branch diff and split it into defensible atomic commits before considering an optional personal Codex plugin/skill wrapper or additional Codex SDK fallbacks.
+- Latest milestone: the cumulative availability and reliability work was split into 13 reviewable commits on `feature/intelligence-toolkit`; the worktree and stash are clean, all 262 tests pass, and the source/wheel build succeeds.
+- Next candidate stage: perform release/merge-readiness review against `main`, including commit-range review and an optional security audit, then merge or push only with explicit user approval. A personal Codex plugin/skill wrapper remains a later usability enhancement.
 
 ## 已知问题
 
@@ -79,6 +79,8 @@
 
 ## 最近变更记录
 
+- Split the cumulative feature work into 13 commits covering system runtime state, analytics, semantic indexing, crawl idempotency, scheduler acceptance, aggregate failures, academic availability, video metadata, config initialization, the audited MCP surface, user documentation, engineering handoff, and regression memory.
+- Re-ran all 262 tests and `uv build` from the clean committed state, verified `git diff --check e6799f4..HEAD`, and removed the temporary checkpoint stash after confirming the original tracked and untracked content was preserved in history.
 - Fixed BUG-0021 by replacing the unsupported quick-start `argus --now` command in both READMEs with the real no-argument crawl entrypoint and documenting an explicit-project-root MCP launch contract.
 - Registered the Argus STDIO server in user-level Codex configuration after a hash-verified backup; `codex mcp list` reports it enabled, and no credentials were added to tracked files.
 - Added process-level MCP regressions that start outside the repository, discover 173 tools and 8 resources, call both health tools, and reject an invalid transport.

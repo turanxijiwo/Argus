@@ -14,6 +14,7 @@ storage, schema, auth, refactor, or bug-fix work.
 - MCP surface: 173 FastMCP tools and 8 resources.
 - Research Toolkit: 18 public MCP tools, including key-free `research_audio` and metadata-only `research_video_metadata`.
 - Verification baseline: 262 tests passing and `uv build` successful.
+- Delivery state: cumulative availability work is committed as 13 scoped commits; the feature-branch worktree and stash are clean.
 - Historical Phase 2 delivery report: `docs/RESEARCH_TOOLKIT_PHASE2_DELIVERY_AUDIT.md`.
 
 ## Primary Commands
