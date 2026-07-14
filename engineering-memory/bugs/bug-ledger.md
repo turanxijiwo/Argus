@@ -825,3 +825,36 @@ A generic FastMCP client started Argus outside the repository, listed 173 tools 
 
 ### Prevention
 Keep documented entrypoint examples aligned with real CLI help and retain a process-level STDIO acceptance test that starts outside the repository.
+
+## BUG-0022: Gallery Wrapper Did Not Enforce Its Output Boundary
+
+Date: 2026-07-14
+Severity: P1
+Status: verified
+Area: Research media download adapter
+Tags: gallery-dl, subprocess, config-isolation, output-boundary, error-envelope
+
+### Symptom
+`download_gallery(confirm=True)` accepted option-like targets, loaded the user's default gallery-dl configuration, and returned `success=true` when gallery-dl exited nonzero.
+
+### Reproduction / Trigger
+The old dry-run accepted `target="--config-create"`; a mocked gallery-dl exit with return code 2 was wrapped as successful. Repository scanning found only the gallery and video research adapters start subprocesses, and the video adapter already validates HTTP URLs and ignores user configuration.
+
+### Root Cause
+The wrapper treated a project-local working directory as a complete process boundary. It did not validate the target contract, isolate external configuration, force the destination in argv, terminate option parsing, or map process status to the Argus envelope.
+
+### Affected Chain
+FastMCP `download_gallery` -> `ResearchToolkitTools.download_gallery` -> `research_gallery.download_gallery` -> gallery-dl subprocess.
+
+### Fix
+Restricted targets to HTTP/HTTPS URLs, added `--config-ignore`, forced `--directory` to the resolved project-local path, inserted `--` before the target, and converted nonzero exits into `DOWNLOAD_FAILED` responses.
+
+### Tests Added / Updated
+- Test file: `tests/test_research_toolkit.py`
+- Coverage: safe dry-run command, option-like target rejection, isolated successful execution, and nonzero process failure.
+
+### Verification
+All 46 Research Toolkit tests and all 265 project tests passed. Syntax compilation and source/wheel builds succeeded, and a real installed gallery-dl probe returned `DOWNLOAD_FAILED` with process exit code 64 for an unsupported HTTP target.
+
+### Prevention
+Subprocess wrappers must validate positional input, isolate user configuration, encode filesystem boundaries in the child argv, terminate option parsing, and derive the public envelope from the real process exit status.

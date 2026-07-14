@@ -2,6 +2,7 @@ import json
 import os
 import tempfile
 import unittest
+from subprocess import CompletedProcess
 from unittest.mock import patch
 
 import requests
@@ -347,7 +348,78 @@ class ResearchToolkitToolsTest(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertEqual(result["summary"]["mode"], "dry_run")
         self.assertTrue(result["data"]["confirm_required"])
-        self.assertEqual(result["data"]["command"], ["/usr/bin/gallery-dl", "https://example.com/gallery"])
+        self.assertEqual(
+            result["data"]["command"],
+            [
+                "/usr/bin/gallery-dl",
+                "--config-ignore",
+                "--directory",
+                os.path.realpath(os.path.join(tmpdir, "output", "media")),
+                "--",
+                "https://example.com/gallery",
+            ],
+        )
+
+    def test_download_gallery_rejects_option_like_target(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tool = ResearchToolkitTools(project_root=tmpdir)
+            with patch("argus_server.tools.research_gallery.shutil.which", return_value="/usr/bin/gallery-dl"):
+                result = tool.download_gallery(target="--config-create", confirm=False)
+
+        self.assertFalse(result["success"])
+        self.assertEqual(result["error"]["code"], "INVALID_TARGET")
+
+    def test_download_gallery_executes_with_isolated_config_and_output(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tool = ResearchToolkitTools(project_root=tmpdir)
+            completed = CompletedProcess(args=[], returncode=0, stdout="downloaded", stderr="")
+            with (
+                patch("argus_server.tools.research_gallery.shutil.which", return_value="/usr/bin/gallery-dl"),
+                patch("argus_server.tools.research_gallery.subprocess.run", return_value=completed) as run,
+            ):
+                result = tool.download_gallery(
+                    target="https://example.com/gallery",
+                    output_dir="output/media",
+                    confirm=True,
+                    timeout=120,
+                )
+
+            output_path = os.path.realpath(os.path.join(tmpdir, "output", "media"))
+            command = [
+                "/usr/bin/gallery-dl",
+                "--config-ignore",
+                "--directory",
+                output_path,
+                "--",
+                "https://example.com/gallery",
+            ]
+            run.assert_called_once_with(
+                command,
+                cwd=output_path,
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["summary"]["mode"], "executed")
+
+    def test_download_gallery_returns_failure_for_nonzero_exit(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tool = ResearchToolkitTools(project_root=tmpdir)
+            completed = CompletedProcess(args=[], returncode=2, stdout="", stderr="download failed")
+            with (
+                patch("argus_server.tools.research_gallery.shutil.which", return_value="/usr/bin/gallery-dl"),
+                patch("argus_server.tools.research_gallery.subprocess.run", return_value=completed),
+            ):
+                result = tool.download_gallery(
+                    target="https://example.com/gallery",
+                    confirm=True,
+                )
+
+        self.assertFalse(result["success"])
+        self.assertEqual(result["error"]["code"], "DOWNLOAD_FAILED")
+        self.assertEqual(result["error"]["returncode"], 2)
 
     def test_research_topic_normalizes_sources(self):
         tool = ResearchToolkitTools(project_root=os.getcwd(), external_api=FakeExternalAPI())

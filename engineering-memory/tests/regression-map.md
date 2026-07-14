@@ -204,7 +204,8 @@ Test file:
 - `tests/test_research_toolkit.py`
 
 What it protects:
-- Prevents `download_gallery` from accepting output directories outside the project root and preserves safe dry-run behavior.
+- Prevents `download_gallery` from accepting output directories outside the project root or option-like/non-HTTP targets.
+- Requires gallery-dl execution to ignore user configuration, force the approved destination, separate options from the target, and return a failed envelope for nonzero exits.
 
 ### Research toolkit invalid URL handling
 

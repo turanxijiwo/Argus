@@ -536,3 +536,30 @@ For documented CLI or MCP entrypoints, run the exact command or an equivalent pr
 
 ### Related Bugs
 - BUG-0021
+
+## RC-0020: Working Directory Was Mistaken For A Subprocess Sandbox
+
+Status: active
+Category: architecture boundary and process contract
+First observed: BUG-0022
+Recurring count: 1
+Severity trend: high
+
+### Description
+A subprocess wrapper constrained its current working directory but still allowed untrusted positional input and default user configuration to alter child behavior and destinations. It also reported orchestration completion instead of the child process result.
+
+### Typical Symptoms
+- Option-like user input is interpreted as a child-process flag.
+- A user-level config overrides the intended output directory or enables post-processing.
+- A nonzero process exit is returned as `success=true`.
+
+### Common Triggers
+- Passing external input directly after the executable without an option terminator.
+- Assuming `cwd` constrains all file writes performed by a CLI.
+- Wrapping every completed process in a success envelope.
+
+### Prevention Rule
+For CLI subprocess boundaries, validate positional values before execution, disable ambient user configuration when supported, force security-relevant paths explicitly, terminate option parsing, and map the child exit status into the public response contract.
+
+### Related Bugs
+- BUG-0022
