@@ -3161,55 +3161,7 @@ class ExternalAPITools:
         except Exception as ex:
             return _err(f"MusicBrainz 解析失败: {ex}")
 
-    # ───────────────────────── 51. CrossRef Event Data ─────────────────────────
-    def get_crossref_events(
-        self,
-        doi: Optional[str] = None,
-        source: Optional[str] = None,
-        rows: int = 25,
-    ) -> Dict:
-        """CrossRef Event Data - DOI 论文在社交媒体的被提及事件 (Wikipedia/Twitter/Reddit/Newsfeed/F1000 等)"""
-        try:
-            params = {"rows": max(1, min(int(rows), 500))}
-            if doi:
-                params["obj-id"] = doi
-            if source:
-                params["source"] = source  # wikipedia / twitter / reddit / newsfeed / f1000 / stackexchange
-            r = self._get(
-                "https://api.eventdata.crossref.org/v1/events",
-                params=params,
-                timeout=45,
-            )
-            r.raise_for_status()
-            data = r.json().get("message", {})
-            events = []
-            for ev in data.get("events", []):
-                events.append(
-                    {
-                        "id": ev.get("id"),
-                        "source": ev.get("source_id"),
-                        "subj_id": ev.get("subj_id"),   # 提及方(文章/推文)
-                        "obj_id": ev.get("obj_id"),     # 被提及的 DOI
-                        "relation": ev.get("relation_type_id"),
-                        "occurred_at": ev.get("occurred_at"),
-                        "updated_date": ev.get("updated_date"),
-                        "terms": ev.get("terms"),
-                        "action": ev.get("action"),
-                    }
-                )
-            return _ok(
-                {"events": events, "total_results": data.get("total-results")},
-                source="crossref_events",
-                doi=doi,
-                source_filter=source,
-                count=len(events),
-            )
-        except requests.exceptions.RequestException as ex:
-            return _err(f"CrossRef Events 请求失败: {ex}", code="NETWORK_ERROR")
-        except Exception as ex:
-            return _err(f"CrossRef Events 解析失败: {ex}")
-
-    # ───────────────────────── 52. Artifact Hub (K8s) ─────────────────────────
+    # ───────────────────────── 51. Artifact Hub (K8s) ─────────────────────────
     def search_artifact_hub(
         self,
         query: str,

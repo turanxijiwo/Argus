@@ -59,13 +59,21 @@ def _get_tools(project_root: Optional[str] = None):
         _tools_instances['analytics'] = AnalyticsTools(project_root)
         _tools_instances['search'] = SearchTools(project_root)
         _tools_instances['config'] = ConfigManagementTools(project_root)
-        _tools_instances['system'] = SystemManagementTools(project_root)
         _tools_instances['storage'] = StorageSyncTools(project_root)
         _tools_instances['article'] = ArticleReaderTools(project_root)
         _tools_instances['notification'] = NotificationTools(project_root)
         _tools_instances['external'] = ExternalAPITools(project_root)
         _tools_instances['cli'] = CLIToolsAdapter(project_root)
         _tools_instances['ai'] = AIEnhancedTools(project_root)
+        _tools_instances['health'] = HealthTools(
+            project_root,
+            ai_adapter=_tools_instances['ai'],
+            notification_adapter=_tools_instances['notification'],
+        )
+        _tools_instances['system'] = SystemManagementTools(
+            project_root,
+            health_adapter=_tools_instances['health'],
+        )
         _tools_instances['ai_analytics'] = AIAnalyticsTools(project_root)
         _tools_instances['cross'] = CrossPlatformTools(
             project_root,
@@ -89,7 +97,6 @@ def _get_tools(project_root: Optional[str] = None):
             ai_analytics_adapter=_tools_instances['ai_analytics'],
             semantic_adapter=_tools_instances['semantic'],
         )
-        _tools_instances['health'] = HealthTools(project_root)
         _tools_instances['safety'] = SafetyTools(project_root)
         _tools_instances['social'] = SocialOpsTools(project_root, cli_adapter=_tools_instances['cli'])
         _tools_instances['router'] = RouterTools(project_root)
@@ -243,7 +250,7 @@ async def get_latest_anomalies_resource() -> str:
 
 @mcp.resource("system://health")
 async def get_system_health_resource() -> str:
-    """系统健康快照 (数据/索引/RSSHub/磁盘/任务/告警)"""
+    """系统业务就绪快照（配置/数据/索引/CLI/provider/通知等）"""
     tools = _get_tools()
     try:
         result = await asyncio.to_thread(tools['health'].system_health)
@@ -900,6 +907,22 @@ async def search_news(
 # ==================== 配置与系统管理工具 ====================
 
 @mcp.tool
+async def initialize_config() -> str:
+    """
+    从项目自带模板安全初始化 config/config.yaml。
+
+    创建前会校验模板结构；如果目标已存在，只校验并返回 created=false，
+    永远不会覆盖现有配置。完成后可调用 system_health 和 trigger_crawl。
+
+    Returns:
+        JSON: created/exists 状态、项目相对路径、平台与 RSS 数量，或结构化错误。
+    """
+    tools = _get_tools()
+    result = await asyncio.to_thread(tools['config'].initialize_config)
+    return json.dumps(result, ensure_ascii=False, indent=2)
+
+
+@mcp.tool
 async def get_current_config(
     section: str = "all"
 ) -> str:
@@ -927,7 +950,8 @@ async def get_system_status() -> str:
     """
     获取系统运行状态和健康检查信息
 
-    返回系统版本、数据统计、缓存状态等信息
+    返回系统版本、数据统计、缓存状态，以及与 system_health 相同的业务就绪快照。
+    顶层 success 表示检查执行成功；summary.ready / status 表示业务是否就绪。
 
     Returns:
         JSON格式的系统状态信息
@@ -968,15 +992,15 @@ async def trigger_crawl(
     include_url: bool = False
 ) -> str:
     """
-    手动触发一次爬取任务（可选持久化）
+    手动触发一次爬取任务。SQLite 始终尝试保存，快照可选。
 
     Args:
         platforms: 平台ID列表，如 ['zhihu', 'weibo']，不指定则使用所有平台
-        save_to_local: 是否保存到本地 output 目录，默认 False
+        save_to_local: 兼容参数；是否额外生成 TXT/HTML 快照，默认 False
         include_url: 是否包含URL链接，默认False（节省token）
 
     Returns:
-        JSON格式的任务状态信息，包含成功/失败平台列表和新闻数据
+        JSON格式的任务状态信息，包含新闻数据和分层持久化状态
 
     Examples:
         - trigger_crawl(platforms=['zhihu'])
@@ -1504,7 +1528,7 @@ async def search_all_academic(query: str, per_source: int = 10) -> str:
     """
     跨学术源统一搜索 - 一次查询同时命中四个论文库
 
-    并行调用: arXiv + Semantic Scholar + OpenAlex + PubMed
+    调用: arXiv + Semantic Scholar + OpenAlex + PubMed
     结果按源分组返回, 单源失败不影响其他源。
 
     Args:
@@ -1512,7 +1536,8 @@ async def search_all_academic(query: str, per_source: int = 10) -> str:
         per_source: 每个源返回的条数, 默认 10
 
     Returns:
-        JSON: { sources: { arxiv: {...}, semantic_scholar: {...}, openalex: {...}, pubmed: {...} } }
+        JSON: status、来源成功/失败/空结果计数、每源条目数和原始来源 envelope。
+        有论文但部分来源失败时 success=true 且 status="partial"；全失败或零论文时 success=false。
 
     Examples:
         - search_all_academic(query="GPT-4 reasoning")
@@ -2750,37 +2775,6 @@ async def search_musicbrainz(
 
 
 @mcp.tool
-async def get_crossref_events(
-    doi: Optional[str] = None,
-    source: Optional[str] = None,
-    rows: int = 25,
-) -> str:
-    """
-    CrossRef Event Data - DOI 论文在社交媒体被提及事件
-
-    可用来: 追踪论文的公众影响力、查看论文在 Wikipedia/Twitter/Reddit 的扩散。
-
-    Args:
-        doi: 目标 DOI (如 "10.1038/s41586-023-06747-5")
-        source: 过滤来源 - wikipedia / twitter / reddit / newsfeed / f1000 / stackexchange
-        rows: 返回数量, 默认 25, 最大 500
-
-    Returns:
-        JSON: events 列表 (含提及方 / 被引 DOI / 发生时间)
-
-    Examples:
-        - get_crossref_events(source="wikipedia")
-        - get_crossref_events(doi="10.1038/s41586-023-06747-5")
-    """
-    tools = _get_tools()
-    result = await asyncio.to_thread(
-        tools['external'].get_crossref_events,
-        doi=doi, source=source, rows=rows,
-    )
-    return json.dumps(result, ensure_ascii=False, indent=2)
-
-
-@mcp.tool
 async def search_artifact_hub(
     query: str,
     kind: Optional[int] = None,
@@ -3054,7 +3048,8 @@ async def analyze_with_ai(
             - anomaly — 只异常检测
 
     Returns:
-        JSON: { mode, dedup?: {...}, anomaly?: {...} }
+        JSON envelope with complete/partial/failed status and nested step responses.
+        全部步骤失败时 success=false；部分步骤失败时保留成功结果并返回 status="partial"。
     """
     tools = _get_tools()
     result = await asyncio.to_thread(
@@ -3088,6 +3083,10 @@ async def narrative_tracking(
         limit_per_platform: 每平台拉多少条, 默认 15
         use_llm: 是否用 LLM 打分; 默认 True. 未配置 key 自动回退到规则
 
+    Returns:
+        JSON: 聚合状态、来源失败/降级/空结果计数，以及各平台情感与代表条目。
+        取数全失败或零结果时直接传播 universal_search 的失败 envelope。
+
     Examples:
         - narrative_tracking(topic="Nvidia")
         - narrative_tracking(topic="AI 监管", platforms=["news","xhs","bili"])
@@ -3119,7 +3118,8 @@ async def universal_search(
         limit: 每源返回条数, 默认 10
 
     Returns:
-        JSON: { sources: {src: {count, items, error?}}, merged: [...] }
+        JSON: { status, sources: {src: {status, count, items, error?, error_code?, meta}}, merged }
+        全源失败或零结果返回 success=false；部分来源失败但仍有结果时返回 status="partial"。
 
     Examples:
         - universal_search(query="Llama 4")
@@ -3141,7 +3141,7 @@ async def research_toolkit_health() -> str:
     检查研究工具包能力与可选开源 CLI 安装状态。
 
     覆盖:
-      - 研究能力: crawl_url / discover_page_images / research_images / research_audio / research_topic / find_research_resource / research_resource_workflow / research_compare_artifacts / research_resolve_locators / research_pack / research_workflow / research_batch_workflow / download_gallery
+      - 研究能力: crawl_url / discover_page_images / research_images / research_audio / research_video_metadata / research_topic / find_research_resource / research_resource_workflow / research_compare_artifacts / research_resolve_locators / research_pack / research_workflow / research_batch_workflow / download_gallery
       - 可选高质量 CLI/SDK: gallery-dl / yt-dlp / scrapy / crawl4ai / openai-codex
 
     Returns:
@@ -3564,6 +3564,36 @@ async def research_audio(
         tools['research'].research_audio,
         query=query,
         limit=limit,
+        timeout=timeout,
+    )
+    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+
+
+@mcp.tool
+async def research_video_metadata(
+    url: str,
+    timeout: int = 60,
+) -> str:
+    """
+    使用 yt-dlp 读取公开视频页面的白名单元数据, 不下载媒体。
+
+    安全策略:
+      - 忽略 yt-dlp 用户配置, 不读取文件或浏览器 Cookie。
+      - 禁止播放列表、缓存、远程组件、观看记录和媒体下载。
+      - 只返回标题、作者、时长、日期、计数等白名单字段。
+      - 不返回 formats / requested_downloads / 缩略图 / 字幕或临时媒体直链。
+
+    Args:
+        url: 单个公开 http/https 视频页面 URL。
+        timeout: 命令总超时秒数, 会限制在 10–180。
+
+    Returns:
+        JSON: 公开媒体元数据、安全边界声明或结构化错误。
+    """
+    tools = _get_tools()
+    result = await asyncio.to_thread(
+        tools['research'].research_video_metadata,
+        url=url,
         timeout=timeout,
     )
     return json.dumps(result, ensure_ascii=False, indent=2, default=str)
@@ -4226,7 +4256,10 @@ async def export_anomalies(
 @mcp.tool
 async def system_health() -> str:
     """
-    综合健康检查: 数据新鲜度 / BM25 索引 / RSSHub / 磁盘 / 定时任务 / 告警规则
+    综合健康检查: 配置 / 数据 / 索引 / RSSHub / 磁盘 / CLI / AI provider / 通知。
+
+    顶层 success 仅表示检查已执行；summary.ready 表示必需业务条件就绪，
+    status=degraded 表示核心可用但可选能力仍需配置。
     """
     tools = _get_tools()
     result = await asyncio.to_thread(tools['health'].system_health)
@@ -4933,6 +4966,7 @@ def run_server(
     print("    14. generate_summary_report - 每日/每周摘要生成")
     print()
     print("    === 配置与系统管理 ===")
+    print("        initialize_config       - 从模板安全初始化本地配置")
     print("    15. get_current_config      - 获取当前系统配置")
     print("    16. get_system_status       - 获取系统运行状态")
     print("    17. check_version           - 检查版本更新（对比本地与远程版本）")
@@ -5029,11 +5063,10 @@ def run_server(
     print("    75. search_vscode_extensions  - VSCode 扩展商店")
     print("    76. search_artifact_hub       - Kubernetes Helm/Operator/Argo")
     print()
-    print("    === 外部数据源 - 气象历史/漏洞利用/音乐/论文社媒 ===")
+    print("    === 外部数据源 - 气象历史/漏洞利用/音乐 ===")
     print("    77. get_weather_history       - Open-Meteo Archive 1940+ 历史气象")
     print("    78. search_exploit_db         - Exploit-DB 漏洞利用代码")
     print("    79. search_musicbrainz        - MusicBrainz 音乐百科")
-    print("    80. get_crossref_events       - CrossRef Event DOI 社媒提及")
     print("=" * 60)
     print()
 

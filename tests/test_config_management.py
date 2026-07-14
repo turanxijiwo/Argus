@@ -1,9 +1,13 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 import yaml
 
+from argus_server.server import mcp
 from argus_server.tools.config_mgmt import ConfigManagementTools
 
 
@@ -96,6 +100,25 @@ advanced: {}
             self.assertFalse(response["success"])
             self.assertEqual(response["error"]["code"], "TEMPLATE_INVALID")
             self.assertFalse((Path(tmpdir) / "config" / "config.yaml").exists())
+
+
+class ConfigInitializationMCPTest(unittest.IsolatedAsyncioTestCase):
+    async def test_initialize_config_mcp_delegates_and_serializes_result(self):
+        expected = {
+            "success": True,
+            "summary": {"status": "created", "created": True},
+            "data": {"config_path": "config/config.yaml"},
+        }
+        initialize_config = Mock(return_value=expected)
+        fake_tools = {"config": SimpleNamespace(initialize_config=initialize_config)}
+
+        with patch("argus_server.server._get_tools", return_value=fake_tools):
+            tool = await mcp.get_tool("initialize_config")
+            result = await tool.run({})
+
+        self.assertEqual(json.loads(result.content[0].text), expected)
+        initialize_config.assert_called_once_with()
+
 
 if __name__ == "__main__":
     unittest.main()
