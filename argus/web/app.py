@@ -3,7 +3,7 @@ Starlette app: REST + SSE + 单 HTML 仪表盘
 
 Endpoints:
     GET  /                    — 单 HTML dashboard
-    GET  /api/health          — 健康检查
+    GET  /api/health          — HTTP 进程存活检查（不代表业务就绪）
     GET  /api/latest          — 最新日期全量新闻 (按平台分组)
     GET  /api/trending        — 热点话题 (基于本地分析)
     GET  /api/anomalies       — 异常检测 (复用 detect_anomaly)
@@ -85,7 +85,14 @@ def _count_trending(day: Dict[str, Any], top_n: int = 20) -> List[Dict]:
 # ────────────────────── Endpoints ──────────────────────
 
 async def health(_req: Request) -> JSONResponse:
-    return JSONResponse({"ok": True, "ts": int(time.time())})
+    return JSONResponse({
+        "success": True,
+        "ok": True,
+        "status": "alive",
+        "scope": "liveness",
+        "ready": None,
+        "ts": int(time.time()),
+    })
 
 
 async def api_dates(_req: Request) -> JSONResponse:

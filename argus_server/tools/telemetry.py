@@ -13,7 +13,6 @@
 from __future__ import annotations
 
 import json
-import os
 import threading
 import time
 from collections import Counter, defaultdict
@@ -149,9 +148,16 @@ def traced(tool_name: str):
 class HealthTools:
     """健康监控 + 遥测聚合"""
 
-    def __init__(self, project_root: Optional[str] = None):
+    def __init__(
+        self,
+        project_root: Optional[str] = None,
+        ai_adapter: Any = None,
+        notification_adapter: Any = None,
+    ):
         self.project_root = Path(project_root).resolve() if project_root else Path(__file__).resolve().parents[2]
         self._store = TelemetryStore.instance(str(self.project_root))
+        self._ai_adapter = ai_adapter
+        self._notification_adapter = notification_adapter
 
     def tool_stats(self, top_n: int = 30) -> Dict:
         """当前会话的工具调用统计"""
@@ -159,79 +165,284 @@ class HealthTools:
         return _ok(stats, **{k: v for k, v in stats.items() if isinstance(v, (int, float))})
 
     def system_health(self) -> Dict:
-        """综合健康: 本地索引 / RSSHub / 数据新鲜度 / 磁盘"""
+        """Run readiness checks without confusing execution success with readiness."""
+        import sqlite3
         import shutil
         import requests
+        import yaml
 
         health = {"checks": {}, "ts": datetime.now().isoformat(timespec="seconds")}
+        checks = health["checks"]
 
-        # 数据新鲜度
+        config_path = self.project_root / "config" / "config.yaml"
+        if not config_path.exists():
+            checks["configuration"] = _health_check(
+                False, required=True, status="needs_setup", reason="config/config.yaml 不存在"
+            )
+        else:
+            try:
+                config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+                valid = isinstance(config, dict) and bool(config)
+                checks["configuration"] = _health_check(
+                    valid,
+                    required=True,
+                    status="ready" if valid else "invalid",
+                    reason=None if valid else "config/config.yaml 为空或不是映射",
+                )
+            except Exception as ex:
+                checks["configuration"] = _health_check(
+                    False, required=True, status="invalid", reason=str(ex)
+                )
+
         news_dir = self.project_root / "output" / "news"
-        if news_dir.exists():
-            dbs = sorted([f for f in news_dir.glob("*.db")], key=lambda p: p.stat().st_mtime, reverse=True)
-            if dbs:
-                latest = dbs[0]
-                age_hours = (time.time() - latest.stat().st_mtime) / 3600
-                health["checks"]["news_data"] = {
-                    "ok": age_hours < 48,
-                    "latest_file": latest.name,
-                    "age_hours": round(age_hours, 1),
-                    "total_db_count": len(dbs),
-                }
-            else:
-                health["checks"]["news_data"] = {"ok": False, "reason": "no db files"}
+        dbs = sorted(
+            news_dir.glob("*.db") if news_dir.exists() else [],
+            key=lambda path: path.stat().st_mtime,
+            reverse=True,
+        )
+        if dbs:
+            latest = dbs[0]
+            age_hours = (time.time() - latest.stat().st_mtime) / 3600
+            try:
+                with sqlite3.connect(
+                    f"{latest.resolve().as_uri()}?mode=ro", uri=True
+                ) as connection:
+                    item_count = connection.execute(
+                        "SELECT COUNT(*) FROM news_items"
+                    ).fetchone()[0]
+                fresh = age_hours < 48
+                has_data = item_count > 0
+                checks["news_data"] = _health_check(
+                    has_data and fresh,
+                    required=True,
+                    status="no_data" if not has_data else "ready" if fresh else "stale",
+                    latest_file=latest.name,
+                    age_hours=round(age_hours, 1),
+                    total_db_count=len(dbs),
+                    item_count=item_count,
+                )
+            except sqlite3.Error as ex:
+                checks["news_data"] = _health_check(
+                    False,
+                    required=True,
+                    status="invalid",
+                    latest_file=latest.name,
+                    total_db_count=len(dbs),
+                    reason=str(ex),
+                )
+        else:
+            checks["news_data"] = _health_check(
+                False, required=True, status="no_data", reason="no db files"
+            )
 
-        # BM25 索引
         idx = self.project_root / "output" / "semantic_index" / "meta.json"
         if idx.exists():
             try:
                 meta = json.loads(idx.read_text(encoding="utf-8"))
-                health["checks"]["semantic_index"] = {
-                    "ok": True,
-                    "doc_count": meta.get("doc_count"),
-                    "built_at": meta.get("built_at"),
-                }
-            except Exception:
-                health["checks"]["semantic_index"] = {"ok": False, "reason": "meta 解析失败"}
+                checks["semantic_index"] = _health_check(
+                    True,
+                    required=False,
+                    status="ready",
+                    doc_count=meta.get("doc_count"),
+                    built_at=meta.get("built_at"),
+                )
+            except Exception as ex:
+                checks["semantic_index"] = _health_check(
+                    False, required=False, status="invalid", reason=str(ex)
+                )
         else:
-            health["checks"]["semantic_index"] = {"ok": False, "reason": "未构建"}
+            checks["semantic_index"] = _health_check(
+                False, required=False, status="needs_setup", reason="未构建"
+            )
 
-        # RSSHub
         try:
             r = requests.get("http://localhost:1200/", timeout=3)
-            health["checks"]["rsshub"] = {"ok": r.status_code < 500, "status_code": r.status_code}
+            rsshub_ok = r.status_code < 500
+            checks["rsshub"] = _health_check(
+                rsshub_ok,
+                required=False,
+                status="ready" if rsshub_ok else "unavailable",
+                status_code=r.status_code,
+            )
         except Exception:
-            health["checks"]["rsshub"] = {"ok": False, "reason": "connection_failed"}
+            checks["rsshub"] = _health_check(
+                False, required=False, status="unavailable", reason="connection_failed"
+            )
 
-        # 磁盘
         try:
-            total, used, free = shutil.disk_usage(str(self.project_root))
-            health["checks"]["disk"] = {
-                "ok": free > 1024 * 1024 * 1024,   # 至少 1 GB
-                "free_gb": round(free / 1024 / 1024 / 1024, 1),
-                "total_gb": round(total / 1024 / 1024 / 1024, 1),
-            }
-        except Exception:
-            pass
+            usage = shutil.disk_usage(str(self.project_root))
+            disk_ok = usage.free > 1024 * 1024 * 1024
+            checks["disk"] = _health_check(
+                disk_ok,
+                required=True,
+                status="ready" if disk_ok else "low_space",
+                free_gb=round(usage.free / 1024 / 1024 / 1024, 1),
+                total_gb=round(usage.total / 1024 / 1024 / 1024, 1),
+            )
+        except Exception as ex:
+            checks["disk"] = _health_check(
+                False, required=True, status="check_failed", reason=str(ex)
+            )
 
-        # 定时任务数
         sched_dir = self.project_root / "output" / "scheduled_tasks"
-        if sched_dir.exists():
-            health["checks"]["scheduled_tasks"] = {
-                "ok": True,
-                "count": len(list(sched_dir.glob("*.json"))),
-            }
+        task_count = len(list(sched_dir.glob("*.json"))) if sched_dir.exists() else 0
+        checks["scheduled_tasks"] = _health_check(
+            True,
+            required=False,
+            status="ready" if task_count else "not_configured",
+            count=task_count,
+        )
 
-        # 告警规则数
         alerts_path = self.project_root / "config" / "alerts.yaml"
-        if alerts_path.exists():
-            health["checks"]["alert_rules"] = {
-                "ok": True,
-                "file": str(alerts_path),
-                "size": alerts_path.stat().st_size,
-            }
+        checks["alert_rules"] = _health_check(
+            True,
+            required=False,
+            status="ready" if alerts_path.exists() else "not_configured",
+            configured=alerts_path.exists(),
+            file=str(alerts_path) if alerts_path.exists() else None,
+            size=alerts_path.stat().st_size if alerts_path.exists() else 0,
+        )
 
-        # 总 ok
-        all_ok = all(c.get("ok", True) for c in health["checks"].values())
-        health["ok"] = all_ok
-        return _ok(health, ok=all_ok)
+        cli_packages = {
+            "bili": "bilibili-cli",
+            "xhs": "xiaohongshu-cli",
+            "twitter": "twitter-cli",
+            "tg": "kabi-tg-cli",
+            "discord": "kabi-discord-cli",
+        }
+        cli_status = {}
+        for name, package in cli_packages.items():
+            installed = bool(shutil.which(name))
+            cli_status[name] = {
+                "installed": installed,
+                "package": package,
+                "authentication": "not_checked" if installed else None,
+            }
+        installed_cli_count = sum(1 for item in cli_status.values() if item["installed"])
+        checks["social_cli"] = _health_check(
+            False,
+            required=False,
+            status="needs_auth_check" if installed_cli_count else "needs_setup",
+            installed=installed_cli_count,
+            total=len(cli_status),
+            tools=cli_status,
+            note="安装状态不等于登录就绪；使用对应 auth status 工具做显式验证。",
+        )
+
+        checks["ai_providers"] = self._ai_provider_health()
+        checks["notifications"] = self._notification_health()
+
+        required_check_names = [
+            name for name, check in checks.items() if check["required"]
+        ]
+        blocking_check_names = [
+            name for name in required_check_names if not checks[name]["ok"]
+        ]
+        degraded_check_names = [
+            name
+            for name, check in checks.items()
+            if not check["required"] and not check["ok"]
+        ]
+        ready = not blocking_check_names
+        if not ready:
+            status = "not_ready"
+        elif degraded_check_names:
+            status = "degraded"
+        else:
+            status = "ready"
+
+        health.update({
+            "status": status,
+            "ready": ready,
+            "ok": ready,
+            "contract": {
+                "success": "check_execution",
+                "ready": "required_business_readiness",
+                "status": "ready | degraded | not_ready",
+            },
+        })
+        return _ok(
+            health,
+            status=status,
+            ready=ready,
+            ok=ready,
+            checks_total=len(checks),
+            required_checks=len(required_check_names),
+            blocking_checks=blocking_check_names,
+            degraded_checks=degraded_check_names,
+        )
+
+    def _ai_provider_health(self) -> Dict:
+        if self._ai_adapter is None:
+            return _health_check(
+                False, required=False, status="not_checked", reason="AI adapter not attached"
+            )
+        try:
+            response = self._ai_adapter.check_ai_providers()
+            if not response.get("success"):
+                error = response.get("error") or {}
+                return _health_check(
+                    False,
+                    required=False,
+                    status="check_failed",
+                    reason=error.get("message") or "provider check failed",
+                    error_code=error.get("code"),
+                )
+            providers = response.get("data") or {}
+            configured = sum(
+                1 for provider in providers.values() if provider.get("configured")
+            )
+            return _health_check(
+                configured > 0,
+                required=False,
+                status="ready" if configured else "needs_setup",
+                configured=configured,
+                total=len(providers),
+                providers=providers,
+            )
+        except Exception as ex:
+            return _health_check(
+                False, required=False, status="check_failed", reason=str(ex)
+            )
+
+    def _notification_health(self) -> Dict:
+        if self._notification_adapter is None:
+            return _health_check(
+                False,
+                required=False,
+                status="not_checked",
+                reason="notification adapter not attached",
+            )
+        try:
+            response = self._notification_adapter.get_notification_channels()
+            if not response.get("success"):
+                error = response.get("error") or {}
+                return _health_check(
+                    False,
+                    required=False,
+                    status="check_failed",
+                    reason=error.get("message") or "notification check failed",
+                    error_code=error.get("code"),
+                )
+            channels = response.get("channels") or []
+            configured = sum(1 for channel in channels if channel.get("configured"))
+            enabled = bool(response.get("notification_enabled", True))
+            return _health_check(
+                enabled and configured > 0,
+                required=False,
+                status="ready" if enabled and configured else "needs_setup",
+                enabled=enabled,
+                configured=configured,
+                total=len(channels),
+                channels=channels,
+            )
+        except Exception as ex:
+            return _health_check(
+                False, required=False, status="check_failed", reason=str(ex)
+            )
+
+
+def _health_check(ok: bool, required: bool, status: str, **details: Any) -> Dict:
+    check = {"ok": ok, "required": required, "status": status}
+    check.update({key: value for key, value in details.items() if value is not None})
+    return check

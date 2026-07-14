@@ -15,7 +15,7 @@ from ..utils.errors import MCPError, CrawlTaskError
 class SystemManagementTools:
     """系统管理工具类"""
 
-    def __init__(self, project_root: str = None):
+    def __init__(self, project_root: str = None, health_adapter=None):
         """
         初始化系统管理工具
 
@@ -29,6 +29,7 @@ class SystemManagementTools:
             # 获取项目根目录
             current_file = Path(__file__)
             self.project_root = current_file.parent.parent.parent
+        self.health_adapter = health_adapter
 
     def get_system_status(self) -> Dict:
         """
@@ -43,13 +44,39 @@ class SystemManagementTools:
             >>> print(result['system']['version'])
         """
         try:
-            # 获取系统状态
             status = self.data_service.get_system_status()
+            if self.health_adapter is None:
+                from .telemetry import HealthTools
+
+                self.health_adapter = HealthTools(str(self.project_root))
+            try:
+                health_response = self.health_adapter.system_health()
+                if health_response.get("success"):
+                    readiness = health_response.get("data") or {}
+                else:
+                    readiness = {
+                        "status": "check_failed",
+                        "ready": False,
+                        "ok": False,
+                        "error": health_response.get("error") or {},
+                    }
+            except Exception as ex:
+                readiness = {
+                    "status": "check_failed",
+                    "ready": False,
+                    "ok": False,
+                    "error": {"code": "HEALTH_CHECK_ERROR", "message": str(ex)},
+                }
+
+            status["health"] = readiness.get("status", "check_failed")
+            status["readiness"] = readiness
 
             return {
                 "success": True,
                 "summary": {
-                    "description": "系统运行状态和健康检查信息"
+                    "description": "系统运行状态和健康检查信息",
+                    "status": status["health"],
+                    "ready": bool(readiness.get("ready")),
                 },
                 "data": status
             }
@@ -118,36 +145,78 @@ class SystemManagementTools:
 
         return target_platforms, ids
 
-    def _persist_crawl_data(self, storage, news_data, save_to_local, results, id_to_name, failed_ids, current_time, crawl_time_str):
-        """持久化爬取数据，返回 (save_success, save_error_msg, saved_files)"""
-        save_success = False
-        save_error_msg = ""
-        saved_files = {}
+    def _persist_crawl_data(self, storage, news_data, save_to_local, results,
+                            id_to_name, failed_ids, current_time, crawl_time_str):
+        """Persist SQLite data and separately track optional TXT/HTML snapshots."""
+        database = {
+            "attempted": True,
+            "saved": False,
+            "error": None,
+        }
+        snapshots = {
+            "requested": bool(save_to_local),
+            "status": "not_requested" if not save_to_local else "failed",
+            "saved": False,
+            "files": {},
+            "errors": [],
+        }
 
         try:
-            if storage.save_news_data(news_data):
-                save_success = True
+            database["saved"] = bool(storage.save_news_data(news_data))
+            if not database["saved"]:
+                database["error"] = "Storage backend returned false"
+        except Exception as ex:
+            print(f"[System] SQLite 数据保存失败: {ex}")
+            database["error"] = str(ex)
 
-            if save_to_local:
+        if save_to_local:
+            try:
                 txt_path = storage.save_txt_snapshot(news_data)
                 if txt_path:
-                    saved_files["txt"] = txt_path
+                    snapshots["files"]["txt"] = txt_path
+                else:
+                    snapshots["errors"].append("TXT snapshot was not created")
+            except Exception as ex:
+                snapshots["errors"].append(f"TXT snapshot failed: {ex}")
 
-                html_content = self._generate_simple_html(results, id_to_name, failed_ids, current_time)
+            try:
+                html_content = self._generate_simple_html(
+                    results,
+                    id_to_name,
+                    failed_ids,
+                    current_time,
+                )
                 html_filename = f"{crawl_time_str}.html"
                 html_path = storage.save_html_report(html_content, html_filename)
                 if html_path:
-                    saved_files["html"] = html_path
+                    snapshots["files"]["html"] = html_path
+                else:
+                    snapshots["errors"].append("HTML snapshot was not created")
+            except Exception as ex:
+                snapshots["errors"].append(f"HTML snapshot failed: {ex}")
 
-        except Exception as e:
-            print(f"[System] 数据保存失败: {e}")
-            save_success = False
-            save_error_msg = str(e)
+            saved_snapshot_count = len(snapshots["files"])
+            if saved_snapshot_count == 2:
+                snapshots["status"] = "saved"
+                snapshots["saved"] = True
+            elif saved_snapshot_count:
+                snapshots["status"] = "partial"
 
-        return save_success, save_error_msg, saved_files
+        if database["saved"] and snapshots["status"] in {"not_requested", "saved"}:
+            persistence_status = "complete"
+        elif database["saved"] or snapshots["files"]:
+            persistence_status = "partial"
+        else:
+            persistence_status = "failed"
 
-    def _build_crawl_response(self, results, id_to_name, failed_ids, current_time, include_url,
-                               save_success, save_to_local, save_error_msg, saved_files):
+        return {
+            "status": persistence_status,
+            "database": database,
+            "snapshots": snapshots,
+        }
+
+    def _build_crawl_response(self, results, id_to_name, failed_ids,
+                               current_time, include_url, persistence):
         """构建爬取结果响应字典"""
         import time
 
@@ -166,6 +235,11 @@ class SystemManagementTools:
                     news_item["mobile_url"] = info.get("mobileUrl", "")
                 news_response_data.append(news_item)
 
+        database = persistence["database"]
+        snapshots = persistence["snapshots"]
+        saved_files = dict(snapshots["files"])
+        saved_to_local = bool(database["saved"] or saved_files)
+
         result = {
             "success": True,
             "summary": {
@@ -176,34 +250,50 @@ class SystemManagementTools:
                 "total_news": len(news_response_data),
                 "platforms": list(results.keys()),
                 "failed_platforms": failed_ids,
-                "saved_to_local": save_success and save_to_local
+                "persistence_status": persistence["status"],
+                "saved_to_local": saved_to_local,
+                "database_saved": bool(database["saved"]),
+                "snapshots_requested": bool(snapshots["requested"]),
+                "snapshots_saved": bool(snapshots["saved"]),
             },
-            "data": news_response_data
+            "data": news_response_data,
+            "persistence": persistence,
+            "saved_to_local": saved_to_local,
         }
 
-        if save_success:
-            if save_to_local:
-                result["saved_files"] = saved_files
-                result["note"] = "数据已保存到 SQLite 数据库及 output 文件夹"
+        if saved_files:
+            result["saved_files"] = saved_files
+
+        persistence_errors = []
+        if database["error"]:
+            persistence_errors.append(database["error"])
+        persistence_errors.extend(snapshots["errors"])
+        if persistence_errors:
+            result["save_error"] = "; ".join(persistence_errors)
+
+        if database["saved"]:
+            if snapshots["status"] == "saved":
+                result["note"] = "数据已保存到 SQLite 数据库及 output 快照文件"
+            elif snapshots["status"] == "not_requested":
+                result["note"] = "数据已保存到 SQLite 数据库；未请求 TXT/HTML 快照"
+            elif saved_files:
+                result["note"] = "数据已保存到 SQLite 数据库，但只生成了部分 output 快照"
             else:
-                result["note"] = "数据已保存到 SQLite 数据库 (仅内存中返回结果，未生成TXT快照)"
+                result["note"] = "数据已保存到 SQLite 数据库，但 output 快照生成失败"
+        elif saved_files:
+            result["note"] = "SQLite 数据库保存失败，但已生成部分或全部 output 快照"
         else:
-            result["saved_to_local"] = False
-            result["save_error"] = save_error_msg
-            if "Read-only file system" in save_error_msg or "Permission denied" in save_error_msg:
-                result["note"] = "爬取成功，但无法写入数据库（Docker只读模式）。数据仅在本次返回中有效。"
-            else:
-                result["note"] = f"爬取成功但保存失败: {save_error_msg}"
+            result["note"] = "爬取成功但未能保存到本地；数据仅在本次返回中有效"
 
         return result
 
     def trigger_crawl(self, platforms: Optional[List[str]] = None, save_to_local: bool = False, include_url: bool = False) -> Dict:
         """
-        手动触发一次临时爬取任务（可选持久化）
+        手动触发一次爬取任务（SQLite 始终尝试保存）
 
         Args:
             platforms: 指定平台列表，为空则爬取所有平台
-            save_to_local: 是否保存到本地 output 目录，默认 False
+            save_to_local: 兼容参数；是否额外生成 TXT/HTML 快照，默认 False
             include_url: 是否包含URL链接，默认False（节省token）
 
         Returns:
@@ -252,7 +342,7 @@ class SystemManagementTools:
             )
 
             try:
-                save_success, save_error_msg, saved_files = self._persist_crawl_data(
+                persistence = self._persist_crawl_data(
                     storage, news_data, save_to_local, results, id_to_name, failed_ids, current_time, crawl_time_str
                 )
             finally:
@@ -263,7 +353,7 @@ class SystemManagementTools:
             # 4. 构建响应
             return self._build_crawl_response(
                 results, id_to_name, failed_ids, current_time, include_url,
-                save_success, save_to_local, save_error_msg, saved_files
+                persistence,
             )
 
         except MCPError as e:
