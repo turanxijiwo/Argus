@@ -368,8 +368,14 @@ class AnalyticsTools:
             counts = [item["count"] for item in trend_data]
             total_days = (end_date - start_date).days + 1
 
+            max_count = max(counts, default=0)
+            if max_count > 0:
+                peak_index = counts.index(max_count)
+                peak_time = trend_data[peak_index]["date"]
+            else:
+                peak_time = None
+
             if len(counts) >= 2:
-                # 计算涨跌幅度
                 first_non_zero = next((c for c in counts if c > 0), 0)
                 last_count = counts[-1]
 
@@ -377,15 +383,8 @@ class AnalyticsTools:
                     change_rate = ((last_count - first_non_zero) / first_non_zero) * 100
                 else:
                     change_rate = 0
-
-                # 找到峰值时间
-                max_count = max(counts)
-                peak_index = counts.index(max_count)
-                peak_time = trend_data[peak_index]["date"]
             else:
                 change_rate = 0
-                peak_time = None
-                max_count = 0
 
             return {
                 "success": True,
@@ -2506,7 +2505,11 @@ class AnalyticsTools:
         """总体概览对比"""
         # 计算变化
         count_change = data2["news_count"] - data1["news_count"]
-        count_change_pct = (count_change / data1["news_count"] * 100) if data1["news_count"] > 0 else 0
+        if data1["news_count"] > 0:
+            count_change_pct = count_change / data1["news_count"] * 100
+            count_change_percent = f"{count_change_pct:+.1f}%"
+        else:
+            count_change_percent = "N/A"
 
         # TOP 关键词对比
         top_kw1 = [kw for kw, _ in data1["keywords"].most_common(top_n)]
@@ -2525,7 +2528,7 @@ class AnalyticsTools:
                 "period1_count": data1["news_count"],
                 "period2_count": data2["news_count"],
                 "count_change": count_change,
-                "count_change_percent": f"{count_change_pct:+.1f}%"
+                "count_change_percent": count_change_percent
             },
             "keyword_analysis": {
                 "new_keywords": new_keywords[:5],
