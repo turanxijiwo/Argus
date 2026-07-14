@@ -2,7 +2,8 @@
 
 from typing import Any, Callable, Dict, Iterable
 
-from .research_web import fetch_html, parse_html
+from .research_network import fetch_html
+from .research_web import parse_html
 
 
 FetchHtml = Callable[[str, int], Dict]

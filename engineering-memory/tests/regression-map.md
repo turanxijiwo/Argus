@@ -215,6 +215,15 @@ Test file:
 What it protects:
 - Prevents `crawl_url` from fetching unsupported schemes such as `file://`.
 
+### Research toolkit public-network crawl boundary
+
+Test file:
+- `tests/test_research_web_security.py`
+
+What it protects:
+- Allows normal public-page crawling while rejecting loopback, link-local, and explicit Codex virtual-network targets before requests are issued.
+- Requires built-in redirects and Crawl4AI browser requests to pass the same destination validation, while preserving hostname-based public crawling inside the Codex virtual network.
+
 ### Research toolkit optional Crawl4AI rendering
 
 Test file:

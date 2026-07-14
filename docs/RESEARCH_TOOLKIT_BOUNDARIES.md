@@ -48,8 +48,9 @@ the MCP registration smoke test.
 
 These capabilities work with the current project dependencies:
 
-- `crawl_url` fetches HTTP/HTTPS pages and extracts title, description, text,
-  links, and image candidates.
+- `crawl_url` fetches public HTTP/HTTPS pages and extracts title, description,
+  text, links, and image candidates. It resolves every target, follows at most
+  five redirects manually, and validates each hop before connecting.
 - `discover_page_images` extracts image candidates from page HTML without
   downloading media.
 - `research_topic` normalizes results from attached Argus adapters such as local
@@ -78,7 +79,7 @@ missing.
 |---|---|---|---|
 | Tavily / Exa / Perplexity / Brave | `research_topic`, `research_images`, `research_pack`, `research_workflow` | `TAVILY_API_KEY`, `EXA_API_KEY`, `PERPLEXITY_API_KEY`, or `BRAVE_API_KEY` | Reuse existing AI web search provider adapters through `web:<provider>` sources. |
 | Codex SDK | `research_topic`, `research_workflow` | `openai-codex` Python package or injected runner; optional `ARGUS_CODEX_MODEL` | Return strict normalized JSON results, or `NOT_INSTALLED` / `PARSE_ERROR` / runner errors. |
-| Crawl4AI | `crawl_url(render_js=True)`, `research_workflow(render_js=True)` | `crawl4ai` Python package and local browser setup | Return rendered page extraction when available, otherwise `NOT_INSTALLED` with install hint. |
+| Crawl4AI | `crawl_url(render_js=True)`, `research_workflow(render_js=True)` | `crawl4ai` Python package and local browser setup | Return rendered page extraction when available, otherwise `NOT_INSTALLED` with install hint. Browser navigation, redirects, and HTTP subresources must pass the same public-network guard. |
 | gallery-dl | `download_gallery` | `gallery-dl` executable on `PATH` | Return a safe dry-run plan by default; execute only with `confirm=True`, an HTTP/HTTPS target, ignored user config, and a forced project-local output directory. |
 | Existing social CLIs | Non-Research SocialOps tools | User-installed CLIs and normal manual login | Report missing/expired auth clearly; never bypass login or auto-refresh cookies. |
 
@@ -101,6 +102,12 @@ Do not include these in Phase 1:
 Phase 1 tools should keep these contracts stable:
 
 - Invalid or unsupported URLs fail before network work.
+- Initial URLs, redirects, and rendered-page HTTP requests that resolve to
+  loopback, private, link-local, reserved, or otherwise non-public addresses
+  fail with `UNSAFE_URL` before that request is issued.
+- In the Codex sandbox only, hostname-derived `198.18.0.0/15` virtual-network
+  mappings are accepted so platform-mediated public access remains usable;
+  explicit IP targets in that range remain blocked.
 - Unsafe output paths fail before search, crawl, or download work.
 - Missing optional CLIs/packages/API keys return actionable setup errors.
 - Source failures are stored in `source_errors`.

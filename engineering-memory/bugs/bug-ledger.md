@@ -858,3 +858,36 @@ All 46 Research Toolkit tests and all 265 project tests passed. Syntax compilati
 
 ### Prevention
 Subprocess wrappers must validate positional input, isolate user configuration, encode filesystem boundaries in the child argv, terminate option parsing, and derive the public envelope from the real process exit status.
+
+## BUG-0023: Crawler URL Validation Did Not Enforce A Public-Network Boundary
+
+Date: 2026-07-14
+Severity: P1
+Status: verified
+Area: Research web crawling
+Tags: ssrf, redirects, dns, crawl4ai, codex-sandbox
+
+### Symptom
+`crawl_url` accepted loopback and link-local targets, and a public page could redirect either the built-in HTTP client or the Crawl4AI browser toward private services.
+
+### Reproduction / Trigger
+The old HTTP path attempted `http://127.0.0.1` directly and followed redirects automatically. A fake public 302 to `http://169.254.169.254/latest/meta-data` returned success, and a simulated Crawl4AI request to the same target was continued rather than aborted.
+
+### Root Cause
+The crawler treated HTTP URL syntax as network authorization. Neither transport resolved and classified destination addresses at the request boundary, and the HTTP client delegated the redirect chain to `requests` without per-hop inspection.
+
+### Affected Chain
+FastMCP `crawl_url` -> `ResearchToolkitTools.crawl_url` -> `crawl_page_url` -> built-in `fetch_html` or `crawl_url_with_crawl4ai`.
+
+### Fix
+Added shared public-address validation, disabled automatic HTTP redirects, validated each bounded redirect before requesting it, and installed a Crawl4AI page route guard for navigation and subresource requests. Codex hostname-derived virtual DNS addresses remain usable only inside `CODEX_SANDBOX`; explicit reserved-range IP targets stay blocked.
+
+### Tests Added / Updated
+- Test file: `tests/test_research_web_security.py`
+- Coverage: public success, loopback rejection before request, public-to-link-local redirect rejection, Crawl4AI request abort, explicit Codex virtual-address rejection, and Codex virtual-DNS hostname compatibility.
+
+### Verification
+All 55 targeted Research Toolkit/runtime tests and all 271 project tests passed. Syntax compilation and source/wheel builds succeeded. A real public crawl returned HTTP 200 and `Example Domain`, while real loopback and link-local targets both returned `UNSAFE_URL`.
+
+### Prevention
+Treat URL syntax, destination authorization, and redirect traversal as separate contracts. Every transport must validate each actively requested HTTP target, including browser redirects and subresources.

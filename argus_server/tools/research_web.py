@@ -3,50 +3,13 @@
 import re
 from html.parser import HTMLParser
 from typing import Any, Dict, List
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
 
-import requests
-
-
-def is_http_url(url: str) -> bool:
-    parsed = urlparse(url or "")
-    return parsed.scheme in ("http", "https") and bool(parsed.netloc)
+from .research_network import is_http_url
 
 
 def clean_text(text: str) -> str:
     return re.sub(r"\s+", " ", text or "").strip()
-
-
-def fetch_html(session: requests.Session, url: str, timeout: int, max_html_bytes: int) -> Dict:
-    try:
-        response = session.get(url, timeout=timeout, stream=True)
-        response.raise_for_status()
-        content = bytearray()
-        for chunk in response.iter_content(chunk_size=65536):
-            if not chunk:
-                continue
-            content.extend(chunk)
-            if len(content) > max_html_bytes:
-                return _err(
-                    "HTML response is too large",
-                    code="RESPONSE_TOO_LARGE",
-                    max_bytes=max_html_bytes,
-                )
-        encoding = response.encoding or response.apparent_encoding or "utf-8"
-        html = bytes(content).decode(encoding, errors="replace")
-        return _ok(
-            {
-                "html": html,
-                "final_url": response.url,
-                "status_code": response.status_code,
-                "content_type": response.headers.get("content-type", ""),
-            },
-            bytes=len(content),
-        )
-    except requests.Timeout:
-        return _err("Request timed out", code="TIMEOUT", url=url)
-    except requests.RequestException as ex:
-        return _err(f"Request failed: {ex}", code="NETWORK_ERROR", url=url)
 
 
 def parse_html(html: str, base_url: str) -> Dict:

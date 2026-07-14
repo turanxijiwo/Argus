@@ -4,8 +4,8 @@
 
 - Engineering Memory has been initialized for Argus. Future work should start from `AGENTS.md` + `context.md`, then read `.codex-memory.yaml` only for triggered tasks such as bug fixes, architecture changes, shared modules, data schemas, storage/cache, workflows, or refactors.
 - Current product focus remains the Argus agent-native research and intelligence toolkit: 173 MCP tools, local/search analysis, scheduling, notifications, Web Dashboard, and research-toolkit adapters.
-- Latest milestone: release review against `origin/main` found 6 P1 and 5 P2 issues. BUG-0022, covering gallery-dl argument/config/output isolation and nonzero exit semantics, is fixed; all 265 tests, syntax compilation, the source/wheel build, and a real nonzero gallery-dl probe pass. The remaining findings stay release blockers.
-- Next candidate stage: resolve the remaining release findings one root-cause group at a time, starting with private-network/redirect protection for the crawler. Merge or push only with explicit user approval. A personal Codex plugin/skill wrapper remains a later usability enhancement.
+- Latest milestone: release review against `origin/main` found 6 P1 and 5 P2 issues. BUG-0022 hardened gallery-dl execution, and BUG-0023 now rejects private-network crawler targets across initial URLs, HTTP redirects, and Crawl4AI browser requests. All 271 tests, syntax compilation, source/wheel builds, and the real public/private crawl probe pass.
+- Next candidate stage: resolve the remaining release findings one root-cause group at a time, starting with Codex search working-directory and instruction isolation. Merge or push only with explicit user approval. A personal Codex plugin/skill wrapper remains a later usability enhancement.
 
 ## 已知问题
 
@@ -53,7 +53,7 @@
 - xhs CLI access still requires normal manual Xiaohongshu login; Argus reports expired/unavailable auth clearly, preflights `xhs_*` tools before business commands, and does not attempt to bypass login or auto-refresh cookies.
 - Codex SDK responses must return JSON for `research_topic(sources=["codex"])`; invalid JSON returns `PARSE_ERROR`, and missing SDK returns `NOT_INSTALLED`.
 - `download_gallery` requires `gallery-dl` to be installed locally and defaults to dry-run. Confirmed execution now accepts only HTTP/HTTPS targets, ignores user configuration, forces the resolved project-local destination, terminates option parsing, and returns `DOWNLOAD_FAILED` for nonzero exits.
-- Release review still has nine unresolved findings: crawler private-network/redirect protection, Codex search cwd/instruction isolation, config readiness validation, per-citation locator coverage, batch handoff readiness, local-news failure propagation, artifact filename collisions, Gutenberg partial-result preservation, and malformed artifact validation.
+- Release review still has eight unresolved findings: Codex search cwd/instruction isolation, config readiness validation, per-citation locator coverage, batch handoff readiness, local-news failure propagation, artifact filename collisions, Gutenberg partial-result preservation, and malformed artifact validation.
 - Phase 2A audit found Crawl4AI and Codex SDK are installed and usable with approved unsandboxed execution, but both can fail inside the restricted Codex sandbox because they need user-level state/cache writes.
 - No Tavily / Exa / Perplexity / Brave API keys are configured in the current runtime; `web:<provider>` smoke remains optional, while `scripts/research_codex_smoke.py` is the primary no-provider-key smoke path.
 - `scripts/research_codex_smoke.py` exits with code 2 for Codex SDK/state/permission unavailability and code 3 for Codex research-contract failures; the approved unsandboxed smoke currently passes with one URL-bearing topic result, one successful workflow document, and can use `--save` to verify the saved artifact-to-review handoff.
@@ -80,6 +80,8 @@
 
 ## 最近变更记录
 
+- Fixed BUG-0023 after release review reproduced direct private-network fetches and public-to-private redirects; built-in HTTP now resolves and validates every hop with automatic redirects disabled, while Crawl4AI guards every browser HTTP request.
+- Added six crawler-network regressions covering a public fetch, initial loopback and explicit virtual-address rejection, an HTTP redirect to link-local metadata, a Crawl4AI private request, and Codex virtual-DNS compatibility; 55 targeted tests, all 271 project tests, syntax compilation, source/wheel builds, and a real public/private probe pass.
 - Fixed BUG-0022 after release review reproduced gallery-dl option injection, ambient config loading, and false-success exits; added HTTP/HTTPS target validation, ignored user config, forced the approved destination, inserted an option terminator, and mapped nonzero exits to `DOWNLOAD_FAILED`.
 - Verified the gallery fix with 46 Research Toolkit tests, all 265 project tests, `compileall`, `uv build`, and a real gallery-dl unsupported-URL probe that returned `DOWNLOAD_FAILED` with exit code 64.
 - Split the cumulative feature work into 13 commits covering system runtime state, analytics, semantic indexing, crawl idempotency, scheduler acceptance, aggregate failures, academic availability, video metadata, config initialization, the audited MCP surface, user documentation, engineering handoff, and regression memory.

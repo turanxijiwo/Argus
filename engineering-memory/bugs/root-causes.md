@@ -563,3 +563,30 @@ For CLI subprocess boundaries, validate positional values before execution, disa
 
 ### Related Bugs
 - BUG-0022
+
+## RC-0021: URL Syntax Was Mistaken For Network Authorization
+
+Status: active
+Category: architecture boundary and request security
+First observed: BUG-0023
+Recurring count: 1
+Severity trend: high
+
+### Description
+A crawler accepted syntactically valid HTTP URLs without resolving and classifying their destinations. Automatic redirects and browser subresources could therefore cross from a public starting URL into loopback, private, or link-local networks.
+
+### Typical Symptoms
+- Direct loopback or metadata-service URLs reach the HTTP transport.
+- A public 302 response causes a second request to a private address.
+- Browser rendering blocks the initial URL but still loads private subresources.
+
+### Common Triggers
+- Reusing a scheme/netloc helper as an SSRF policy.
+- Allowing an HTTP library to follow redirects without application-level checks.
+- Securing the plain HTTP path while leaving the browser-rendered path unguarded.
+
+### Prevention Rule
+For every server-side fetch transport, separately validate URL syntax and resolved network scope, disable opaque redirect handling, and apply the same destination policy to every redirect and browser-issued HTTP request.
+
+### Related Bugs
+- BUG-0023
