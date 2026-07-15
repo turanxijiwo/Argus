@@ -488,11 +488,11 @@ Claim the unique operation key transactionally before any dependent mutation, tr
 Status: active
 Category: external API availability
 First observed: BUG-0020
-Recurring count: 1
+Recurring count: 3
 Severity trend: high
 
 ### Description
-The arXiv adapter issued every query directly without caching or pacing, despite the source documenting stable daily results and a minimum delay for consecutive calls. HTTP 429 was then collapsed into a generic network error.
+Public-source adapters issued requests without preserving each provider's rate-limit contract. arXiv originally lacked required caching/pacing, while Reddit and GDELT HTTP 429 responses were collapsed into generic transport errors or needed source-specific fallback handling.
 
 ### Typical Symptoms
 - Repeating an identical public metadata query consumes another upstream request.
@@ -509,6 +509,8 @@ Before integrating a rate-limited source, encode its documented cache lifetime a
 
 ### Related Bugs
 - BUG-0020
+- BUG-0024
+- BUG-0032
 
 ## RC-0019: Onboarding Examples Drifted From Executable Contracts
 
@@ -590,3 +592,167 @@ For every server-side fetch transport, separately validate URL syntax and resolv
 
 ### Related Bugs
 - BUG-0023
+
+## RC-0022: Credential Guidance Was Disconnected From Transport Contracts
+
+Status: active
+Category: configuration and API contract
+First observed: BUG-0025
+Recurring count: 1
+Severity trend: high
+
+### Description
+Provider credentials were documented in user guidance but were not represented in the request constructors that owned authentication. Configuration presence therefore could not change real transport behavior.
+
+### Typical Symptoms
+- An error recommends an environment variable that no runtime code reads.
+- Setting a valid credential leaves the upstream response unchanged.
+- Missing and rejected credentials collapse into the same public error.
+
+### Common Triggers
+- Adding setup guidance without an adapter-level request assertion.
+- Duplicating request construction across related provider methods.
+- Returning raw request exceptions that may include query-string credentials.
+
+### Prevention Rule
+For every supported credential, test its exact transport placement across all owning call sites, distinguish missing from rejected authentication, and redact request URLs or headers from public errors.
+
+### Related Bugs
+- BUG-0025
+
+## RC-0023: User Credentials And Mutable CLI State Shared One Sandbox Boundary
+
+Status: active
+Category: subprocess runtime and authentication boundary
+First observed: BUG-0026
+Recurring count: 1
+Severity trend: high
+
+### Description
+An authenticated CLI stored both reusable login data and mutable command caches under the user's home directory. A read-only credential mount was therefore insufficient for real commands even though status and account validity were otherwise correct.
+
+### Typical Symptoms
+- Authentication succeeds outside Codex but business commands fail inside it.
+- A cache write permission error is reported as an expired or unavailable login.
+- Status-only probes pass while search or detail commands fail.
+
+### Common Triggers
+- Passing the parent process HOME unchanged to a third-party CLI.
+- Treating every file under a CLI config directory as credential state.
+- Auditing installation and login without running one real read-only business command.
+
+### Prevention Rule
+For authenticated subprocesses, map credential inputs and mutable runtime outputs separately, use a private writable runtime directory with restrictive permissions, and verify a real sandboxed business command plus a missing-credential path.
+
+### Related Bugs
+- BUG-0026
+
+## RC-0024: Wrapper Tests Mirrored Stale CLI Arguments
+
+Status: active
+Category: external CLI contract and test gap
+First observed: BUG-0027
+Recurring count: 2
+Severity trend: high
+
+### Description
+Social wrappers encoded a guessed common option set and their unit tests asserted those same literals. The test suite therefore stayed green after the installed CLI changed or never supported those arguments.
+
+### Typical Symptoms
+- Auth and installation checks pass but the command exits in argument parsing.
+- Several commands share an option that their individual help does not list.
+- Unit tests pass because the fake adapter accepts any argv.
+
+### Common Triggers
+- Treating related Click commands as if they had a uniform option schema.
+- Updating or installing a CLI without auditing every wrapper help contract.
+- Mocking subprocesses below the parser without one real read-only probe.
+
+### Prevention Rule
+Inventory each wrapped command against the installed CLI version, assert every public wrapper's exact argv, and execute at least one safe real command through the complete wrapper chain.
+
+### Related Bugs
+- BUG-0027
+- BUG-0029
+- BUG-0031
+
+## RC-0025: Package Availability Was Mistaken For Platform Authorization
+
+Status: active
+Category: external integration policy boundary
+First observed: BUG-0028
+Recurring count: 1
+Severity trend: high
+
+### Description
+A third-party CLI was considered usable because it could be installed and had structured output, without checking whether its credential model was permitted by the target platform.
+
+### Typical Symptoms
+- Health output recommends installing a tool that requires a normal user token.
+- Documentation acknowledges account risk but still executes the prohibited flow.
+- Personal-use intent is treated as sufficient authorization.
+
+### Common Triggers
+- Auditing package metadata without provider policy documentation.
+- Treating login success as equivalent to compliant access.
+- Reusing one generic install/auth matrix across platforms with different rules.
+
+### Prevention Rule
+Before enabling an authenticated adapter, verify the provider's official authorization model and represent prohibited flows as policy-disabled capabilities with a compliant Bot, OAuth, or public-data replacement.
+
+### Related Bugs
+- BUG-0028
+
+## RC-0026: Missing Input Was Mistaken For Safe Stdin Inheritance
+
+Status: active
+Category: subprocess runtime and protocol boundary
+First observed: BUG-0030
+Recurring count: 1
+Severity trend: high
+
+### Description
+An agent-facing subprocess wrapper omitted both explicit input and stdin isolation. Interactive authentication introduced by an external CLI could therefore read from or block the MCP stdio protocol stream.
+
+### Typical Symptoms
+- A health/status probe unexpectedly asks for a phone number, code, or confirmation.
+- A FastMCP stdio request hangs even though the child command has a structured error mode.
+- Child-process input can consume bytes intended for the parent protocol.
+
+### Common Triggers
+- Installing a CLI whose unauthenticated path calls `input()`.
+- Treating `input=None` as equivalent to noninteractive execution.
+- Testing only authenticated or mocked success paths.
+
+### Prevention Rule
+Set agent-facing child stdin to `DEVNULL` by default, allow input only through an explicit parameter, and exercise at least one real unconfigured authentication path.
+
+### Related Bugs
+- BUG-0030
+
+## RC-0027: Transport Availability Was Mistaken For Resource Existence
+
+Status: active
+Category: external API contract and fallback
+First observed: BUG-0033
+Recurring count: 1
+Severity trend: medium
+
+### Description
+An adapter treated failure of its preferred transport as proof that the requested public resource did not exist, even though a second installed metadata-only transport could read the same resource legally.
+
+### Typical Symptoms
+- A valid public channel is returned as `NOT_FOUND` after an RSS 404.
+- SSL or provider-feed failures hide a working metadata path.
+- Registration and historical success do not match current transport behavior.
+
+### Common Triggers
+- Using one feed endpoint as both data source and existence oracle.
+- Returning immediately on a transport-specific 404.
+- Reusing a single-item metadata function for a collection contract without a separate safety boundary.
+
+### Prevention Rule
+Distinguish resource identity from transport availability, preserve the preferred transport, and add only bounded policy-compatible fallbacks with independent output allowlists and explicit provenance.
+
+### Related Bugs
+- BUG-0033

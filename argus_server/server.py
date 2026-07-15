@@ -1766,7 +1766,10 @@ async def search_sec_edgar(
 @mcp.tool
 async def get_youtube_channel(channel_id: str, limit: int = 15) -> str:
     """
-    订阅 YouTube 频道最新视频 (官方 RSS, 免费无需 key)
+    订阅 YouTube 频道最新视频 (RSS 优先, metadata-only yt-dlp 回退)
+
+    不需要 API key。RSS 不可用或返回空结果时，已安装的 yt-dlp 只读取
+    flat-playlist 元数据；不读 Cookie、不下载、不返回临时媒体直链。
 
     Args:
         channel_id: 频道 ID (UC 开头的 24 字符), 不是用户名
@@ -1775,7 +1778,8 @@ async def get_youtube_channel(channel_id: str, limit: int = 15) -> str:
         limit: 返回条数, 默认 15, 最大 30
 
     Returns:
-        JSON: videos 列表 (标题 / 链接 / 视频 ID / 发布时间)
+        JSON: videos 列表 (标题 / 公开页面链接 / 视频 ID / 发布时间)，
+              summary.transport 标识 youtube_rss 或 yt_dlp_flat_playlist
 
     Examples:
         - get_youtube_channel(channel_id="UC_x5XG1OV2P6uZZ5FSM9Ttw")
@@ -4625,9 +4629,9 @@ async def render_daily_brief(
 @mcp.tool
 async def check_cli_auth() -> str:
     """
-    一键检查 5 个本地 CLI 工具的认证状态 (bili/xhs/twitter/tg/discord)
+    一键检查 4 个受支持 CLI 的认证状态，并报告 Discord 兼容入口的策略停用状态。
 
-    这 5 个工具由 jackwener 维护, 专为 AI 代理设计, 支持 agent-friendly YAML envelope。
+    受支持的 CLI 支持 agent-friendly YAML envelope。
     通过 `uv tool install` 本地安装, 通过浏览器 cookie 或 QR 扫码认证。
 
     Returns:
@@ -4666,29 +4670,29 @@ async def run_bilibili(
     调用 bili CLI (B 站). 自动加 --yaml, 返回结构化 envelope
 
     常用子命令 (完整列表见 bili --help):
-      - search <keyword> [--type video|user] [-n 10]   搜索视频/用户
+      - search <keyword> [--type video|user] [--max 10] 搜索视频/用户
       - video <BVID>                                   视频详情 + 字幕 + AI 摘要
-      - user-videos <UID> [-n 10]                      UP 主视频列表
+      - user-videos <UID> [--max 10]                   UP 主视频列表
       - user <UID>                                     UP 主资料
-      - hot [-n 10]                                    全站热门视频
+      - hot [--max 10]                                 全站热门视频
       - rank                                           全站排行榜
-      - feed [-n 20]                                   关注流
+      - feed                                           关注流
       - favorites                                      收藏夹
       - my-dynamics                                    我发布的动态
       - history                                        观看历史
 
     Args:
         subcommand: bili 子命令, 如 "search"、"video"、"hot"
-        args: 位置参数和选项, 如 ["Claude Code", "--type", "video", "-n", "3"]
+        args: 位置参数和选项, 如 ["Claude Code", "--type", "video", "--max", "3"]
         timeout: 超时 (秒)
 
     Returns:
         JSON envelope: {ok, data, error}
 
     Examples:
-        - run_bilibili("search", ["Claude Code", "--type", "video", "-n", "5"])
+        - run_bilibili("search", ["Claude Code", "--type", "video", "--max", "5"])
         - run_bilibili("video", ["BV1GtdpBZEx8"])
-        - run_bilibili("user-videos", ["546195", "-n", "10"])
+        - run_bilibili("user-videos", ["546195", "--max", "10"])
     """
     tools = _get_tools()
     result = await asyncio.to_thread(
@@ -4748,21 +4752,21 @@ async def run_twitter(
     timeout: int = 60,
 ) -> str:
     """
-    调用 twitter CLI (Twitter/X). 需先登录 x.com 让 CLI 从浏览器 cookie 自动提取
+    调用 twitter CLI (Twitter/X). 需正常登录 x.com，并使用浏览器 cookie 或显式环境变量
 
     常用子命令:
-      - feed [-n 20] [--following]              主页时间线 (For You / Following)
-      - search "<query>" [-n 10] [--latest]     搜索推文
-      - tweet <tweet_id>                        推文详情 + 回复
-      - user <handle>                           用户资料
-      - user --likes <handle>                   用户点赞
-      - user --tweets <handle>                  用户推文
-      - article <tweet_id>                      长文 (Twitter Article)
-      - list <list_id>                          List 时间线
-      - bookmarks                               我的书签
-      - post "<text>"                           发推 (需写权限)
-      - reply <tweet_id> "<text>"               回复
-      - quote <tweet_id> "<text>"               引用
+      - feed [-t for-you|following] [-n 20]       主页时间线
+      - search "<query>" [-t top|latest] [-n 10]  搜索推文
+      - tweet <tweet_id|url> [-n 20]               推文详情 + 回复
+      - user <handle>                              用户资料
+      - likes <handle> [-n 20]                     已点赞推文（X 仅允许查自己）
+      - user-posts <handle> [-n 20]                用户推文
+      - article <tweet_id>                         长文 (Twitter Article)
+      - list <list_id> [-n 20]                     List 时间线
+      - bookmarks [-n 20]                          我的书签
+      - post "<text>"                              发推 (需写权限)
+      - reply <tweet_id> "<text>"                  回复
+      - quote <tweet_id> "<text>"                  引用
 
     Args:
         subcommand: twitter 子命令
@@ -4773,9 +4777,9 @@ async def run_twitter(
         JSON envelope (未登录时返回 not_authenticated)
 
     Examples:
-        - run_twitter("search", ["Claude 3.5", "--latest", "-n", "5"])
+        - run_twitter("search", ["Claude 3.5", "-t", "latest", "-n", "5"])
         - run_twitter("user", ["AnthropicAI"])
-        - run_twitter("feed", ["-n", "20"])
+        - run_twitter("feed", ["-t", "following", "-n", "20"])
     """
     tools = _get_tools()
     result = await asyncio.to_thread(
@@ -4792,24 +4796,24 @@ async def run_telegram(
     timeout: int = 90,
 ) -> str:
     """
-    调用 tg CLI (Telegram). 首次需输入手机号 + 验证码; 连接需要代理 (国内)
+    调用 tg CLI (Telegram). 首次登录必须先在交互式终端完成，MCP 不读取手机号或验证码
 
-    特色: 本地 SQLite 缓存, 搜索查本地不打 API, 速度快 + 不会限流。
+    特色: 本地 SQLite 缓存; 纯本地搜索不发 Telegram API 请求，主动同步仍受平台限流。
 
     常用子命令:
       - whoami                            当前账号
-      - chats                             对话列表
-      - sync-all                          同步所有对话到本地
-      - sync <chat>                       增量同步某个对话
+      - chats [--type <type>]             对话列表
+      - sync-all [-n 500] [--delay 1]     同步所有对话到本地
+      - sync <chat> [-n 500]              增量同步某个对话
       - today                             今日消息 (所有对话)
       - recent [-n 100]                   最近消息
       - search "<keyword>" [-c <chat>]    搜索消息
       - filter "keyword1,keyword2" [-c <chat>]   多关键词过滤
-      - history <chat> [--limit 100]      历史消息
+      - history <chat> [-n 100]           历史消息
       - timeline <chat>                   活动时间图
       - top                               最活跃发送者
       - stats                             按对话统计
-      - export <chat> [-o file.txt]       导出
+      - export <chat> [-f text|json|yaml] [-o file]  导出
       - send <chat> "<msg>"               发消息
 
     Args:
@@ -4840,24 +4844,10 @@ async def run_discord(
     timeout: int = 60,
 ) -> str:
     """
-    调用 discord CLI. 需 DISCORD_TOKEN 环境变量 (从浏览器 DevTools 提取)
+    保留的 Discord 兼容入口。
 
-    ⚠️ 风险: Discord 官方禁止 user token 自动化, 被检测可能封号。只在自己账号自己机器使用。
-
-    常用子命令:
-      - whoami                                当前账号
-      - status                                认证状态
-      - dc list                               服务器列表
-      - dc channels <server_id>               服务器频道列表
-      - dc sync-all                           同步所有频道到本地
-      - dc sync <channel>                     同步某频道
-      - today                                 今日消息
-      - recent [-n 100]                       最近消息
-      - search "<keyword>" [-c <channel>]     搜索
-      - export <channel> [-o file.txt]        导出
-      - stats                                 频道统计
-      - top                                   最活跃用户
-      - timeline                              活动时间线
+    Argus 不执行普通用户 token 自动化（self-bot），因为 Discord 官方禁止该方式。
+    调用始终返回 `POLICY_UNSUPPORTED`；合规替代是 Discord Bot 或 OAuth2 应用。
 
     Args:
         subcommand
@@ -4865,7 +4855,7 @@ async def run_discord(
         timeout: 超时
 
     Returns:
-        JSON envelope
+        JSON envelope with POLICY_UNSUPPORTED
     """
     tools = _get_tools()
     result = await asyncio.to_thread(
@@ -5042,7 +5032,7 @@ def run_server(
     print("    67. run_xhs                   - 小红书: search/read/hot/user-posts/...")
     print("    68. run_twitter               - Twitter/X: feed/search/user/article/...")
     print("    69. run_telegram              - Telegram: search/today/sync/export/...")
-    print("    70. run_discord               - Discord: search/today/recent/export/...")
+    print("    70. run_discord               - Discord: policy-blocked compatibility entry")
     print()
     print("    === 外部数据源 - 包生态/书籍/安全 ===")
     print("    64. search_ghsa               - GitHub Advisory 开源漏洞")

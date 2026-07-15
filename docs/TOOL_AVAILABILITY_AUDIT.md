@@ -1,6 +1,6 @@
 # Argus 工具真实可用性审计
 
-审计日期: 2026-07-14
+审计日期: 2026-07-14，最后复测 2026-07-15
 审计对象: 初始 173 个、退役 1 个并新增配置初始化后当前 173 个 FastMCP 工具
 审计环境: 当前 `feature/intelligence-toolkit` 工作区与本机已安装运行时
 
@@ -8,7 +8,8 @@
 
 Argus 初始注册的 173 个工具都已纳入本次清点；永久下线的 Crossref Event Data 入口退役后曾为 172 个，新增安全配置初始化入口后当前公共面回到 173 个。本次审计得到以下关键结论:
 
-- 初始 54 个外部 API 工具全部执行了最小真实请求；49 个至少一次返回真实数据。退役 1 个永久下线入口并修复 arXiv 可靠性后，当前 53 个外部 API 中已有 50 个真实可用，仍有 3 个阻塞。
+- 初始 54 个外部 API 工具全部执行了最小真实请求；49 个至少一次返回真实数据。退役 1 个永久下线入口并修复 arXiv 与 Reddit 后，当前 53 个外部 API 中已有 51 个真实可用，仍有 2 个阻塞。
+- 2026-07-15 对当前 53 个入口再次全量串行实跑：首轮 44 个直接返回真实数据；更正输入、串行复测并加入 YouTube 合法回退后，当前为 49/53。其余是 Semantic Scholar 匿名限流、GDELT 429，以及 GitHub code / ReliefWeb 缺少正常凭据。
 - `universal_search` 和 `narrative_tracking` 已修复跨源参数与状态语义；真实 HN + Reddit FastMCP 探针先返回两源各 2 条，后续 Reddit 限流时正确保留 HN 结果并汇总为 partial。
 - `search_all_academic` 已修复嵌套失败语义；真实限流探针保留 3 篇论文并报告 partial，后续四源 FastMCP 探针返回 complete。
 - `analyze_with_ai` 已修复嵌套步骤语义；真实无 Key、无历史数据探针保留 `AUTH_REQUIRED` 与 `NO_LOCAL_DATA`，顶层正确返回 `ALL_STEPS_FAILED`。
@@ -17,7 +18,10 @@ Argus 初始注册的 173 个工具都已纳入本次清点；永久下线的 Cr
 - 当前已有本地配置、覆盖 11 平台的 509 条新闻和 509 文档 BM25 索引；RSS 数据、launchd 任务、告警、路由和 MCP proxy 仍未配置。
 - 通知健康检查存在一项已知误报：模板飞书 webhook 是非空占位符，当前被计为已配置。用户已明确不接入飞书/通知，因此该路径暂不整改，也不执行真实发送。
 - Crawl4AI、Codex SDK、Jina Reader、Openverse 图片/音频、`gallery-dl` dry-run 和核心热榜爬虫都通过了真实安全探针。
+- xhs 0.6.4 已从 Chrome 的正常登录刷新会话；Argus 在 Codex 沙箱内使用私有临时 HOME 后，真实关键词搜索返回 20 条当前笔记，六个只读社交细化工具也逐项返回真实数据。
+- Discord 普通用户 token 自动化已被策略停用；`run_discord` 保留名称兼容性，但固定返回 `POLICY_UNSUPPORTED` 且不启动子进程。
 - `research_video_metadata` 已注册为第 173 个 MCP 工具；Deno 2.9.2 已被 yt-dlp 识别为 YouTube JavaScript runtime，真实 FastMCP 调用返回公开白名单元数据且没有媒体下载或直链字段。
+- 本轮修复后全量 299 个测试通过，`uv build` 成功生成 `argus-6.6.1.tar.gz` 与 `argus-6.6.1-py3-none-any.whl`。
 - 所有外部服务都存在认证、配额、速率、上游策略或网络波动风险，不存在可以合法承诺的“无限、永不失效”方案。
 - 登录、付费墙、DRM、反爬和额度限制不能绕过。可行方向是使用公开 RSS、免费注册额度、用户已授权的 Codex/浏览器会话、本地服务，以及多源回退、缓存和退避。
 
@@ -44,8 +48,8 @@ Argus 初始注册的 173 个工具都已纳入本次清点；永久下线的 Cr
 | 工具族 | 数量 | 当前结论 | 主要证据或阻塞 |
 |---|---:|---|---|
 | 原生数据 | 28 | 核心链已验证 | 真实配置初始化、11/11 平台爬取、SQLite 写入和 `get_latest_news` 回读已通过；当前有 255 条新闻，RSS 仍为空 |
-| 外部 API | 53 | 49 已验证，4 阻塞 | 初始 54/54 逐一真实请求；永久下线的 Crossref Event Data 已退役 |
-| CLI 适配 | 7 | 当前阻塞 | 只有 `xhs` 安装但认证检查超时；`bili`、`twitter`、`tg`、`discord` 不存在 |
+| 外部 API | 53 | 51 已验证，2 阻塞 | 初始 54/54 逐一真实请求；Crossref Event Data 已退役，arXiv 与 Reddit 已修复并复测 |
+| CLI 适配 | 7 | 部分可用 | xhs 已认证并实测；Bilibili 公共读取已实测、账号未登录；`twitter` / `tg` 已安装、待用户正常登录；`discord` 因 self-bot 策略停用 |
 | AI 增强 | 8 | 当前阻塞，状态已可信 | 0/5 provider 可用；`analyze_with_ai` 已保留子步骤错误并派生 complete/partial/failed 状态 |
 | 跨平台 | 2 | 条件可用，已验证 | HN + Reddit 真实聚合与叙事追踪通过；本地数据、社交登录、可选 CLI 和 Reddit 匿名额度仍影响默认源 |
 | 定时任务 | 4 | 条件可用 | 当前 0 个任务；未执行 launchd 写操作 |
@@ -55,7 +59,7 @@ Argus 初始注册的 173 个工具都已纳入本次清点；永久下线的 Cr
 | 语义搜索 | 4 | 已验证 | 255 文档/1,638 词 BM25 索引已构建；真实 `AI` 查询返回 5 条正分跨平台结果 |
 | 健康监控 | 2 | 必需链已就绪，可选能力降级 | 配置/新闻/磁盘通过；索引/RSSHub/CLI/provider 降级，通知占位符存在 ready 误报 |
 | 安全扫描 | 3 | 本地逻辑可用 | 标题和规则扫描无需外部服务；按日扫描依赖本地数据 |
-| 社交细化 | 20 | 当前阻塞 | Bilibili CLI 缺失；小红书需要正常人工登录，认证检查本次超时 |
+| 社交细化 | 20 | 部分可用 | 6 个 xhs 只读工具已真实验证，5 个 xhs 写工具仅验证参数与确认门；Bilibili `hot` 已实测，其余账号工具需正常登录 |
 | 路由 | 5 | 条件可用 | 当前 0 个路由，实际派发还依赖通知渠道 |
 | 微信公众号 RSS | 4 | 当前阻塞 | WeRSS `127.0.0.1:8080` 未运行 |
 | 每日早报 | 2 | 条件可用 | 渲染依赖本地数据，推送还依赖通知渠道 |
@@ -63,7 +67,7 @@ Argus 初始注册的 173 个工具都已纳入本次清点；永久下线的 Cr
 
 ## 外部 API 逐项结果
 
-### 已返回真实数据的 49 个工具
+### 已返回真实数据的 51 个工具
 
 以下工具在本次环境中至少一次返回了非空真实数据。它们仍受上游限流、网络、服务政策和查询质量影响，不能据此视为永久可用。
 
@@ -74,12 +78,13 @@ get_github_trending, get_hackernews_top, get_lobsters, get_nasa_data,
 get_package_info, get_pypi_stats, get_wayback, get_weather,
 get_weather_history, get_wikipedia_trending, get_worldbank_indicator,
 get_youtube_channel, query_wikidata, search_all_academic,
-search_artifact_hub, search_bluesky, search_books, search_crates,
+search_arxiv, search_artifact_hub, search_bluesky, search_books, search_crates,
 search_crossref, search_cve, search_dblp, search_docker_hub,
 search_exploit_db, search_flathub, search_gdelt, search_ghsa,
 search_gitlab, search_hackernews, search_homebrew, search_huggingface,
 search_inspire_hep, search_jsr, search_lemmy, search_mastodon,
 search_musicbrainz, search_openalex, search_openreview, search_pubmed,
+search_reddit,
 search_sec_edgar, search_semantic_scholar, search_stackexchange,
 search_vscode_extensions, search_wikipedia
 ```
@@ -90,9 +95,9 @@ search_vscode_extensions, search_wikipedia
 |---|---|---|---|
 | `get_crossref_events`（已退役） | 两次 SSL/EOF 失败 | Crossref Event Data 已于 2026-04-23 关闭公共 API | 已从 MCP 注册和底层适配器删除；不能靠重试恢复 |
 | `search_arxiv`（已修复） | 当前官方 API 真实请求成功；新进程断网探针从持久缓存返回同一论文 | 旧实现没有遵守官方的同查询缓存和 3 秒间隔建议，且把 429 误报为网络错误 | 24 小时缓存、3 秒节流、一次有界重试和 `RATE_LIMITED` 诊断已实装；仍不承诺无限实时请求 |
-| `search_github_code` | `AUTH_REQUIRED` | 当前无 `GITHUB_TOKEN`，代码搜索需要认证 | 使用用户创建的免费细粒度 token，并真正接入请求头；不能绕过 GitHub 认证 |
-| `search_reddit` | Reddit JSON 返回 HTTP 403 | 当前匿名 JSON 入口被拒 | 优先使用公开 subreddit Atom/RSS；需要完整搜索时遵守 Reddit API 条款并认证 |
-| `search_reliefweb` | HTTP 406 | 默认 `appname=argus` 未获批准 | 免费申请已批准 appname 并配置；申请前保持不可用状态 |
+| `search_github_code` | `AUTH_REQUIRED` | 适配器已读取 `GITHUB_TOKEN`，当前环境尚未配置 | 使用用户创建的免费细粒度 token；不能绕过 GitHub 认证 |
+| `search_reddit`（已修复） | JSON 返回 HTTP 403；公开 subreddit Atom 返回真实帖子 | 匿名 JSON 入口被拒，原实现没有代码级回退 | JSON 403/429 时自动切公开 Atom，明确标记 transport；Atom 不提供的互动量保持 `null` |
+| `search_reliefweb` | `AUTH_REQUIRED` | 适配器已读取 `RELIEFWEB_APPNAME`，默认 `argus` 未获批准 | 免费申请已批准 appname 并配置；申请前保持不可用状态 |
 
 ### 返回契约问题
 
@@ -101,7 +106,19 @@ search_vscode_extensions, search_wikipedia
 - `search_ghsa(query=..., per_page=1)` 只对第一页做本地过滤，可能产生假阴性。
 - `search_semantic_scholar` 首次 429、串行复测成功，说明匿名共享配额不稳定。
 - GDELT 首次失败、串行复测成功，但一次请求耗时约 16 秒，需更合理的超时和缓存。
-- `ExternalAPITools` 的提示提到 `GITHUB_TOKEN` 和 `SEMANTIC_SCHOLAR_API_KEY`，但当前实现没有读取这些环境变量并附加请求头；现在设置 key 不会生效。
+- GitHub 的四个 REST 调用、Semantic Scholar、OpenAlex 和 ReliefWeb 已将各自环境凭据接入真实请求；缺失凭据与无效凭据分别返回 `AUTH_REQUIRED` 和 `AUTH_FAILED`，异常响应不回显 query-string key。
+
+### 2026-07-15 全量复测的当前降级项
+
+| 工具 | 当前实测 | 结论 / 下一步 |
+|---|---|---|
+| `search_semantic_scholar` | `RATE_LIMITED` | 匿名共享配额不稳定；适配器已支持免费 `SEMANTIC_SCHOLAR_API_KEY` |
+| `search_gdelt` | 两次 HTTP 429；修复后真实探针返回 `RATE_LIMITED` | 上游限流仍是真实阻塞；Argus 保留动态 `Retry-After`（本次上游未提供）且不对持久 429 自动重试 |
+| `get_youtube_channel` | RSS 对有效频道返回 404 后，真实 FastMCP 调用通过 yt-dlp flat-playlist 返回 1 条真实视频 | RSS 仍为首选；回退仅返回公开页面元数据，`downloaded_media=false`、`cookies_used=false`，不包含临时媒体 URL |
+| `search_github_code` | `AUTH_REQUIRED` | 配置用户免费细粒度 `GITHUB_TOKEN` 后复测 |
+| `search_reliefweb` | `AUTH_REQUIRED` | 免费申请 approved `RELIEFWEB_APPNAME` 后复测 |
+
+CVE 用精确 `CVE-2021-44228`、Exploit-DB 用最新公开 feed、World Bank 用 ISO2 `CN`、PyPI Stats 串行重试后均返回真实数据，因此未将首轮失败误判为持久不可用。
 
 ## 本地、CLI 与聚合链路
 
@@ -117,11 +134,13 @@ search_vscode_extensions, search_wikipedia
 
 | 运行时 | 当前状态 | 可用性结论 |
 |---|---|---|
-| `xhs` 0.6.4 | 已安装，认证/状态检查 20 秒超时 | 小红书业务工具当前不可用；只能人工正常登录或使用已有授权浏览器会话，不能绕过登录刷新机制 |
-| `bili` | 未安装 | Bilibili 9 个细化工具和通用 CLI 适配不可用 |
-| `twitter` / `tg` / `discord` | 未安装 | 对应 CLI 适配不可用 |
+| `xhs` 0.6.4 | 已安装并认证；状态、搜索及 6 个只读细化工具通过 | Argus 使用进程级私有临时 HOME 保存可写缓存；5 个写工具未做真实副作用探针，删除接口被上游标为 experimental |
+| `bili` 0.6.2 | 已安装；公共搜索、通用 hot 及 `bili_hot` 均真实返回 2 条 | 公共读取已验证；当前账号未认证，关注流/历史/动态/互动需用户正常浏览器 Cookie 或扫码登录 |
+| `twitter` 0.8.5 | 已安装，未认证 | 版本与子命令 help 实测通过；空 HOME 在 0.6s 内返回 `not_authenticated`，真实 macOS 浏览器 Cookie 自动发现超过 60s 仍阻塞。需正常 X 登录后显式选择浏览器/配置文件，或配置 `TWITTER_AUTH_TOKEN` + `TWITTER_CT0`；反向 GraphQL 仍有限流和上游变更风险 |
+| `tg` 0.6.0 | 已安装，未认证 | 版本/help 实测通过；首次 status 进入手机号登录。建议免费申请自己的 `TG_API_ID` / `TG_API_HASH`，设置可写 `DATA_DIR`，再在交互式终端完成验证码登录；Argus MCP 已禁止子进程继承 stdio 输入 |
+| `discord` | 策略停用 | `kabi-discord-cli` 使用普通用户 token 做 self-bot，Discord 官方明确禁止；Argus 不安装也不执行，仅保留返回 `POLICY_UNSUPPORTED` 的兼容入口 |
 | `gallery-dl` 1.32.5 | 已安装 | `download_gallery(confirm=False)` dry-run 可用；真实 JSON 模拟探针成功且未下载媒体 |
-| `yt-dlp` 2026.07.04 | 已接入 `research_video_metadata` | 使用 Deno 2.9.2 的真实 FastMCP 探针成功；输出采用白名单且剔除格式、下载、缩略图和字幕直链 |
+| `yt-dlp` 2026.07.04 | 已接入 `research_video_metadata` 和 `get_youtube_channel` 回退 | 使用 Deno 2.9.2 的真实探针成功；单视频与频道输出均使用白名单，剔除格式、下载、缩略图、字幕和媒体直链 |
 | Scrapy 2.16.0 | 已安装但未接入 MCP | 仅健康清单可见，不等于 Argus 中已有可调用爬虫工具 |
 | Codex CLI 0.144.2 | 已安装 | Codex SDK 真实研究探针成功，但消耗用户 Codex 套餐额度 |
 | Node.js 20.20.2 | 已安装 | 低于 yt-dlp 当前稳定 YouTube EJS 建议版本，但不再承担该任务 |
@@ -135,6 +154,25 @@ search_vscode_extensions, search_wikipedia
 - 真实 FastMCP `universal_search` HN + Reddit 探针返回两源各 2 条和 `status=complete`；紧接的 `narrative_tracking` 请求遇到 Reddit 匿名限流后仍保留 2 条 HN 结果，并正确返回 `status=partial` 和一个失败来源。默认五源仍可能因本地数据、人工登录、可选 CLI 缺失或匿名限流而降级，但不会再伪装成完整成功。
 - `ai_summarize`、`ai_translate`、`ai_brief_news`、`semantic_deduplicate` 返回 `AUTH_REQUIRED`；`ai_web_search` 需要 provider key；`detect_anomaly` 返回 `NO_LOCAL_DATA`。
 - `analyze_with_ai(mode="full")` 现在从 dedup 和 anomaly envelope 派生状态：至少一步成功时返回 complete/partial，全部失败时返回 `ALL_STEPS_FAILED`。真实无 Key、无历史数据探针保留 `AUTH_REQUIRED` 与 `NO_LOCAL_DATA`，顶层不再误报成功。
+
+### xhs 0.6.4 命令契约
+
+- 修复前，`xhs_feed(limit=3)` 真实返回 `No such option '--limit'`；逐项扫描发现 11 个细化包装中 9 个使用了旧参数。
+- `xhs_my_notes`、`xhs_favorites`、`xhs_feed`、`xhs_hot` 和 `xhs_comments` 现在调用真实 CLI 参数并在 Argus 响应中本地截断；`xhs_notifications` 使用上游支持的 `--num`。
+- 实测 feed 返回 3 条、travel hot 2 条、own notes 2 条、notifications 2 条、favorites 2 条，并从 feed 缓存上下文后读取 2 条 comments。
+- `xhs_like`、`xhs_favorite`、`xhs_comment`、`xhs_publish_note`、`xhs_delete_note` 没有执行真实副作用；参数与确认门已回归验证，其中 delete 的公共 Web API 仍被 xhs 上游标为 experimental。
+
+### Bilibili CLI 0.6.2 命令契约
+
+- 官方源码核对发现，五个只读包装原先统一传入了不存在的 `--limit`；实际契约分别是 `my-dynamics/history/hot --max`、`following` 无上限参数、`feed` 仅有分页 offset。
+- `bili_publish_dynamic` 现在传入位置文本，`bili_delete_dynamic` 在 MCP `confirm=True` 后再传 `--yes`，避免子进程卡在交互确认。
+- 五个只读、两个互动、两个写入包装已有正常与拦截路径回归；安装 0.6.2 后，通用搜索、通用 hot 和 `bili_hot(limit=2)` 都返回 2 条真实数据。当前 `bili status` 返回 `not_authenticated`，因此未执行账号读取或任何写操作。
+
+### Twitter / Telegram CLI 命令契约
+
+- twitter-cli 0.8.5 已确认 `search -t latest -n N`、`feed -t following -n N`、`likes <handle>` 和 `user-posts <handle>`；MCP 说明已移除不存在的 `--latest`、`--following`、`user --likes` 与 `user --tweets`。
+- kabi-tg-cli 0.6.0 已确认 `search -c`、`history -n`、`sync/sync-all -n` 及 `export -f/-o`；本地搜索不请求 Telegram API，但同步依然受平台限流。
+- 真实未配置探针暴露了 `tg status` 手机号提示；Argus 现在默认关闭外部 CLI stdin，且仅当调用方显式传入 `input_text` 时开放输入，避免读取 FastMCP stdio 协议流。
 
 ## Research Toolkit 实测
 
@@ -159,13 +197,13 @@ search_vscode_extensions, search_wikipedia
 | Perplexity | 未配置 | Search API 和 Sonar 均按请求/Token 计费 | 保持可选 |
 | Brave Search API | 未配置 | 需要账户、订阅计划和信用卡；不能作为免 key 默认源 | 更新现有“免费 2,000/月”旧说明 |
 | Codex SDK | 已验证 | 与 ChatGPT/Codex 套餐共享 credits/usage limits；API-key 模式另按 token 计费 | 适合个人研究回退和综合，不应描述为无限免费 |
-| OpenAlex | 匿名 demo 成功 | 2026 年政策要求 key 才能稳定使用；免费 key 含每日额度，超出后按量计费 | 增加免费 key 配置，匿名仅作探针 |
-| Semantic Scholar | 匿名复测成功 | 匿名共享配额不稳定；免费 key 推荐，初始通常约 1 RPS | 正确接入免费 key 与退避 |
-| GitHub REST | 公共端点可用，代码搜索阻塞 | 匿名核心 REST 60 次/小时；认证通常 5,000 次/小时，搜索另有更紧桶 | 免费 token 是正规方案，不绕过认证 |
-| ReliefWeb | 406 | 需要免费申请并获批 `appname` | 申请后配置 |
+| OpenAlex | 匿名精确标题探针成功；`OPENALEX_API_KEY` 已接线 | 无 key 有小额试用预算；免费 key 提供更高每日预算，超出后按量计费 | 可匿名试用，长期使用配置免费 key |
+| Semantic Scholar | 匿名曾成功，本次复测限流；`SEMANTIC_SCHOLAR_API_KEY` 已接线 | 匿名共享配额不稳定；免费 key 推荐，初始通常约 1 RPS | 配置免费 key，并保留限流退避 |
+| GitHub REST | 公共端点可用，代码搜索等待 `GITHUB_TOKEN` | 匿名核心 REST 60 次/小时；认证通常 5,000 次/小时，搜索另有更紧桶 | 免费 token 是正规方案，不绕过认证 |
+| ReliefWeb | 当前 `AUTH_REQUIRED`；`RELIEFWEB_APPNAME` 已接线 | 需要免费申请并获批 `appname` | 获批后配置并复跑真实探针 |
 | Openverse | 匿名已验证 | 支持匿名但限额动态；可注册 OAuth 提高稳定性 | 保留默认元数据源并缓存 |
 | arXiv | 无 key 真实查询和持久缓存已验证 | 官方建议连续请求间隔 3 秒；同查询结果一天内无需重复请求 | 使用 24 小时缓存与有界退避，持续限流保持失败诊断 |
-| 小红书/Bilibili 等 | 当前 CLI 不就绪 | 平台登录、风控和服务条款持续生效 | 只使用正常登录或已有授权会话 |
+| 小红书/Bilibili 等 | xhs 已登录实测；Bilibili 公共读取已实测、账号未登录 | 平台登录、风控和服务条款持续生效 | 只使用正常登录或已有授权会话；逐个核对 CLI 命令契约 |
 
 官方资料:
 
@@ -183,20 +221,26 @@ search_vscode_extensions, search_wikipedia
 - [OpenAlex API pricing changes](https://blog.openalex.org/openalex-api-new-features-and-usage-based-pricing/)
 - [yt-dlp README](https://github.com/yt-dlp/yt-dlp/blob/master/README.md) 与 [EJS runtime guidance](https://github.com/yt-dlp/yt-dlp/wiki/EJS)
 - [Codex pricing](https://learn.chatgpt.com/docs/pricing.md)
+- [bilibili-cli](https://github.com/public-clis/bilibili-cli)
+- [twitter-cli](https://github.com/public-clis/twitter-cli)
+- [tg-cli](https://github.com/jackwener/tg-cli)
+- [Discord self-bot policy](https://support.discord.com/hc/en-us/articles/115002192352-Automated-User-Accounts-Self-Bots)
+- [Discord OAuth2 and permissions](https://docs.discord.com/developers/platform/oauth2-and-permissions)
 
 ## 可替代方案
 
 | 当前问题 | 可采用方案 | 不能承诺的内容 |
 |---|---|---|
 | 通用网页搜索 provider 需要付费 key | 公共垂直 API + Codex 回退；后续独立评估本地 SearXNG | SearXNG 也会受上游搜索引擎封锁和限流，不是无限出口 |
-| Reddit JSON 403 | 公开 subreddit Atom/RSS 作为只读回退 | RSS 不提供完整站内搜索，也不能绕过私有/登录内容 |
+| Reddit JSON 403 | 已实装公开 subreddit Atom/RSS 只读回退，并通过真实帖子探针 | RSS 不提供完整互动字段，也不能绕过私有/登录内容 |
 | arXiv 429 | 24 小时缓存、3 秒节流与一次有界重试已实装；聚合路径仍可保留 Semantic Scholar/OpenAlex/Crossref 结果 | 持续限流仍可发生；回退源不能冒充 arXiv 原始响应 |
-| GitHub 代码搜索认证 | 用户免费 token，或用户已授权的 GitHub/Codex 浏览器能力 | 不能跳过认证或伪造更高额度 |
-| ReliefWeb 406 | 免费申请 approved appname | 未批准前不能声称可用 |
+| GitHub 代码搜索认证 | 适配器已支持用户免费 token；也可由用户已授权的 GitHub/Codex 浏览器完成单次查找 | 不能跳过认证或伪造更高额度 |
+| ReliefWeb 406 | 适配器已支持免费 approved appname | 未批准并真实复测前不能声称可用 |
 | Crossref Event Data 下线 | 已删除工具；按具体需求改用 GDELT、Crossref Works 或来源 RSS | 这些来源不是 Event Data 的一比一替代 |
 | AI 摘要/翻译/去重缺 key | 增加 Codex SDK 可选后端 | 使用的是用户套餐额度，不是免费无限 API |
-| 小红书登录失效 | 正常人工登录，或在用户已登录浏览器中由 Codex 操作 | 不能绕过登录、自动窃取/刷新 cookie 或规避风控 |
+| 小红书登录失效 | Argus 可在私有临时 HOME 复用现有正常登录；源会话过期后由用户在浏览器/xhs CLI 正常刷新 | 不能绕过登录、窃取 cookie 或规避风控 |
 | YouTube 元数据 | Deno runtime 与严格 metadata-only yt-dlp MCP 适配器均已就绪 | 不下载受限媒体，不返回临时直链，不导入浏览器 Cookie |
+| Discord 搜索/同步 | 建立 Discord Developer Portal Bot 或 OAuth2 应用，只读用户明确授权的服务器/频道 | 不提取普通用户 token，不运行 self-bot，Bot 也无法读取未被邀请或未授权的内容 |
 
 ## 整改优先级
 
@@ -212,7 +256,7 @@ search_vscode_extensions, search_wikipedia
 1. ~~增加本地配置初始化流程，并修正 `save_to_local=False` 的误导性持久化响应。~~ 两项均已完成；真实 FastMCP 配置创建/幂等、单平台爬取、SQLite 回读和分层持久化回归均已通过。
 2. ~~扩充本地新闻覆盖并构建语义索引。~~ 11/11 平台、359 条新闻、359 文档 BM25 索引和真实跨平台查询均已通过。
 3. ~~Reddit RSS 回退和 arXiv 缓存/退避已完成。~~ ReliefWeb 仍需免费申请 approved appname 后配置。
-4. 真正接入 GitHub、Semantic Scholar、OpenAlex 的认证头，并暴露动态 rate-limit 信息。
+4. ~~接入 GitHub、Semantic Scholar、OpenAlex 和 ReliefWeb 凭据。~~ 已完成请求接线、缺失/无效凭据诊断和五项回归；当前仍需用户注册免费凭据后做真实认证探针。动态 rate-limit 信息继续按实际响应保留。
 5. 更新 Jina、OpenAlex、Brave 和 Codex 的额度说明。
 
 明确不在当前范围：飞书与其他通知集成。模板占位符的 readiness 误报仅保留已知问题记录，不排入当前开发计划。
@@ -228,7 +272,7 @@ search_vscode_extensions, search_wikipedia
 以下清单用于证明当前 173 个注册工具都被纳入工具族审计。混合状态工具族的具体例外以前文为准。
 
 - 原生数据 28: `resolve_date_range`, `get_latest_news`, `get_trending_topics`, `get_latest_rss`, `search_rss`, `get_rss_feeds_status`, `get_news_by_date`, `analyze_topic_trend`, `analyze_data_insights`, `analyze_sentiment`, `find_related_news`, `generate_summary_report`, `aggregate_news`, `compare_periods`, `search_news`, `initialize_config`, `get_current_config`, `get_system_status`, `check_version`, `trigger_crawl`, `sync_from_remote`, `get_storage_status`, `list_available_dates`, `read_article`, `read_articles_batch`, `get_channel_format_guide`, `get_notification_channels`, `send_notification`.
-- 外部 API 53: 前述 50 个已验证工具，加仍阻塞的 `search_github_code`, `search_reddit`, `search_reliefweb`；已退役的 `get_crossref_events` 仅保留在历史审计表中。
+- 外部 API 53: 前述 51 个已验证工具，加仍阻塞的 `search_github_code`, `search_reliefweb`；已退役的 `get_crossref_events` 仅保留在历史审计表中。
 - AI 增强 8: `check_ai_providers`, `ai_summarize`, `ai_translate`, `ai_brief_news`, `ai_web_search`, `semantic_deduplicate`, `detect_anomaly`, `analyze_with_ai`。
 - 跨平台 2: `narrative_tracking`, `universal_search`。
 - Research Toolkit 18: `research_toolkit_health`, `crawl_url`, `discover_page_images`, `download_gallery`, `research_topic`, `find_research_resource`, `research_resource_workflow`, `research_compare_artifacts`, `research_audit_comparison`, `research_resolve_locators`, `research_images`, `research_audio`, `research_video_metadata`, `research_pack`, `research_workflow`, `research_batch_workflow`, `research_review_artifact`, `research_runtime_probe`。

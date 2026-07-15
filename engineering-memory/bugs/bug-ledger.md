@@ -891,3 +891,333 @@ All 55 targeted Research Toolkit/runtime tests and all 271 project tests passed.
 
 ### Prevention
 Treat URL syntax, destination authorization, and redirect traversal as separate contracts. Every transport must validate each actively requested HTTP target, including browser redirects and subresources.
+
+## BUG-0024: Reddit Availability Claim Had No Adapter Fallback
+
+Date: 2026-07-15
+Severity: P1
+Status: verified
+Area: External community API
+Tags: reddit, atom, fallback, rate-limit, documentation-drift
+
+### Symptom
+`search_reddit` returned `NETWORK_ERROR` because Reddit rejected the anonymous JSON endpoint with HTTP 403, although the availability report claimed an Atom fallback was already implemented.
+
+### Reproduction / Trigger
+A live `r/programming/new` JSON request returned 403. The corresponding public Atom feed returned HTTP 200 with 25 entries, and source history showed that `search_reddit` had remained JSON-only since the initial commit.
+
+### Root Cause
+The cross-platform aggregate had a separate Atom implementation, but the public `search_reddit` adapter never received the documented fallback. Documentation completion was mistaken for adapter completion.
+
+### Affected Chain
+FastMCP `search_reddit` and Research Toolkit `reddit:<subreddit>` -> `ExternalAPITools.search_reddit` -> Reddit JSON/Atom transports.
+
+### Fix
+Preserved the rich JSON path when available and added a bounded public Atom fallback for JSON 403/429 responses. Atom results keep unavailable score, ratio, and comment fields as null, expose the transport, and return structured rate-limit and parse failures.
+
+### Tests Added / Updated
+- Test file: `tests/test_external_reddit.py`
+- Coverage: JSON success, JSON 403 to Atom success, and Atom 429 diagnostics.
+
+### Verification
+All three focused regressions and syntax checks pass. A live adapter call fell back to Atom and returned two current `r/programming` posts with `transport=reddit_atom`.
+
+### Prevention
+Availability reports must be backed by a public adapter test or real probe; a fallback implemented in a sibling aggregate does not prove the registered tool has the same behavior.
+
+## BUG-0025: Provider Credential Guidance Was Not Connected To Requests
+
+Date: 2026-07-15
+Severity: P1
+Status: verified-with-live-auth-pending
+Area: External provider authentication
+Tags: github, semantic-scholar, openalex, reliefweb, credentials, documentation-drift
+
+### Symptom
+Argus told users to configure provider credentials, but GitHub, Semantic Scholar, OpenAlex, and ReliefWeb requests did not read or transmit those values. A configured key would therefore have had no effect.
+
+### Reproduction / Trigger
+Four credential-placement regressions failed against the previous implementation. A repository scan found four GitHub REST call sites plus the three provider adapters, while real no-key probes reproduced GitHub and ReliefWeb authentication blocks and Semantic Scholar shared-rate limiting.
+
+### Root Cause
+Authentication guidance was added to errors and documentation without making credential placement part of the transport contract. Each adapter constructed requests independently, so the missing wiring affected every documented provider in that group.
+
+### Affected Chain
+FastMCP GitHub, Semantic Scholar, OpenAlex, and ReliefWeb tools -> `ExternalAPITools` provider methods -> `requests` transports. Academic and cross-source aggregate tools consume the same provider envelopes.
+
+### Fix
+Added centralized GitHub headers for all four call sites, provider-specific Semantic Scholar and OpenAlex key placement, and ReliefWeb appname environment fallback. Missing credentials remain distinct from rejected credentials, anonymous requests stay available where supported, and OpenAlex request exceptions no longer expose query-string keys.
+
+### Tests Added / Updated
+- Test file: `tests/test_external_auth.py`
+- Coverage: all GitHub call sites, provider-specific credential placement, ReliefWeb argument precedence, missing credentials, and rejected credentials without secret leakage.
+
+### Verification
+All five credential regressions pass. Real no-key probes return `AUTH_REQUIRED` for GitHub code and ReliefWeb, `RATE_LIMITED` for Semantic Scholar, and an exact OpenAlex paper with `authenticated=false`. Authenticated live probes remain pending until the user configures regular provider credentials.
+
+### Prevention
+Any documented credential must have a transport-level regression proving its exact header or parameter placement, plus a failure-path assertion that secrets cannot appear in public errors.
+
+## BUG-0026: xhs Business Commands Could Not Write Their Sandbox Runtime Cache
+
+Date: 2026-07-15
+Severity: P1
+Status: verified
+Area: Social CLI runtime isolation
+Tags: xhs, codex-sandbox, cookies, cache, subprocess, runtime-home
+
+### Symptom
+The user's xhs login was valid and the bare CLI could search successfully, but `CLIToolsAdapter.run_xhs("search", ...)` returned `AUTH_STORAGE_UNAVAILABLE` inside Codex.
+
+### Reproduction / Trigger
+An unsandboxed `xhs status` refreshed the user's normal Chrome login and returned an authenticated profile. The bare read-only search returned current notes, while the same Argus adapter call failed when xhs attempted to write token and note-index caches under `~/.xiaohongshu-cli`.
+
+### Root Cause
+The adapter treated xhs login storage and mutable command runtime state as one directory. Codex could read the user's saved login but could not write the adjacent cache files, so a valid account was misclassified as unavailable authentication.
+
+### Affected Chain
+FastMCP `run_xhs`, `xhs_auth_status`, xhs social tools, and cross-platform xhs source -> `CLIToolsAdapter._exec` -> xhs subprocess -> user-level cookie and cache directory.
+
+### Fix
+Each adapter now creates a private process temporary HOME, copies the existing saved login only when needed, restricts the runtime directory and cookie file to `0700` and `0600`, and lets xhs write its mutable caches there. The runtime is removed when the adapter exits; no credential or cache enters the repository.
+
+### Tests Added / Updated
+- Test file: `tests/test_cli_tools.py`
+- Coverage: private writable runtime HOME and cookie permissions on success, plus a missing-login error that does not start the subprocess.
+
+### Verification
+All six CLI adapter tests and all 20 related CLI/social/cross-platform tests pass. Syntax checks pass. A real Codex-sandboxed Argus search returned 20 current xhs notes after the fix.
+
+### Prevention
+Authenticated CLI wrappers must separate read-only user credentials from writable runtime state and prove the actual sandboxed business command, not only an auth-status command.
+
+## BUG-0027: xhs Social Wrappers Targeted Stale CLI Flags
+
+Date: 2026-07-15
+Severity: P1
+Status: verified
+Area: Social CLI command contracts
+Tags: xhs, click, argument-contract, social-ops, documentation-drift
+
+### Symptom
+The installed xhs CLI and login were usable, but `xhs_feed(limit=3)` failed before making a business request with `No such option '--limit'`.
+
+### Reproduction / Trigger
+A real Argus feed call reproduced the Click parser error. Comparing all 11 xhs social wrappers with xhs 0.6.4 `--help` showed 9 stale contracts: six read commands passed unsupported limits, comment and post used renamed flags, and confirmed delete omitted the CLI's noninteractive `--yes` flag.
+
+### Root Cause
+The social wrappers assumed a common `--limit` and older write-option vocabulary instead of pinning each MCP wrapper to the installed CLI command contract. Unit tests asserted the same stale argv, so they protected drift rather than compatibility.
+
+### Affected Chain
+Eleven FastMCP xhs social tools -> `SocialOpsTools` -> `CLIToolsAdapter.run_xhs` -> xhs 0.6.4 Click commands. Nine wrappers required correction; like and favorite already matched.
+
+### Fix
+Mapped each wrapper to the installed command options, retained MCP `limit` compatibility through bounded local slicing when upstream has no limit, used `--num` for notifications, and corrected comment, post, and delete arguments. Existing auth preflight, parameter checks, and confirmation gates remain intact.
+
+### Tests Added / Updated
+- Test file: `tests/test_social_ops.py`
+- Coverage: all six read-command argv contracts and local limits, all three corrected confirmed-write argv contracts, auth blocking, confirmation blocking, and invalid input.
+
+### Verification
+All seven social regressions and 30 related CLI/social/cross-platform/MCP tests pass. Syntax checks pass. Feed, hot, own notes, notifications, favorites, and comments each returned real data through the corrected wrappers. No write operation was executed.
+
+### Prevention
+CLI wrapper tests must derive expected argv from the installed command help or source and include one real read-only business probe; tests that merely mirror wrapper literals do not detect contract drift.
+
+## BUG-0028: Discord Self-Bot Adapter Was Advertised As Installable
+
+Date: 2026-07-15
+Severity: P1
+Status: verified
+Area: External CLI policy boundary
+Tags: discord, self-bot, user-token, policy, capability-status
+
+### Symptom
+Argus reported Discord as a merely missing optional CLI and recommended installing `kabi-discord-cli`, whose documented authentication extracts and automates a normal Discord user token.
+
+### Reproduction / Trigger
+The previous `run_discord` path returned `NOT_INSTALLED` with an install hint, `check_cli_auth` treated Discord like the four supported CLIs, and system health listed the package without a policy status. Discord's official support policy explicitly prohibits automating normal user accounts.
+
+### Root Cause
+The original integration checked package availability and command shape without validating the upstream platform's authorization model. A third-party package was therefore treated as usable even though its required credential flow violated the service policy.
+
+### Affected Chain
+FastMCP `run_discord`, cross-platform Discord source, CLI auth summary, and system health -> `CLIToolsAdapter` / telemetry -> `kabi-discord-cli` user-token automation.
+
+### Fix
+Kept the public MCP name for compatibility but made every Discord adapter call return `POLICY_UNSUPPORTED` before process discovery or launch. Auth and health output now mark the entry unsupported, omit the install package, and point to application-owned Discord Bot or OAuth2 integration instead.
+
+### Tests Added / Updated
+- Test files: `tests/test_cli_tools.py`, `tests/test_system_health.py`
+- Coverage: no subprocess starts for Discord, auth status contains no install hint, and health reports `policy_unsupported` with no package.
+
+### Verification
+The three focused regressions pass, including the previously failing `NOT_INSTALLED` and missing-health-field cases.
+
+### Prevention
+External integrations must validate the provider's permitted authentication model before advertising an install command; personal use does not make a prohibited user-token automation path supported.
+
+## BUG-0029: Bilibili Social Wrappers Targeted Stale CLI Arguments
+
+Date: 2026-07-15
+Severity: P1
+Status: verified
+Area: Social CLI command contracts
+Tags: bilibili, click, argument-contract, social-ops, missing-regression
+
+### Symptom
+All nine Bilibili social MCP tools were publicly registered, but five read wrappers passed a guessed `--limit` option and the dynamic write wrappers used argument forms that do not match bilibili-cli 0.6.2.
+
+### Reproduction / Trigger
+New exact-argv tests failed against the previous implementation: every read wrapper emitted `--limit`, dynamic post emitted `--text`, and dynamic delete omitted the upstream noninteractive `--yes`. The official 0.6.2 command source confirms the supported options and positional arguments.
+
+### Root Cause
+The Bilibili wrappers had no tests at all and reused a presumed common limit vocabulary instead of each Click command's actual contract. This is the second occurrence of RC-0024 after the xhs wrapper drift.
+
+### Affected Chain
+Nine FastMCP Bilibili social tools -> `SocialOpsTools` -> `CLIToolsAdapter.run_bilibili` -> bilibili-cli 0.6.2 commands. The generic cross-platform search already uses the supported `-n` alias.
+
+### Fix
+Mapped `my-dynamics`, `history`, and `hot` to bounded `--max`; removed unsupported options from `following` and `feed`; applied bounded local response slicing; corrected dynamic post to positional text and confirmed delete to `--yes`. Like and triple were already correct.
+
+### Tests Added / Updated
+- Test file: `tests/test_social_ops.py`
+- Coverage: all five read wrappers and result limits, both interaction wrappers, both confirmed write contracts, confirmation blocking, and invalid identifier short-circuiting.
+
+### Verification
+All four Bilibili regression groups pass against the official 0.6.2 source contract. After the approved user-level installation, generic public search, generic hot, and `bili_hot(limit=2)` each returned two real items through Argus. `bili status` returns `not_authenticated`, so account reads and writes remain conditional on normal user login and no write was executed.
+
+### Prevention
+Do not mark a CLI capability verified from source and mocks alone; install the declared version after approval and execute at least one safe public read through the full Argus path.
+
+## BUG-0030: Interactive CLI Inherited MCP Standard Input
+
+Date: 2026-07-15
+Severity: P1
+Status: verified
+Area: External CLI subprocess boundary
+Tags: telegram, subprocess, stdin, mcp-stdio, authentication
+
+### Symptom
+The installed Telegram CLI entered a phone-number prompt during `tg status`, while the shared Argus subprocess wrapper inherited its parent's standard input.
+
+### Reproduction / Trigger
+A real `tg status --yaml` reached `Please enter your phone (or bot token)`. Source inspection showed `CLIToolsAdapter._exec` passed `input=None` without setting `stdin`, so subprocess inherited the FastMCP stdio transport. A regression then failed with a missing `stdin` keyword before the fix.
+
+### Root Cause
+The generic wrapper treated absence of explicit input as permission to inherit ambient stdin. That assumption is unsafe for agent-facing CLI subprocesses because an upstream command can introduce an interactive prompt during authentication or confirmation.
+
+### Affected Chain
+FastMCP `check_cli_auth` and all four supported generic CLI tools -> `CLIToolsAdapter._exec` -> external Click/Telethon subprocess. Repository scanning found no other subprocess wrapper on this interactive authentication call chain.
+
+### Fix
+Defaulted external CLI subprocess stdin to `subprocess.DEVNULL`. Callers that intentionally pass `input_text` still use subprocess `input`, preserving explicit confirmation support without exposing MCP protocol input.
+
+### Tests Added / Updated
+- Test file: `tests/test_cli_tools.py`
+- Coverage: Telegram status receives `DEVNULL` and returns its structured authentication error; explicit input text remains available and never combines with `stdin`.
+
+### Verification
+Both new regressions and all ten CLI adapter tests pass. A real Argus `run_telegram("status", timeout=10)` call returned structured `auth_error` in 0.14 seconds without prompting or timing out.
+
+### Prevention
+Agent-facing subprocess wrappers must close ambient stdin by default and open it only for explicitly modeled input; real auth probes must include the unconfigured path because that is where third-party CLIs often prompt.
+
+## BUG-0031: Twitter And Telegram MCP Help Advertised Stale Arguments
+
+Date: 2026-07-15
+Severity: P2
+Status: verified
+Area: External CLI MCP descriptions
+Tags: twitter, telegram, click, documentation-contract, mcp
+
+### Symptom
+The generic Twitter and Telegram tools were callable, but their MCP descriptions recommended unsupported Twitter argument forms and overstated Telegram local-cache behavior.
+
+### Reproduction / Trigger
+The installed twitter-cli 0.8.5 help rejected or omitted `--latest`, `feed --following`, `user --likes`, and `user --tweets`; the supported forms are `search -t latest`, `feed -t following`, `likes`, and `user-posts`. Installed kabi-tg-cli 0.6.0 help confirmed `history -n`, sync limits, and export format/output options.
+
+### Root Cause
+The exposed MCP help text had not been reconciled with the pinned installed CLI versions. Runtime code was a generic argument pass-through, so stale documentation could make an otherwise available tool fail during argument parsing.
+
+### Affected Chain
+FastMCP tool discovery -> `run_twitter` / `run_telegram` descriptions -> agent-selected argv -> `CLIToolsAdapter` -> installed Click command parser. Cross-platform Twitter/Telegram search already used supported arguments.
+
+### Fix
+Replaced stale Twitter forms with the installed 0.8.5 commands, corrected Telegram 0.6.0 examples, and clarified that local search is offline while synchronization remains subject to Telegram limits.
+
+### Tests Added / Updated
+- No new behavior test was needed for a description-only correction.
+- Existing `tests/test_mcp_registration.py`, `tests/test_cross_platform.py`, and `tests/test_cli_tools.py` confirm registration and runtime call paths still load.
+
+### Verification
+The exact installed command help was executed for all documented subcommands. A repository scan found the removed argument forms only in the audit's historical note; 27 MCP/CLI/cross-platform tests and syntax checks pass.
+
+### Prevention
+After installing or upgrading an external CLI, reconcile both executable wrappers and agent-visible MCP descriptions against the installed help before calling the integration ready.
+
+## BUG-0032: GDELT Rate Limits Were Reported As Network Errors
+
+Date: 2026-07-15
+Severity: P2
+Status: verified
+Area: External API availability classification
+Tags: gdelt, rate-limit, http-429, error-envelope
+
+### Symptom
+Two real GDELT requests returned HTTP 429, but `search_gdelt` exposed both as `NETWORK_ERROR`, hiding the source's actual availability condition.
+
+### Reproduction / Trigger
+The current-state audit reproduced persistent 429 responses. A focused regression then returned `NETWORK_ERROR` because `raise_for_status()` raised before the adapter inspected the response status.
+
+### Root Cause
+The GDELT adapter caught every `RequestException` under one generic code and discarded status-specific metadata. No-key public access had been treated as if transport failure and provider throttling were equivalent.
+
+### Affected Chain
+FastMCP `search_gdelt` -> `ExternalAPITools.search_gdelt` -> `_get` -> `raise_for_status`. A module scan found many generic HTTP wrappers, but no other currently failing provider had the same repeated GDELT call-chain evidence.
+
+### Fix
+Classified HTTP 429 before `raise_for_status()`, returned `RATE_LIMITED` with source metadata, and preserved `Retry-After` only when the provider supplies it. Persistent limits are not retried automatically.
+
+### Tests Added / Updated
+- Test file: `tests/test_external_gdelt.py`
+- Coverage: normal article normalization and a 429 response with `Retry-After` metadata.
+
+### Verification
+Both regressions pass. A real post-fix GDELT probe still received the upstream limit but returned `RATE_LIMITED`; no `Retry-After` value was invented when the response omitted it.
+
+### Prevention
+Inspect status codes before broad request-exception normalization, preserve provider retry metadata, and do not equate anonymous/no-key access with unlimited access.
+
+## BUG-0033: YouTube RSS Failure Was Treated As Channel Absence
+
+Date: 2026-07-15
+Severity: P1
+Status: verified
+Area: External YouTube channel metadata
+Tags: youtube, rss, yt-dlp, metadata-only, fallback
+
+### Symptom
+`get_youtube_channel` returned `NOT_FOUND` or `NETWORK_ERROR` for valid channel IDs because YouTube RSS returned 404 or SSL failures, even though metadata-only yt-dlp could list the same public channel.
+
+### Reproduction / Trigger
+Two known channel IDs and one channel ID resolved from a real public video failed through RSS. A manual no-cookie/no-download yt-dlp flat-playlist probe returned the channel's public video, proving that entity existence and RSS transport availability had been conflated.
+
+### Root Cause
+The adapter used one transport as both data source and existence oracle. Its 404 branch returned immediately, so a valid channel could not use an already installed, policy-compatible metadata transport.
+
+### Affected Chain
+FastMCP `get_youtube_channel` -> `ExternalAPITools.get_youtube_channel` -> YouTube RSS. Repository scanning found no other channel-listing implementation; `research_video_metadata` intentionally handles only one video and rejects playlists.
+
+### Fix
+Kept RSS as the primary transport and added a separate strict channel helper in `research_video.py`. RSS dependency failure, 404, request/parse error, or empty output now falls back to yt-dlp flat-playlist for a validated UC channel ID and 1–30 entries. The helper ignores user config, cookies, browser cookies, cache, remote components, stdin, and downloads, then allowlists only public watch-page metadata.
+
+### Tests Added / Updated
+- Test files: `tests/test_external_youtube.py`, `tests/test_research_video.py`
+- Coverage: RSS primary success, 404 fallback success, dual-source failure, invalid public limit, strict channel ID validation, flat-playlist command safety, and direct-media URL exclusion.
+
+### Verification
+All 14 YouTube/existing video regressions pass. A real FastMCP valid-channel call fell back from RSS `NOT_FOUND` and returned one titled video with `downloaded_media=false` and `cookies_used=false`.
+
+### Prevention
+Do not infer resource absence from one optional transport failure. Keep fallbacks policy-compatible, metadata-only, bounded, independently normalized, and explicit in response provenance.

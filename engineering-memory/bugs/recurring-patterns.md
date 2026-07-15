@@ -101,3 +101,100 @@ Derive top-level status from useful output and nested failures, keep partial res
 
 ### Avoid
 Do not infer business success from loop completion or discard nested errors while flattening aggregate output.
+
+## PATTERN-0003: External CLI Authentication Prompt Reached Agent Stdio
+
+Status: active
+Scope: module
+Severity: P1
+Related root cause: RC-0026
+Related bugs:
+- BUG-0030
+
+### Pattern
+An optional external CLI adds a prompt on its unauthenticated path, and a generic subprocess wrapper inherits the agent transport's standard input.
+
+### Detection Hints
+Codex should search for:
+- `subprocess.run` or `Popen` without `stdin` or explicit `input`
+- Login, status, confirmation, phone, OTP, or password prompts
+- MCP servers using stdio transport
+- Tests that mock only authenticated command output
+
+### Required Checks Before Fixing
+- Run the real unconfigured status/auth command without entering credentials.
+- Trace the parent transport and every subprocess caller.
+- Preserve intentionally modeled input paths.
+- Assert both default-closed stdin and explicit-input behavior.
+
+### Preferred Fix Strategy
+Close stdin at the shared subprocess boundary and require callers to opt into bounded explicit input.
+
+### Avoid
+Do not rely only on timeout handling: a child that reads protocol bytes may corrupt the session before the timeout fires.
+
+## PATTERN-0004: Installed CLI Contract Drifted From Wrapper Or MCP Help
+
+Status: active
+Scope: module
+Severity: P1
+Related root cause: RC-0024
+Related bugs:
+- BUG-0027
+- BUG-0029
+- BUG-0031
+
+### Pattern
+An external Click CLI changes or never supported an argument, while project wrappers, tests, or agent-visible MCP descriptions keep a guessed or older command form.
+
+### Detection Hints
+Codex should search for:
+- Every wrapper call to the installed binary
+- MCP docstrings and README examples containing CLI flags
+- Tests that assert project literals without evidence from installed help
+- Shared option assumptions such as `--limit`, `--latest`, or `--following`
+
+### Required Checks Before Fixing
+- Pin and install the approved package version.
+- Execute help for every documented or wrapped subcommand.
+- Compare wrapper argv, MCP descriptions, aggregate adapters, and tests.
+- Run at least one safe real read through the full Argus path.
+
+### Preferred Fix Strategy
+Keep command-specific argv explicit, preserve public limits through local slicing only when necessary, and update runtime wrappers and exposed help in the same verified change.
+
+### Avoid
+Do not treat a successful package import, auth probe, or mocked adapter as proof that documented business commands are callable.
+
+## PATTERN-0005: Public API Rate Limits Collapsed Into Transport Errors
+
+Status: active
+Scope: module
+Severity: P1
+Related root cause: RC-0018
+Related bugs:
+- BUG-0020
+- BUG-0024
+- BUG-0032
+
+### Pattern
+A public no-key endpoint returns HTTP 429, but the adapter's broad request exception path labels it as a network failure and drops retry/fallback metadata.
+
+### Detection Hints
+Codex should search for:
+- `raise_for_status()` followed by a broad `RequestException`
+- Providers documented or observed to return 429
+- Missing `Retry-After`, cache, pacing, or fallback fields
+- Audit records where repeated serial probes fail identically
+
+### Required Checks Before Fixing
+- Reproduce or mock a normal success and a real provider-shaped 429.
+- Check the provider's caching, pacing, and retry guidance.
+- Preserve source-specific metadata without exposing request secrets.
+- Avoid broad retries when the limit is persistent or unspecified.
+
+### Preferred Fix Strategy
+Classify rate limits at the provider boundary, preserve dynamic retry metadata, and add caching, pacing, bounded retry, or a legal fallback only when supported by provider behavior.
+
+### Avoid
+Do not relabel every request failure as rate limiting or hammer a persistent 429 with automatic retries.

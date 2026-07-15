@@ -125,7 +125,7 @@ Claude Code / Cherry Studio / 其他支持 STDIO MCP 的 client 可使用等价�
 
 - **原生数据 (28)**:`initialize_config` / `get_latest_news` / `search_news` / `analyze_sentiment` / `trigger_crawl` ...
 - **外部 API (53, 无 key)**:`search_arxiv` / `get_hackernews_top` / `search_reddit` / `search_gdelt` / `search_cve` ...
-- **CLI 适配 (7)**:`check_cli_auth` / `xhs_auth_status` / `run_bilibili` / `run_xhs` / `run_twitter` / `run_telegram` / `run_discord`
+- **CLI 适配 (7)**:`check_cli_auth` / `xhs_auth_status` / `run_bilibili` / `run_xhs` / `run_twitter` / `run_telegram` / `run_discord`（Discord 兼容入口固定返回 `POLICY_UNSUPPORTED`，不执行 self-bot）
 - **AI 增强 (8)**:`ai_summarize` / `ai_brief_news` / `semantic_deduplicate` / `detect_anomaly` ...
 - **跨平台 (2)**:`narrative_tracking` / `universal_search`
 - **定时任务 (4)**:`schedule_task` / `list_scheduled_tasks` / `run_scheduled_task` / `remove_scheduled_task`
@@ -147,6 +147,8 @@ Claude Code / Cherry Studio / 其他支持 STDIO MCP 的 client 可使用等价�
 
 公开视频元数据可调用 `research_video_metadata(url="https://www.youtube.com/watch?v=...", timeout=60)`。工具只接受单个 http/https 页面,超时会限制在 10–180 秒;它不会读取文件或浏览器 Cookie,不会下载媒体、写文件、处理播放列表或返回 `formats` / `requested_downloads` / 缩略图 / 字幕直链。
 
+YouTube 频道更新可调用 `get_youtube_channel(channel_id="UC...", limit=15)`。工具优先使用官方 RSS；RSS 404、请求失败或空结果时，使用同一已安装 yt-dlp 运行 metadata-only flat-playlist 回退。回退只返回标题、频道、发布日期和规范的 YouTube 观看页链接，不读 Cookie、不下载媒体、不返回临时媒体直链。
+
 Openverse 匿名图片搜索可用 `uv run python scripts/research_openverse_smoke.py` 做真实质量冒烟。脚本只检索元数据、不下载媒体；退出码 `0` 表示结果与许可元数据契约通过，`2` 表示限流或网络等外部不可用，`3` 表示结果结构或质量回归。
 
 Openverse 匿名音频搜索可用 `uv run python scripts/research_audio_smoke.py` 通过已注册的 `research_audio` FastMCP 工具做真实质量冒烟。脚本只检索元数据，不下载音频、waveform 或备用文件；退出码 `0` 表示结果与许可/no-download 契约通过，`2` 表示限流、网络或超时等外部不可用，`3` 表示 provider、MCP 输出或质量契约回归。
@@ -164,6 +166,8 @@ Openverse 匿名音频搜索可用 `uv run python scripts/research_audio_smoke.p
 `research_resolve_locators` 从一个已保存 comparison artifact 回放 1–10 个 locator,只读取 comparison 引用的项目内来源 artifact,并重新校验 source 归属、document index、字符范围、SHA-256 及指纹前缀范围。每段摘录最多 240 个字符且不超过 25 个词;工具不会联网、调用 Codex 或返回整篇来源正文。旧 comparison 没有内容指纹时仍可读取,但响应会明确标记 `unverified`。
 
 小红书 `xhs_*` 细化工具会先检查 `xhs_auth_status`, 未安装、未登录或 cookie 存储不可用时直接返回明确的人工处理提示; 评论、发帖、删除仍需 `confirm=True`。
+
+`bilibili-cli 0.6.2`、`twitter-cli 0.8.5` 和 `kabi-tg-cli 0.6.0` 已安装到本机 uv tool 目录。Bilibili 公开搜索与热榜已实测；Twitter 需要正常 X 登录，可使用浏览器 Cookie 或 `TWITTER_AUTH_TOKEN` + `TWITTER_CT0`；Telegram 建议先在 [my.telegram.org](https://my.telegram.org/) 免费申请自己的 `TG_API_ID` / `TG_API_HASH`，再在交互式终端完成一次手机号和验证码登录。Argus 的 MCP 子进程不会从 stdio 协议输入中读取交互式登录信息。
 
 ---
 

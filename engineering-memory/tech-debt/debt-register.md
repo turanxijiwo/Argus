@@ -329,3 +329,31 @@ For this personal Codex workflow, prefer a Codex workspace automation that runs 
 - The report shows crawl before index rebuild, no notification step, and no failed platform.
 - SQLite crawl history advances and semantic index document count matches local news history.
 - Temporary acceptance services, task files, and processes are removed after verification.
+
+## DEBT-0011: Video Metadata Module Mixes Single-Item And Channel Commands
+
+Date: 2026-07-15
+Status: open
+Severity: low
+Area: Research video metadata adapter
+Related bugs:
+- BUG-0033
+Related patterns:
+- None
+
+### Problem
+`argus_server/tools/research_video.py` is 403 lines and now owns two separate yt-dlp command contracts, process error handling, safety metadata, and single-video/channel normalization.
+
+### Why Not Fixed Now
+BUG-0033 required one bounded legal fallback for an already failing public tool. Splitting the module during the availability repair would broaden scope and make safety parity harder to verify.
+
+### Risk
+Future yt-dlp option changes could drift between the single-video and flat-playlist paths, especially around config, cookies, cache, remote components, stdin, and sanitized errors.
+
+### Proposed Resolution
+In a dedicated refactor, extract shared metadata-only process options/execution and keep separate single-video and channel normalizers while preserving current public schemas.
+
+### Exit Criteria
+- Both command paths share one tested no-config/no-cookie/no-download/no-stdin process boundary.
+- `argus.research.video.metadata.v1` and `argus.research.video.channel.v1` remain unchanged.
+- `tests/test_research_video.py`, `tests/test_external_youtube.py`, and the real single-video/channel probes remain green.

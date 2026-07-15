@@ -9,6 +9,10 @@ from urllib.parse import urlparse
 
 
 SCHEMA = "argus.research.video.metadata.v1"
+CHANNEL_SCHEMA = "argus.research.video.channel.v1"
+
+_CHANNEL_ID_RE = re.compile(r"^UC[A-Za-z0-9_-]{22}$")
+_VIDEO_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
 
 _TEXT_FIELDS = {
     "id": 256,
@@ -100,6 +104,7 @@ def inspect_video_metadata(url: str, timeout: int = 60) -> Dict:
             text=True,
             timeout=timeout_seconds,
             check=False,
+            stdin=subprocess.DEVNULL,
         )
     except subprocess.TimeoutExpired:
         return _err(
@@ -157,6 +162,155 @@ def inspect_video_metadata(url: str, timeout: int = 60) -> Dict:
         mode="metadata_only",
         extractor=metadata.get("extractor"),
         metadata_field_count=len(metadata),
+    )
+
+
+def inspect_channel_videos(
+    channel_id: str,
+    limit: int = 15,
+    timeout: int = 60,
+) -> Dict:
+    """List public channel video-page metadata without resolving media URLs."""
+    binary = shutil.which("yt-dlp")
+    if not binary:
+        return _err(
+            "yt-dlp is not installed",
+            code="NOT_INSTALLED",
+            install_hint="uv tool install yt-dlp",
+        )
+
+    normalized_channel_id = (channel_id or "").strip()
+    if not _CHANNEL_ID_RE.fullmatch(normalized_channel_id):
+        return _err(
+            "channel_id must be a 24-character YouTube UC channel ID",
+            code="INVALID_CHANNEL_ID",
+        )
+
+    item_limit = _safe_int(limit, default=15, minimum=1, maximum=30)
+    timeout_seconds = _safe_int(timeout, default=60, minimum=10, maximum=180)
+    socket_timeout = min(timeout_seconds, 30)
+    channel_url = f"https://www.youtube.com/channel/{normalized_channel_id}/videos"
+    command = [
+        binary,
+        "--ignore-config",
+        "--simulate",
+        "--dump-single-json",
+        "--flat-playlist",
+        "--playlist-end",
+        str(item_limit),
+        "--no-cookies",
+        "--no-cookies-from-browser",
+        "--no-cache-dir",
+        "--no-remote-components",
+        "--no-mark-watched",
+        "--xff",
+        "never",
+        "--no-warnings",
+        "--no-progress",
+        "--color",
+        "never",
+        "--socket-timeout",
+        str(socket_timeout),
+        "--retries",
+        "2",
+        "--extractor-retries",
+        "2",
+        channel_url,
+    ]
+
+    try:
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+            check=False,
+            stdin=subprocess.DEVNULL,
+        )
+    except subprocess.TimeoutExpired:
+        return _err(
+            "yt-dlp channel metadata extraction timed out",
+            code="TIMEOUT",
+            timeout=timeout_seconds,
+        )
+    except Exception as ex:
+        return _err(
+            f"yt-dlp failed to start: {type(ex).__name__}",
+            code="EXEC_ERROR",
+        )
+
+    if completed.returncode != 0:
+        detail = _sanitize_process_text(completed.stderr)
+        return _err(
+            "yt-dlp could not list public channel metadata",
+            code="EXTRACTOR_ERROR",
+            returncode=completed.returncode,
+            **({"detail": detail} if detail else {}),
+        )
+
+    try:
+        raw_playlist = json.loads((completed.stdout or "").strip())
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return _err("yt-dlp returned invalid channel JSON", code="PARSE_ERROR")
+
+    if not isinstance(raw_playlist, dict) or not isinstance(
+        raw_playlist.get("entries"), list
+    ):
+        return _err("yt-dlp returned an unexpected channel response", code="INVALID_RESPONSE")
+
+    channel_title = _bounded_text(
+        raw_playlist.get("channel")
+        or raw_playlist.get("uploader")
+        or raw_playlist.get("title"),
+        500,
+    ) or ""
+    videos = []
+    for entry in raw_playlist["entries"][:item_limit]:
+        if not isinstance(entry, dict):
+            continue
+        video_id = _bounded_text(entry.get("id"), 64)
+        title = _bounded_text(entry.get("title"), 500)
+        if not video_id or not _VIDEO_ID_RE.fullmatch(video_id) or not title:
+            continue
+        videos.append(
+            {
+                "title": title,
+                "url": f"https://www.youtube.com/watch?v={video_id}",
+                "video_id": video_id,
+                "published": _bounded_text(
+                    entry.get("upload_date") or entry.get("release_date"),
+                    32,
+                ) or "",
+                "author": _bounded_text(
+                    entry.get("channel") or entry.get("uploader") or channel_title,
+                    500,
+                ) or "",
+                "description": _bounded_text(entry.get("description"), 500) or "",
+            }
+        )
+
+    if not videos:
+        return _err("yt-dlp returned no valid channel videos", code="EMPTY_RESPONSE")
+
+    return _ok(
+        {
+            "schema": CHANNEL_SCHEMA,
+            "videos": videos,
+            "channel_title": channel_title,
+            "safety": {
+                "mode": "metadata_only_flat_playlist",
+                "downloaded_media": False,
+                "wrote_files": False,
+                "cookies_used": False,
+                "browser_cookies_used": False,
+                "cache_used": False,
+                "remote_components_allowed": False,
+                "direct_media_urls_included": False,
+            },
+        },
+        mode="metadata_only_flat_playlist",
+        channel_id=normalized_channel_id,
+        count=len(videos),
     )
 
 

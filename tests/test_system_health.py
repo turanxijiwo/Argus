@@ -100,6 +100,10 @@ class SystemHealthTest(unittest.TestCase):
         self.assertTrue(response["data"]["checks"]["news_data"]["required"])
         self.assertEqual(response["data"]["checks"]["semantic_index"]["status"], "needs_setup")
         self.assertEqual(response["data"]["checks"]["social_cli"]["status"], "needs_setup")
+        discord = response["data"]["checks"]["social_cli"]["tools"]["discord"]
+        self.assertFalse(discord["supported"])
+        self.assertEqual(discord["status"], "policy_unsupported")
+        self.assertIsNone(discord["package"])
         self.assertEqual(response["data"]["checks"]["ai_providers"]["configured"], 0)
         self.assertEqual(response["data"]["checks"]["notifications"]["configured"], 0)
 

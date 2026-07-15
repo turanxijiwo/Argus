@@ -308,7 +308,6 @@ class HealthTools:
             "xhs": "xiaohongshu-cli",
             "twitter": "twitter-cli",
             "tg": "kabi-tg-cli",
-            "discord": "kabi-discord-cli",
         }
         cli_status = {}
         for name, package in cli_packages.items():
@@ -317,14 +316,25 @@ class HealthTools:
                 "installed": installed,
                 "package": package,
                 "authentication": "not_checked" if installed else None,
+                "supported": True,
             }
-        installed_cli_count = sum(1 for item in cli_status.values() if item["installed"])
+        cli_status["discord"] = {
+            "installed": bool(shutil.which("discord")),
+            "package": None,
+            "authentication": None,
+            "supported": False,
+            "status": "policy_unsupported",
+            "replacement": "discord_bot_or_oauth2",
+        }
+        installed_cli_count = sum(
+            1 for item in cli_status.values() if item["installed"] and item["supported"]
+        )
         checks["social_cli"] = _health_check(
             False,
             required=False,
             status="needs_auth_check" if installed_cli_count else "needs_setup",
             installed=installed_cli_count,
-            total=len(cli_status),
+            total=len(cli_packages),
             tools=cli_status,
             note="安装状态不等于登录就绪；使用对应 auth status 工具做显式验证。",
         )

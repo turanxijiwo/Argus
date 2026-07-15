@@ -39,6 +39,31 @@ def _require_confirm(action: str) -> Dict:
     )
 
 
+def _limit_social_result(result: Dict, limit: int) -> Dict:
+    """Apply an MCP result limit when a social CLI returns a larger collection."""
+    if not result.get("success"):
+        return result
+
+    bounded_limit = max(1, min(int(limit), 100))
+    data = result.get("data")
+    limited_data = data
+    if isinstance(data, list):
+        limited_data = data[:bounded_limit]
+    elif isinstance(data, dict):
+        for key in ("items", "notes", "note_list", "comments", "message_list"):
+            if isinstance(data.get(key), list):
+                limited_data = {**data, key: data[key][:bounded_limit]}
+                break
+
+    if limited_data is data:
+        return result
+    return {
+        **result,
+        "data": limited_data,
+        "summary": {**(result.get("summary") or {}), "limit": bounded_limit},
+    }
+
+
 class SocialOpsTools:
     """bili / xhs 细化操作包装, 底层走 CLIToolsAdapter"""
 
@@ -92,27 +117,39 @@ class SocialOpsTools:
     def bili_my_dynamics(self, limit: int = 20) -> Dict:
         err = self._require_cli()
         if err: return err
-        return self._cli.run_bilibili("my-dynamics", ["--limit", str(limit)])
+        bounded_limit = max(1, min(int(limit), 50))
+        return _limit_social_result(
+            self._cli.run_bilibili("my-dynamics", ["--max", str(bounded_limit)]),
+            bounded_limit,
+        )
 
     def bili_history(self, limit: int = 30) -> Dict:
         err = self._require_cli()
         if err: return err
-        return self._cli.run_bilibili("history", ["--limit", str(limit)])
+        bounded_limit = max(1, min(int(limit), 100))
+        return _limit_social_result(
+            self._cli.run_bilibili("history", ["--max", str(bounded_limit)]),
+            bounded_limit,
+        )
 
     def bili_following(self, limit: int = 50) -> Dict:
         err = self._require_cli()
         if err: return err
-        return self._cli.run_bilibili("following", ["--limit", str(limit)])
+        return _limit_social_result(self._cli.run_bilibili("following", []), limit)
 
     def bili_feed(self, limit: int = 20) -> Dict:
         err = self._require_cli()
         if err: return err
-        return self._cli.run_bilibili("feed", ["--limit", str(limit)])
+        return _limit_social_result(self._cli.run_bilibili("feed", []), limit)
 
     def bili_hot(self, limit: int = 30) -> Dict:
         err = self._require_cli()
         if err: return err
-        return self._cli.run_bilibili("hot", ["--limit", str(limit)])
+        bounded_limit = max(1, min(int(limit), 100))
+        return _limit_social_result(
+            self._cli.run_bilibili("hot", ["--max", str(bounded_limit)]),
+            bounded_limit,
+        )
 
     # ────────────── B 站 轻互动 (可逆) ──────────────
 
@@ -141,7 +178,7 @@ class SocialOpsTools:
             return _err("text 不能为空", code="INVALID_PARAM")
         if not confirm:
             return _require_confirm("bili_publish_dynamic")
-        return self._cli.run_bilibili("dynamic-post", ["--text", text])
+        return self._cli.run_bilibili("dynamic-post", [text])
 
     def bili_delete_dynamic(self, dynamic_id: str, confirm: bool = False) -> Dict:
         err = self._require_cli()
@@ -150,32 +187,36 @@ class SocialOpsTools:
             return _err("dynamic_id 不能为空", code="INVALID_PARAM")
         if not confirm:
             return _require_confirm("bili_delete_dynamic")
-        return self._cli.run_bilibili("dynamic-delete", [dynamic_id])
+        return self._cli.run_bilibili("dynamic-delete", [dynamic_id, "--yes"])
 
     # ────────────── 小红书 只读 ──────────────
 
     def xhs_my_notes(self, limit: int = 20) -> Dict:
-        return self._run_xhs_checked("my-notes", ["--limit", str(limit)])
+        return _limit_social_result(self._run_xhs_checked("my-notes", []), limit)
 
     def xhs_notifications(self, limit: int = 30) -> Dict:
-        return self._run_xhs_checked("notifications", ["--limit", str(limit)])
+        bounded_limit = max(1, min(int(limit), 100))
+        return _limit_social_result(
+            self._run_xhs_checked("notifications", ["--num", str(bounded_limit)]),
+            bounded_limit,
+        )
 
     def xhs_favorites(self, limit: int = 20) -> Dict:
-        return self._run_xhs_checked("favorites", ["--limit", str(limit)])
+        return _limit_social_result(self._run_xhs_checked("favorites", []), limit)
 
     def xhs_feed(self, limit: int = 20) -> Dict:
-        return self._run_xhs_checked("feed", ["--limit", str(limit)])
+        return _limit_social_result(self._run_xhs_checked("feed", []), limit)
 
     def xhs_hot(self, category: Optional[str] = None, limit: int = 30) -> Dict:
-        args = ["--limit", str(limit)]
+        args = []
         if category:
             args.extend(["--category", category])
-        return self._run_xhs_checked("hot", args)
+        return _limit_social_result(self._run_xhs_checked("hot", args), limit)
 
     def xhs_comments(self, note_id: str, limit: int = 20) -> Dict:
         if not note_id:
             return _err("note_id 不能为空", code="INVALID_PARAM")
-        return self._run_xhs_checked("comments", [note_id, "--limit", str(limit)])
+        return _limit_social_result(self._run_xhs_checked("comments", [note_id]), limit)
 
     # ────────────── 小红书 轻互动 ──────────────
 
@@ -195,7 +236,7 @@ class SocialOpsTools:
             return _err("note_id 和 text 都必需", code="INVALID_PARAM")
         if not confirm:
             return _require_confirm("xhs_comment")
-        return self._run_xhs_checked("comment", [note_id, "--text", text])
+        return self._run_xhs_checked("comment", [note_id, "--content", text])
 
     # ────────────── 小红书 发帖 / 删除 (需 confirm) ──────────────
 
@@ -212,9 +253,9 @@ class SocialOpsTools:
             return _err("title 和 content 都必需", code="INVALID_PARAM")
         if not confirm:
             return _require_confirm("xhs_publish_note")
-        args = ["--title", title, "--content", content]
+        args = ["--title", title, "--body", content]
         for img in images:
-            args.extend(["--image", img])
+            args.extend(["--images", img])
         return self._run_xhs_checked("post", args)
 
     def xhs_delete_note(self, note_id: str, confirm: bool = False) -> Dict:
@@ -222,4 +263,4 @@ class SocialOpsTools:
             return _err("note_id 不能为空", code="INVALID_PARAM")
         if not confirm:
             return _require_confirm("xhs_delete_note")
-        return self._run_xhs_checked("delete", [note_id])
+        return self._run_xhs_checked("delete", [note_id, "--yes"])

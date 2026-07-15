@@ -17,6 +17,7 @@
 
 import hashlib
 import json
+import os
 import threading
 import time
 import urllib.parse
@@ -25,6 +26,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 
 import requests
+
+from .research_video import inspect_channel_videos
 
 try:
     import feedparser
@@ -79,6 +82,17 @@ class ExternalAPITools:
         if headers:
             h.update(headers)
         return self.session.get(url, params=params, headers=h, timeout=timeout)
+
+    @staticmethod
+    def _github_headers() -> Dict[str, str]:
+        headers = {
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2026-03-10",
+        }
+        token = os.environ.get("GITHUB_TOKEN", "").strip()
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        return headers
 
     def _arxiv_cache_path(self, params: Dict) -> Path:
         cache_key = hashlib.sha256(
@@ -250,6 +264,8 @@ class ExternalAPITools:
     ) -> Dict:
         """Semantic Scholar 论文搜索 (含引用数 + AI TLDR)"""
         try:
+            api_key = os.environ.get("SEMANTIC_SCHOLAR_API_KEY", "").strip()
+            auth_headers = {"x-api-key": api_key} if api_key else None
             fields = (
                 "paperId,title,abstract,year,authors,venue,publicationDate,"
                 "citationCount,influentialCitationCount,tldr,openAccessPdf,url"
@@ -269,14 +285,22 @@ class ExternalAPITools:
             r = self._get(
                 "https://api.semanticscholar.org/graph/v1/paper/search",
                 params=params,
+                headers=auth_headers,
                 timeout=25,
             )
+            if r.status_code in (401, 403):
+                return _err(
+                    "Semantic Scholar API key 无效或权限不足"
+                    if api_key else "Semantic Scholar 当前要求 API key",
+                    code="AUTH_FAILED" if api_key else "AUTH_REQUIRED",
+                )
             # Semantic Scholar 匿名调用易被限流, 内置一次退避重试
             if r.status_code == 429:
                 time.sleep(3)
                 r = self._get(
                     "https://api.semanticscholar.org/graph/v1/paper/search",
                     params=params,
+                    headers=auth_headers,
                     timeout=25,
                 )
             if r.status_code == 429:
@@ -311,6 +335,7 @@ class ExternalAPITools:
                 source="semantic_scholar",
                 query=query,
                 count=len(papers),
+                authenticated=bool(api_key),
             )
         except requests.exceptions.RequestException as ex:
             return _err(f"Semantic Scholar 请求失败: {ex}", code="NETWORK_ERROR")
@@ -325,13 +350,16 @@ class ExternalAPITools:
         from_publication_date: Optional[str] = None,
         sort: str = "relevance_score:desc",
     ) -> Dict:
-        """OpenAlex 论文搜索 (2.4 亿论文, 免费无 key)"""
+        """Search OpenAlex, using the configured free API key when available."""
         try:
+            api_key = os.environ.get("OPENALEX_API_KEY", "").strip()
             params = {
                 "search": query,
                 "per-page": max(1, min(int(per_page), 100)),
                 "sort": sort,
             }
+            if api_key:
+                params["api_key"] = api_key
             filters = []
             if from_publication_date:
                 filters.append(f"from_publication_date:{from_publication_date}")
@@ -344,6 +372,12 @@ class ExternalAPITools:
                 headers={"User-Agent": "Argus/6.6 (mailto:noreply@argus.local)"},
                 timeout=25,
             )
+            if r.status_code in (401, 403):
+                return _err(
+                    "OpenAlex API key 无效或权限不足"
+                    if api_key else "OpenAlex 当前要求 API key",
+                    code="AUTH_FAILED" if api_key else "AUTH_REQUIRED",
+                )
             r.raise_for_status()
             data = r.json()
             works = []
@@ -374,9 +408,15 @@ class ExternalAPITools:
                 source="openalex",
                 query=query,
                 count=len(works),
+                authenticated=bool(api_key),
             )
         except requests.exceptions.RequestException as ex:
-            return _err(f"OpenAlex 请求失败: {ex}", code="NETWORK_ERROR")
+            response = getattr(ex, "response", None)
+            return _err(
+                "OpenAlex 请求失败",
+                code="NETWORK_ERROR",
+                status_code=getattr(response, "status_code", None),
+            )
         except Exception as ex:
             return _err(f"OpenAlex 解析失败: {ex}")
 
@@ -490,7 +530,7 @@ class ExternalAPITools:
         except Exception as ex:
             return _err(f"HN 解析失败: {ex}")
 
-    # ───────────────────────── 6. Reddit JSON ─────────────────────────
+    # ───────────────────────── 6. Reddit JSON / Atom ─────────────────────────
     def search_reddit(
         self,
         subreddit: str,
@@ -498,17 +538,27 @@ class ExternalAPITools:
         time_filter: str = "day",
         limit: int = 25,
     ) -> Dict:
-        """Reddit subreddit 帖子 (官方公开 JSON, 无需 OAuth)"""
+        """Read public subreddit posts, with Atom fallback when JSON is blocked."""
         try:
             if sort not in ("hot", "new", "top", "rising", "controversial"):
                 return _err(f"sort 必须是 hot/new/top/rising/controversial", code="INVALID_PARAM")
-            params = {"limit": max(1, min(int(limit), 100))}
+            normalized_limit = max(1, min(int(limit), 100))
+            params = {"limit": normalized_limit}
             if sort in ("top", "controversial"):
                 params["t"] = time_filter
 
-            url = f"https://www.reddit.com/r/{subreddit}/{sort}.json"
+            encoded_subreddit = urllib.parse.quote(subreddit.strip(), safe="")
+            url = f"https://www.reddit.com/r/{encoded_subreddit}/{sort}.json"
             r = self._get(url, params=params, timeout=15,
                           headers={"User-Agent": "ArgusBot/1.0"})
+            if r.status_code in (403, 429):
+                return self._search_reddit_atom(
+                    subreddit=subreddit,
+                    encoded_subreddit=encoded_subreddit,
+                    sort=sort,
+                    time_filter=time_filter,
+                    limit=normalized_limit,
+                )
             r.raise_for_status()
             data = r.json().get("data", {}).get("children", [])
             posts = []
@@ -539,11 +589,101 @@ class ExternalAPITools:
                 subreddit=subreddit,
                 sort=sort,
                 count=len(posts),
+                transport="reddit_json",
             )
         except requests.exceptions.RequestException as ex:
             return _err(f"Reddit 请求失败: {ex}", code="NETWORK_ERROR")
         except Exception as ex:
             return _err(f"Reddit 解析失败: {ex}")
+
+    def _search_reddit_atom(
+        self,
+        subreddit: str,
+        encoded_subreddit: str,
+        sort: str,
+        time_filter: str,
+        limit: int,
+    ) -> Dict:
+        if not feedparser:
+            return _err(
+                "Reddit JSON 被拒绝且 feedparser 未安装",
+                code="DEP_MISSING",
+                transport="reddit_atom",
+            )
+
+        params = {"limit": limit}
+        if sort in ("top", "controversial"):
+            params["t"] = time_filter
+        url = f"https://www.reddit.com/r/{encoded_subreddit}/{sort}/.rss"
+
+        try:
+            response = self._get(
+                url,
+                params=params,
+                timeout=15,
+                headers={"User-Agent": _DEFAULT_UA},
+            )
+            if response.status_code == 429:
+                return _err(
+                    "Reddit Atom 触发限流",
+                    code="RATE_LIMITED",
+                    retry_after=response.headers.get("retry-after"),
+                    transport="reddit_atom",
+                )
+            response.raise_for_status()
+            feed = feedparser.parse(response.content)
+            entries = list(getattr(feed, "entries", []) or [])
+            if getattr(feed, "bozo", False) and not entries:
+                return _err(
+                    "Reddit Atom 响应无法解析",
+                    code="PARSE_ERROR",
+                    transport="reddit_atom",
+                )
+
+            posts = []
+            for entry in entries[:limit]:
+                link = entry.get("link") or ""
+                entry_id = str(entry.get("id") or "")
+                author = str(entry.get("author") or "")
+                tags = entry.get("tags") or []
+                posts.append(
+                    {
+                        "id": entry_id.removeprefix("t3_") or None,
+                        "title": entry.get("title"),
+                        "author": author.removeprefix("/u/"),
+                        "score": None,
+                        "upvote_ratio": None,
+                        "num_comments": None,
+                        "created_utc": entry.get("updated") or entry.get("published") or "",
+                        "url": link,
+                        "permalink": link,
+                        "is_self": None,
+                        "selftext": "",
+                        "flair": tags[0].get("label") if tags and isinstance(tags[0], dict) else None,
+                        "subreddit": subreddit,
+                    }
+                )
+            return _ok(
+                {"posts": posts},
+                source="reddit",
+                subreddit=subreddit,
+                sort=sort,
+                count=len(posts),
+                transport="reddit_atom",
+                fallback_from="reddit_json",
+            )
+        except requests.exceptions.RequestException as ex:
+            return _err(
+                f"Reddit Atom 请求失败: {ex}",
+                code="NETWORK_ERROR",
+                transport="reddit_atom",
+            )
+        except Exception as ex:
+            return _err(
+                f"Reddit Atom 解析失败: {ex}",
+                code="PARSE_ERROR",
+                transport="reddit_atom",
+            )
 
     # ───────────────────────── 7. GitHub API ─────────────────────────
     def get_github_trending(
@@ -568,7 +708,7 @@ class ExternalAPITools:
                     "order": "desc",
                     "per_page": max(1, min(int(limit), 100)),
                 },
-                headers={"Accept": "application/vnd.github+json"},
+                headers=self._github_headers(),
                 timeout=20,
             )
             if r.status_code == 403:
@@ -611,7 +751,7 @@ class ExternalAPITools:
             r = self._get(
                 f"https://api.github.com/repos/{repo}/releases",
                 params={"per_page": max(1, min(int(limit), 30))},
-                headers={"Accept": "application/vnd.github+json"},
+                headers=self._github_headers(),
                 timeout=15,
             )
             if r.status_code == 404:
@@ -1130,47 +1270,126 @@ class ExternalAPITools:
 
     # ───────────────────────── 15. YouTube 频道 (RSS) ─────────────────────────
     def get_youtube_channel(self, channel_id: str, limit: int = 15) -> Dict:
-        """订阅 YouTube 频道最新视频 (官方 RSS, 无需 API key)
+        """订阅 YouTube 频道最新视频 (RSS 优先, yt-dlp 元数据回退)
 
         channel_id 必须是以 'UC' 开头的 24 字符 ID, 不是用户名。
         从 YouTube 频道页面查看源代码搜索 'channelId' 可获取。
         """
-        if not feedparser:
-            return _err("feedparser 未安装", code="DEP_MISSING")
-        try:
-            r = self._get(
-                f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}",
-                timeout=15,
+        normalized_channel_id = (
+            channel_id.strip() if isinstance(channel_id, str) else ""
+        )
+        if (
+            len(normalized_channel_id) != 24
+            or not normalized_channel_id.startswith("UC")
+            or not all(
+                char.isalnum() or char in "_-"
+                for char in normalized_channel_id
             )
-            if r.status_code == 404:
-                return _err(f"频道 {channel_id} 不存在或未公开", code="NOT_FOUND")
-            r.raise_for_status()
-            feed = feedparser.parse(r.content)
-            videos = []
-            for e in feed.entries[: max(1, min(int(limit), 30))]:
-                videos.append(
-                    {
-                        "title": getattr(e, "title", ""),
-                        "url": getattr(e, "link", ""),
-                        "video_id": getattr(e, "yt_videoid", ""),
-                        "published": getattr(e, "published", ""),
-                        "author": getattr(e, "author", ""),
-                        "description": (getattr(e, "summary", "") or "")[:500],
-                    }
+        ):
+            return _err(
+                "channel_id 必须是 UC 开头的 24 字符 YouTube 频道 ID",
+                code="INVALID_CHANNEL_ID",
+            )
+
+        try:
+            item_limit = max(1, min(int(limit), 30))
+        except (TypeError, ValueError):
+            return _err("limit 必须是整数", code="INVALID_PARAM")
+        rss_error = None
+        if not feedparser:
+            rss_error = {"code": "DEP_MISSING", "message": "feedparser 未安装"}
+        else:
+            try:
+                response = self._get(
+                    "https://www.youtube.com/feeds/videos.xml"
+                    f"?channel_id={normalized_channel_id}",
+                    timeout=15,
                 )
+                if response.status_code == 404:
+                    rss_error = {
+                        "code": "NOT_FOUND",
+                        "message": "YouTube RSS 频道返回 404",
+                    }
+                else:
+                    response.raise_for_status()
+                    feed = feedparser.parse(response.content)
+                    videos = []
+                    for entry in feed.entries[:item_limit]:
+                        videos.append(
+                            {
+                                "title": getattr(entry, "title", ""),
+                                "url": getattr(entry, "link", ""),
+                                "video_id": getattr(entry, "yt_videoid", ""),
+                                "published": getattr(entry, "published", ""),
+                                "author": getattr(entry, "author", ""),
+                                "description": (
+                                    getattr(entry, "summary", "") or ""
+                                )[:500],
+                            }
+                        )
+                    if videos:
+                        return _ok(
+                            {
+                                "videos": videos,
+                                "channel_title": (
+                                    feed.feed.get("title", "")
+                                    if hasattr(feed, "feed")
+                                    else ""
+                                ),
+                            },
+                            source="youtube_channel",
+                            channel_id=normalized_channel_id,
+                            count=len(videos),
+                            transport="youtube_rss",
+                        )
+                    rss_error = {
+                        "code": "EMPTY_RESPONSE",
+                        "message": "YouTube RSS 未返回视频",
+                    }
+            except requests.exceptions.RequestException as ex:
+                rss_error = {
+                    "code": "NETWORK_ERROR",
+                    "message": f"YouTube RSS 请求失败: {type(ex).__name__}",
+                }
+            except Exception as ex:
+                rss_error = {
+                    "code": "PARSE_ERROR",
+                    "message": f"YouTube RSS 解析失败: {type(ex).__name__}",
+                }
+
+        fallback = inspect_channel_videos(
+            normalized_channel_id,
+            limit=item_limit,
+            timeout=60,
+        )
+        if fallback.get("success"):
+            fallback_data = fallback.get("data") or {}
+            videos = fallback_data.get("videos") or []
             return _ok(
                 {
                     "videos": videos,
-                    "channel_title": feed.feed.get("title", "") if hasattr(feed, "feed") else "",
+                    "channel_title": fallback_data.get("channel_title", ""),
+                    "safety": fallback_data.get("safety"),
                 },
                 source="youtube_channel",
-                channel_id=channel_id,
+                channel_id=normalized_channel_id,
                 count=len(videos),
+                transport="yt_dlp_flat_playlist",
+                fallback_from=(rss_error or {}).get("code"),
             )
-        except requests.exceptions.RequestException as ex:
-            return _err(f"YouTube 请求失败: {ex}", code="NETWORK_ERROR")
-        except Exception as ex:
-            return _err(f"YouTube 解析失败: {ex}")
+
+        fallback_error = fallback.get("error") or {
+            "code": "FALLBACK_ERROR",
+            "message": "yt-dlp 回退失败",
+        }
+        return _err(
+            "YouTube RSS 与 yt-dlp 元数据回退均不可用",
+            code="ALL_SOURCES_FAILED",
+            source_errors=[
+                {"transport": "youtube_rss", **(rss_error or {})},
+                {"transport": "yt_dlp_flat_playlist", **fallback_error},
+            ],
+        )
 
     # ───────────────────────── 16. PyPI / NPM 包 ─────────────────────────
     def get_package_info(
@@ -1469,6 +1688,16 @@ class ExternalAPITools:
                 params=params,
                 timeout=20,
             )
+            if r.status_code == 429:
+                return _err(
+                    "GDELT 请求受限，请稍后重试",
+                    code="RATE_LIMITED",
+                    source="gdelt",
+                    retry_after=(
+                        r.headers.get("Retry-After")
+                        or r.headers.get("retry-after")
+                    ),
+                )
             r.raise_for_status()
             try:
                 data = r.json()
@@ -1668,13 +1897,16 @@ class ExternalAPITools:
                     "q": query,
                     "per_page": max(1, min(int(limit), 100)),
                 },
-                headers={"Accept": "application/vnd.github+json"},
+                headers=self._github_headers(),
                 timeout=20,
             )
             if r.status_code == 401 or r.status_code == 403:
+                token_configured = bool(os.environ.get("GITHUB_TOKEN", "").strip())
                 return _err(
-                    "GitHub 代码搜索需要 GITHUB_TOKEN 环境变量 (匿名禁用)",
-                    code="AUTH_REQUIRED",
+                    "GitHub Token 无效或缺少代码搜索权限"
+                    if token_configured
+                    else "GitHub 代码搜索需要 GITHUB_TOKEN 环境变量 (匿名禁用)",
+                    code="AUTH_FAILED" if token_configured else "AUTH_REQUIRED",
                 )
             r.raise_for_status()
             items = r.json().get("items", [])
@@ -2279,7 +2511,7 @@ class ExternalAPITools:
             r = self._get(
                 "https://api.github.com/advisories",
                 params=params,
-                headers={"Accept": "application/vnd.github+json"},
+                headers=self._github_headers(),
                 timeout=20,
             )
             if r.status_code in (401, 403):
@@ -2497,6 +2729,11 @@ class ExternalAPITools:
         前往 https://apidoc.reliefweb.int/ 免费注册后, 通过 appname 参数传入。
         """
         try:
+            configured_appname = os.environ.get("RELIEFWEB_APPNAME", "").strip()
+            effective_appname = str(appname or "").strip()
+            if configured_appname and (not effective_appname or effective_appname == "argus"):
+                effective_appname = configured_appname
+            effective_appname = effective_appname or "argus"
             kind = kind.lower()
             if kind not in ("reports", "disasters", "jobs", "training", "countries"):
                 return _err("kind 必须是 reports / disasters / jobs / training / countries", code="INVALID_PARAM")
@@ -2508,11 +2745,11 @@ class ExternalAPITools:
             if query:
                 body["query"] = {"value": query, "operator": "AND"}
             r = self.session.post(
-                f"https://api.reliefweb.int/v2/{kind}?appname={appname}",
+                f"https://api.reliefweb.int/v2/{kind}?appname={effective_appname}",
                 json=body,
                 timeout=20,
             )
-            if r.status_code == 403:
+            if r.status_code in (403, 406):
                 return _err(
                     "ReliefWeb 需要已登记的 appname, 免费注册: "
                     "https://apidoc.reliefweb.int/ (只需提供项目名+邮箱)",
@@ -2542,6 +2779,7 @@ class ExternalAPITools:
                 kind=kind,
                 query=query,
                 count=len(results),
+                authenticated=True,
             )
         except requests.exceptions.RequestException as ex:
             return _err(f"ReliefWeb 请求失败: {ex}", code="NETWORK_ERROR")

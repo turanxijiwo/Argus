@@ -1,17 +1,17 @@
 """
 外部 CLI 工具适配器 (jackwener's AI-agent CLI 套件)
 
-将 5 个本地安装的 CLI 工具包装为 MCP 工具:
+Wrap four optional local CLIs plus one policy-disabled compatibility entry as MCP tools:
 
   - bili      (bilibili-cli)      B 站视频/用户/搜索/热榜/动态/字幕/AI 摘要
   - xhs       (xiaohongshu-cli)   小红书搜索/笔记/用户/话题/热榜/评论/发帖
   - twitter   (twitter-cli)       Twitter/X 时间线/书签/搜索/用户/发推
   - tg        (kabi-tg-cli)       Telegram 本地 SQLite 同步/搜索/导出/监控
-  - discord   (kabi-discord-cli)  Discord 本地同步/搜索/导出
+  - discord   (disabled)          Reserved compatibility entry; user-token automation is unsupported
 
 设计理念:
   1. 每个 CLI 一个通用 run_* 工具, 传 subcommand + args → 返回 YAML/JSON envelope
-  2. 所有 CLI 已通过 uv tool install 安装到 PATH
+  2. Supported CLIs are optional uv tools discovered from PATH
   3. 输出统一 envelope {ok, schema_version, data, error}
 
 参考文档:
@@ -22,6 +22,8 @@
 import os
 import shutil
 import subprocess
+import tempfile
+from pathlib import Path
 from typing import Dict, List, Optional, Any
 
 try:
@@ -43,6 +45,12 @@ def _err(message: str, code: str = "CLI_ERROR", **extra) -> Dict:
 
 # 添加 uv tool 的 bin 路径到 PATH
 _UV_TOOL_BIN = os.path.expanduser("~/.local/bin")
+_XHS_CONFIG_DIR = ".xiaohongshu-cli"
+_XHS_COOKIE_FILE = "cookies.json"
+_DISCORD_POLICY_MESSAGE = (
+    "Discord 普通用户 token 自动化（self-bot）不受支持，因为它违反 Discord 平台规则。"
+    "请改用 Discord Developer Portal 创建的 Bot 或 OAuth2 应用。"
+)
 
 
 class CLIToolsAdapter:
@@ -50,10 +58,21 @@ class CLIToolsAdapter:
 
     def __init__(self, project_root: Optional[str] = None):
         self.project_root = project_root
+        self._user_home = Path.home()
+        self._xhs_runtime = tempfile.TemporaryDirectory(
+            prefix="argus-xhs-", ignore_cleanup_errors=True
+        )
+        self._xhs_runtime_home = Path(self._xhs_runtime.name)
+        self._xhs_runtime_home.chmod(0o700)
         # 确保子进程能找到 uv tool 装的 CLI
         self._env = os.environ.copy()
         if _UV_TOOL_BIN not in self._env.get("PATH", ""):
             self._env["PATH"] = f"{_UV_TOOL_BIN}:{self._env.get('PATH', '')}"
+
+    def __del__(self):
+        runtime = getattr(self, "_xhs_runtime", None)
+        if runtime is not None:
+            runtime.cleanup()
 
     # ────────────────── 内部 helper ──────────────────
 
@@ -66,6 +85,13 @@ class CLIToolsAdapter:
         input_text: Optional[str] = None,
     ) -> Dict:
         """通用 CLI 执行器. 自动加 --yaml, 解析 envelope."""
+        if binary == "discord":
+            return _err(
+                _DISCORD_POLICY_MESSAGE,
+                code="POLICY_UNSUPPORTED",
+                binary="discord",
+                replacement="discord_bot_or_oauth2",
+            )
         if not shutil.which(binary, path=self._env["PATH"]):
             return _err(
                 f"CLI '{binary}' 未安装或不在 PATH 中. "
@@ -73,6 +99,11 @@ class CLIToolsAdapter:
                 code="NOT_INSTALLED",
                 binary=binary,
             )
+        command_env = self._env
+        if binary == "xhs":
+            command_env, setup_error = self._prepare_xhs_runtime()
+            if setup_error:
+                return setup_error
         cmd = [binary]
         if subcommand:
             cmd.append(subcommand)
@@ -82,13 +113,18 @@ class CLIToolsAdapter:
             cmd.append("--yaml")
 
         try:
+            stdin_args = (
+                {"stdin": subprocess.DEVNULL}
+                if input_text is None
+                else {"input": input_text}
+            )
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 timeout=timeout,
-                env=self._env,
-                input=input_text,
+                env=command_env,
+                **stdin_args,
             )
         except subprocess.TimeoutExpired:
             return _err(
@@ -160,6 +196,40 @@ class CLIToolsAdapter:
         # 非 envelope 输出, 原样返回
         return _ok({"raw": parsed}, binary=binary, subcommand=subcommand)
 
+    def _prepare_xhs_runtime(self) -> tuple[Dict[str, str], Optional[Dict]]:
+        """Give xhs a private writable HOME while reusing the user's saved login."""
+        source_cookie = self._user_home / _XHS_CONFIG_DIR / _XHS_COOKIE_FILE
+        if not source_cookie.is_file():
+            return self._env, _err(
+                "xhs CLI 尚无可复用的本地登录。请先在本机浏览器登录小红书并运行 xhs login。",
+                code="AUTH_REQUIRED",
+                binary="xhs",
+                action_required="manual_login_refresh",
+            )
+
+        runtime_config = self._xhs_runtime_home / _XHS_CONFIG_DIR
+        runtime_cookie = runtime_config / _XHS_COOKIE_FILE
+        try:
+            runtime_config.mkdir(mode=0o700, parents=True, exist_ok=True)
+            runtime_config.chmod(0o700)
+            if (
+                not runtime_cookie.exists()
+                or source_cookie.stat().st_mtime_ns > runtime_cookie.stat().st_mtime_ns
+            ):
+                shutil.copy2(source_cookie, runtime_cookie)
+            runtime_cookie.chmod(0o600)
+        except OSError:
+            return self._env, _err(
+                "xhs CLI 无法准备隔离的本地登录运行目录。",
+                code="AUTH_STORAGE_UNAVAILABLE",
+                binary="xhs",
+                action_required="manual_login_or_local_cookie_permission",
+            )
+
+        command_env = self._env.copy()
+        command_env["HOME"] = str(self._xhs_runtime_home)
+        return command_env, None
+
     def _friendly_cli_error(
         self,
         binary: str,
@@ -223,7 +293,6 @@ class CLIToolsAdapter:
             "xhs": "xiaohongshu-cli",
             "twitter": "twitter-cli",
             "tg": "kabi-tg-cli",
-            "discord": "kabi-discord-cli",
         }.get(binary, binary)
 
     # ────────────────── 一键检查所有 CLI 认证状态 ──────────────────
@@ -232,9 +301,19 @@ class CLIToolsAdapter:
         """检查 5 个 CLI 的认证状态 + 安装情况"""
         statuses = {}
         for binary in ("bili", "xhs", "twitter", "tg", "discord"):
+            if binary == "discord":
+                statuses[binary] = {
+                    "installed": bool(shutil.which(binary, path=self._env["PATH"])),
+                    "supported": False,
+                    "auth": None,
+                    "error_code": "POLICY_UNSUPPORTED",
+                    "hint": _DISCORD_POLICY_MESSAGE,
+                }
+                continue
             if not shutil.which(binary, path=self._env["PATH"]):
                 statuses[binary] = {
                     "installed": False,
+                    "supported": True,
                     "auth": None,
                     "hint": f"uv tool install {self._pkg_for(binary)}",
                 }
@@ -246,6 +325,7 @@ class CLIToolsAdapter:
                 data = r.get("data") or {}
                 statuses[binary] = {
                     "installed": True,
+                    "supported": True,
                     "auth": bool(data.get("authenticated")),
                     "user": data.get("user"),
                 }
@@ -253,6 +333,7 @@ class CLIToolsAdapter:
                 err = r.get("error", {})
                 statuses[binary] = {
                     "installed": True,
+                    "supported": True,
                     "auth": False,
                     "error_code": err.get("code"),
                     "hint": err.get("message", "")[:200],
@@ -321,5 +402,10 @@ class CLIToolsAdapter:
         return self._exec("tg", subcommand, args or [], timeout=timeout)
 
     def run_discord(self, subcommand: str, args: Optional[List[str]] = None, timeout: int = 60) -> Dict:
-        """执行 discord <subcommand> <args>"""
-        return self._exec("discord", subcommand, args or [], timeout=timeout)
+        """Reject Discord user-token automation while preserving the MCP contract."""
+        return _err(
+            _DISCORD_POLICY_MESSAGE,
+            code="POLICY_UNSUPPORTED",
+            binary="discord",
+            replacement="discord_bot_or_oauth2",
+        )

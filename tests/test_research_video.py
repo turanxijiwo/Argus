@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from argus_server.tools.research_toolkit import ResearchToolkitTools
-from argus_server.tools.research_video import inspect_video_metadata
+from argus_server.tools.research_video import inspect_channel_videos, inspect_video_metadata
 
 
 class ResearchVideoMetadataTest(unittest.TestCase):
@@ -164,6 +164,80 @@ class ResearchVideoMetadataTest(unittest.TestCase):
 
         self.assertEqual(invalid_result["error"]["code"], "PARSE_ERROR")
         self.assertEqual(playlist_result["error"]["code"], "UNSUPPORTED_TARGET")
+
+    def test_channel_flat_playlist_returns_only_public_page_metadata(self):
+        raw_playlist = {
+            "_type": "playlist",
+            "id": "UC4QobU6STFB0P71PMvOGN5A",
+            "title": "Example channel - Videos",
+            "channel": "Example channel",
+            "entries": [
+                {
+                    "id": "jNQXAC9IVRw",
+                    "title": "Me at the zoo",
+                    "url": "https://temporary.example/direct-stream.m3u8?token=secret",
+                    "webpage_url": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+                    "upload_date": "20050424",
+                    "channel": "Example channel",
+                    "description": "A public description",
+                    "formats": [{"url": "https://temporary.example/video.mp4"}],
+                }
+            ],
+        }
+        completed = SimpleNamespace(
+            returncode=0,
+            stdout=json.dumps(raw_playlist),
+            stderr="",
+        )
+
+        with patch("argus_server.tools.research_video.shutil.which", return_value="/usr/bin/yt-dlp"), patch(
+            "argus_server.tools.research_video.subprocess.run", return_value=completed
+        ) as run:
+            result = inspect_channel_videos(
+                "UC4QobU6STFB0P71PMvOGN5A",
+                limit=3,
+                timeout=45,
+            )
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["data"]["schema"], "argus.research.video.channel.v1")
+        self.assertEqual(result["data"]["channel_title"], "Example channel")
+        self.assertEqual(result["data"]["videos"][0]["video_id"], "jNQXAC9IVRw")
+        self.assertEqual(
+            result["data"]["videos"][0]["url"],
+            "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+        )
+        serialized = json.dumps(result)
+        self.assertNotIn("temporary.example", serialized)
+        self.assertNotIn("formats", serialized)
+        self.assertFalse(result["data"]["safety"]["downloaded_media"])
+        self.assertFalse(result["data"]["safety"]["cookies_used"])
+        self.assertFalse(result["data"]["safety"]["direct_media_urls_included"])
+
+        command = run.call_args.args[0]
+        self.assertIn("--simulate", command)
+        self.assertIn("--flat-playlist", command)
+        self.assertIn("--playlist-end", command)
+        self.assertIn("3", command)
+        self.assertIn("--no-cookies", command)
+        self.assertIn("--no-cache-dir", command)
+        self.assertIn("--no-remote-components", command)
+        self.assertNotIn("--no-playlist", command)
+        self.assertEqual(
+            command[-1],
+            "https://www.youtube.com/channel/UC4QobU6STFB0P71PMvOGN5A/videos",
+        )
+        self.assertIs(run.call_args.kwargs["stdin"], subprocess.DEVNULL)
+
+    def test_channel_rejects_invalid_id_without_running_command(self):
+        with patch("argus_server.tools.research_video.shutil.which", return_value="/usr/bin/yt-dlp"), patch(
+            "argus_server.tools.research_video.subprocess.run"
+        ) as run:
+            result = inspect_channel_videos("@example")
+
+        self.assertFalse(result["success"])
+        self.assertEqual(result["error"]["code"], "INVALID_CHANNEL_ID")
+        run.assert_not_called()
 
 
 if __name__ == "__main__":

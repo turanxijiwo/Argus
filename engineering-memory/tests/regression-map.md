@@ -149,6 +149,35 @@ Tests to run:
 Known historical bugs:
 - Public MCP surface is large and client-facing; tool names, signatures, and response shapes are regression-sensitive.
 
+### Flow: External public API status classification
+
+Related modules:
+- `argus_server/tools/external_apis.py`
+
+Tests to run:
+- `uv run python -m unittest tests.test_external_gdelt`
+- `uv run python -m unittest tests.test_external_reddit`
+- `uv run python -m unittest tests.test_external_academic`
+
+Known historical bugs:
+- Provider HTTP 429 responses must remain `RATE_LIMITED` with dynamic retry metadata; no-key access does not imply an unrestricted endpoint.
+
+### Flow: YouTube channel metadata fallback
+
+Related modules:
+- `argus_server/tools/external_apis.py`
+- `argus_server/tools/research_video.py`
+- `argus_server/server.py`
+
+Tests to run:
+- `uv run python -m unittest tests.test_external_youtube`
+- `uv run python -m unittest tests.test_research_video`
+- `uv run python -m unittest tests.test_mcp_registration`
+
+Known historical bugs:
+- YouTube RSS 404/SSL/empty responses for valid UC channel IDs must fall back to bounded metadata-only yt-dlp flat-playlist without config, cookies, downloads, stdin, or direct media URLs.
+- RSS remains the primary transport, and dual failures must preserve both source diagnostics.
+
 ### Flow: CLI adapter auth and envelope normalization
 
 Related modules:
@@ -164,6 +193,8 @@ Tests to run:
 Known historical bugs:
 - xhs CLI cookie or login failures can emit raw tracebacks; MCP responses must return actionable auth/storage error codes instead.
 - `xhs_*` SocialOps tools must not run business commands when auth is not ready, while confirm gates must still short-circuit first.
+- External CLI subprocesses must receive `DEVNULL` by default so authentication prompts cannot consume FastMCP stdio input; explicitly supplied input text must remain supported.
+- Installed CLI upgrades require checking exact wrapper argv and agent-visible MCP descriptions; mocked success and registration alone do not prove command compatibility.
 
 ### Flow: Storage-backed data retrieval
 
@@ -606,3 +637,70 @@ What it protects:
 - Spaces a short 429 retry by three seconds and attempts it only once.
 - Returns persistent or long-window limits as `RATE_LIMITED` without an unbounded sleep.
 - Preserves the existing academic aggregate status and source-error contracts.
+
+### BUG-0024: Reddit JSON-to-Atom availability fallback
+
+Test file:
+- `tests/test_external_reddit.py`
+
+What it protects:
+- Preserves rich JSON engagement fields when the anonymous endpoint remains available.
+- Falls back to the public subreddit Atom feed when JSON returns 403 or 429.
+- Keeps Atom-only score, ratio, and comment fields explicitly unavailable instead of fabricating values.
+- Returns persistent Atom rate limits as structured `RATE_LIMITED` errors.
+
+### BUG-0025: External provider credential transport
+
+Test file:
+- `tests/test_external_auth.py`
+
+What it protects:
+- Applies the shared GitHub authentication headers to trending, releases, code search, and GHSA requests.
+- Places Semantic Scholar, OpenAlex, and ReliefWeb credentials in their provider-specific request fields.
+- Preserves explicit ReliefWeb arguments over the environment fallback.
+- Distinguishes absent credentials from rejected credentials without exposing secret values.
+
+### BUG-0026: xhs sandbox runtime isolation
+
+Test file:
+- `tests/test_cli_tools.py`
+
+What it protects:
+- Runs xhs with a private writable temporary HOME instead of writing caches beside the user's source login.
+- Copies only an existing saved login and restricts runtime and cookie permissions to `0700` and `0600`.
+- Returns `AUTH_REQUIRED` without starting xhs when no saved login exists.
+- Keeps xhs runtime credentials and mutable caches outside the repository and removes them with the adapter lifecycle.
+
+### BUG-0027: xhs social command contracts
+
+Test file:
+- `tests/test_social_ops.py`
+
+What it protects:
+- Matches all six read-only xhs social wrappers to xhs 0.6.4 arguments and preserves MCP limits through bounded local slicing.
+- Uses the supported notification `--num`, comment `--content`, post `--body/--images`, and confirmed delete `--yes` options.
+- Keeps authentication preflight, confirmation blocking, and invalid-input short circuits intact.
+- Prevents fake adapters from accepting stale argv without an explicit contract assertion.
+
+### BUG-0028: Discord self-bot policy boundary
+
+Test files:
+- `tests/test_cli_tools.py`
+- `tests/test_system_health.py`
+
+What it protects:
+- Blocks Discord normal-user-token automation before any subprocess starts.
+- Prevents auth summaries from recommending the unsupported self-bot package.
+- Marks Discord as `policy_unsupported` with no install package in system health.
+- Preserves the public MCP compatibility name while directing future work to Bot or OAuth2 authorization.
+
+### BUG-0029: Bilibili social command contracts
+
+Test file:
+- `tests/test_social_ops.py`
+
+What it protects:
+- Matches all five read wrappers to bilibili-cli 0.6.2 options and bounds returned collections.
+- Preserves the already-correct like and triple positional identifiers.
+- Uses positional dynamic text and confirmed noninteractive `--yes` deletion.
+- Blocks unconfirmed writes and invalid identifiers before the CLI adapter starts.
